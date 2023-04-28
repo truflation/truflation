@@ -1,0 +1,7 @@
+[tool.poetry]
+name = "tfi_data"
+version = "0.0.1"
+description = "TFI data framework"
+authors = ["Laguna Labs"]
+license = "BSD Simplified"
+readme = "README.md"
