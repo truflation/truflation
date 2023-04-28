@@ -5,3 +5,9 @@ description = "TFI data framework"
 authors = ["Laguna Labs"]
 license = "BSD Simplified"
 readme = "README.md"
+
+[tool.pytest.ini_options]
+pythonpath = "src"
+addopts = [
+    "--import-mode=importlib",
+]
