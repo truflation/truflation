@@ -6,6 +6,11 @@ authors = ["Laguna Labs"]
 license = "BSD Simplified"
 readme = "README.md"
 
+[tool.poetry.dependencies]
+sqlalchemy = ">= 2.0.12"
+sqlalchemy-stubs = ">= 2.0.12"
+pandas = ">= 2.0.1"
+
 [tool.pytest.ini_options]
 pythonpath = "src"
 addopts = [
