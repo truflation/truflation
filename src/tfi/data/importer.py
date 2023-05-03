@@ -6,6 +6,7 @@ import csv
 import pandas
 from typing import Optional
 from tfi.data.bundle import Bundle, BundlePandas
+from sqlalchemy import create_engine
 
 class Importer:
     """
@@ -43,4 +44,15 @@ class ImporterCSV(Importer):
             self,
             *args, **kwargs) -> Optional[Bundle]:
         df = pandas.read_csv(args[0])
+        return BundlePandas(df)
+
+class ImporterSql(Importer):
+    def __init__(self, engine):
+        super(Importer, self).__init__()
+        self.engine = create_engine(engine)
+
+    def import_all(
+            self,
+            *args, **kwargs) -> Optional[Bundle]:
+        df = pandas.read_sql(args[0], self.engine)
         return BundlePandas(df)

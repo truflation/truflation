@@ -22,8 +22,24 @@ class TestSimple(unittest.TestCase):
             exporter = tfi.data.exporter.ExporterSql(
                 f'sqlite:///{SCRIPT_DIR}/database.db'
             )
+            exporter.drop_table('demo')
             b = importer.import_all(csvfile)
             exporter.export_all(b, table='demo')
+
+    def test_write_csv(self):
+        with open(
+                os.path.join(
+                    SCRIPT_DIR, 'eggs.out.csv'
+                ),
+                'w',
+                newline=''
+        ) as csvfile:
+            importer = tfi.data.importer.ImporterSql(
+                f'sqlite:///{SCRIPT_DIR}/database.db'
+            )
+            b = importer.import_all('demo')
+            exporter = tfi.data.exporter.ExporterCSV()
+            exporter.export_all(b, csvfile)
 
 if __name__ == '__main__':
     unittest.main()
