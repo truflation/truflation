@@ -5,7 +5,7 @@ Reader
 import csv
 import pandas
 from typing import Optional
-from tfi.data.bundle import Bundle, BundlePandas
+from tfi.data.bundle import Bundle, TimeSeriesPandas
 from sqlalchemy import create_engine
 
 class Reader:
@@ -44,7 +44,7 @@ class ReaderCSV(Reader):
             self,
             *args, **kwargs) -> Optional[Bundle]:
         df = pandas.read_csv(args[0])
-        return BundlePandas(df)
+        return TimeSeriesPandas(df)
 
 class ReaderSql(Reader):
     def __init__(self, engine):
@@ -55,4 +55,4 @@ class ReaderSql(Reader):
             self,
             *args, **kwargs) -> Optional[Bundle]:
         df = pandas.read_sql(args[0], self.engine)
-        return BundlePandas(df)
+        return TimeSeriesPandas(df)

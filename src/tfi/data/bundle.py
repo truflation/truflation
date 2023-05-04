@@ -17,7 +17,12 @@ class Bundle:
     def get(self, format: BundleFormat):
         pass
 
-class BundlePandas(Bundle):
+class TimeSeries(Bundle):
+    def __init__(self):
+        pass
+    
+
+class TimeSeriesPandas(TimeSeries):
     def __init__(self, df):
         self.df = df
 
@@ -27,3 +32,14 @@ class BundlePandas(Bundle):
     def get(self, format: BundleFormat):
         if format == BundleFormat.PANDAS:
             return self.df
+
+class TimeSeriesJson(TimeSeries):
+    def __init__(self, json):
+        self.json = json
+
+    def set(self, format: BundleFormat, df):
+        self.json = json
+
+    def get(self, format: BundleFormat):
+        if format == BundleFormat.JSON:
+            return self.json

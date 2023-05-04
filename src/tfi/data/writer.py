@@ -7,7 +7,6 @@ import pandas
 import sqlalchemy
 from sqlalchemy import Table, MetaData, create_engine
 
-
 class Writer:
     def __init__(self):
         pass
