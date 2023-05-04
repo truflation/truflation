@@ -1,39 +1,40 @@
 """
-Exporter
+Writer
 """
 
 from tfi.data.bundle import Bundle, BundleFormat
 import pandas
+import sqlalchemy
 from sqlalchemy import Table, MetaData, create_engine
 
 
-class Exporter:
+class Writer:
     def __init__(self):
         pass
 
-    def export_all(
+    def write_all(
             self,
             inputb: Bundle,
             *args, **kwargs
     ):
-        for i in self.export_chunk(
+        for i in self.write_chunk(
                 inputb
         ):
             pass
 
-    def export_chunk(
+    def write_chunk(
             self,
             inputb: Bundle,
             *args, **kwargs
     ):
         raise NotImplementedError
 
-class ExporterSql(Exporter):
+class WriterSql(Writer):
     def __init__(self, engine):
-        super(Exporter, self).__init__()
+        super(Writer, self).__init__()
         self.engine = create_engine(engine)
 
-    def export_all(
+    def write_all(
             self,
             inputb: Bundle,
             *args,
@@ -44,29 +45,36 @@ class ExporterSql(Exporter):
             self.engine
         )
 
-    def export_chunk(
+    def write_chunk(
             self,
             inputb: Bundle,
             *args, **kwargs
     ):
-        self.export_all(inputb, *args, **kwargs)
+        self.write_all(inputb, *args, **kwargs)
 
 
     def drop_table(
             self,
-            table_name: str
+            table_name: str,
+            ignore_fail: bool = True
     ):
-        tbl = Table(
-            table_name, MetaData(),
-            autoload_with=self.engine
-        )
+        try:
+            tbl = Table(
+                table_name, MetaData(),
+                autoload_with=self.engine
+            )
+        except sqlalchemy.exc.NoSuchTableError:
+            if ignore_fail:
+                return
+            else:
+                raise
         tbl.drop(self.engine, checkfirst=False)
 
-class ExporterCSV(Exporter):
+class WriterCSV(Writer):
     def __init__(self):
-        super(Exporter, self).__init__()
+        super(Writer, self).__init__()
 
-    def export_all(
+    def write_all(
             self,
             data: Bundle,
             *args, **kwargs) -> None:

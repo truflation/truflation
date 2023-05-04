@@ -1,5 +1,5 @@
 """
-Importer
+Reader
 """
 
 import csv
@@ -8,27 +8,27 @@ from typing import Optional
 from tfi.data.bundle import Bundle, BundlePandas
 from sqlalchemy import create_engine
 
-class Importer:
+class Reader:
     """
     Base class for Import
     """
     def __init__(self):
         pass
 
-    def import_all(
+    def read_all(
             self,
             *args,
             **kwargs
     ) -> Optional[Bundle]:
         bundle = None
         while True:
-            b: Optional[Bundle] = self.import_chunk(b)
+            b: Optional[Bundle] = self.read_chunk(b)
             if b is None:
                 break
             bundle = b
         return bundle
 
-    def import_chunk(
+    def read_chunk(
             self,
             outputb: Optional[Bundle],
             *args,
@@ -36,22 +36,22 @@ class Importer:
     ) -> Optional[Bundle]:
         return None
 
-class ImporterCSV(Importer):
+class ReaderCSV(Reader):
     def __init__(self):
-        super(Importer, self).__init__()
+        super(Reader, self).__init__()
 
-    def import_all(
+    def read_all(
             self,
             *args, **kwargs) -> Optional[Bundle]:
         df = pandas.read_csv(args[0])
         return BundlePandas(df)
 
-class ImporterSql(Importer):
+class ReaderSql(Reader):
     def __init__(self, engine):
-        super(Importer, self).__init__()
+        super(Reader, self).__init__()
         self.engine = create_engine(engine)
 
-    def import_all(
+    def read_all(
             self,
             *args, **kwargs) -> Optional[Bundle]:
         df = pandas.read_sql(args[0], self.engine)
