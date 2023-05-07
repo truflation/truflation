@@ -2,7 +2,7 @@
 Transformer
 """
 
-from tfi.data.bundle import Bundle
+from tfi.data.data import Data
 
 class Transformer:
     def __init__(self):
@@ -10,8 +10,8 @@ class Transformer:
 
     def transform_all(
             self,
-            input: Bundle,
-            output: Bundle,
+            input: Data,
+            output: Data,
             *args,
             **kwargs
     ):
@@ -23,8 +23,8 @@ class Transformer:
 
     def transform_chunk(
             self,
-            input: Bundle,
-            output: Bundle,
+            input: Data,
+            output: Data,
             *args,
             **kwargs
     ):

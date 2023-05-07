@@ -2,10 +2,10 @@
 Writer
 """
 
-from tfi.data.bundle import Bundle, BundleFormat
 import pandas
 import sqlalchemy
 from sqlalchemy import Table, MetaData, create_engine
+from tfi.data.data import Data, DataFormat
 
 class Writer:
     def __init__(self):
@@ -13,7 +13,7 @@ class Writer:
 
     def write_all(
             self,
-            inputb: Bundle,
+            inputb: Data,
             *args, **kwargs
     ):
         for i in self.write_chunk(
@@ -23,30 +23,30 @@ class Writer:
 
     def write_chunk(
             self,
-            inputb: Bundle,
+            inputb: Data,
             *args, **kwargs
     ):
         raise NotImplementedError
 
 class WriterSql(Writer):
     def __init__(self, engine):
-        super(Writer, self).__init__()
+        super().__init__()
         self.engine = create_engine(engine)
 
     def write_all(
             self,
-            inputb: Bundle,
+            inputb: Data,
             *args,
             **kwargs
     ):
-        inputb.get(BundleFormat.PANDAS).to_sql(
+        inputb.get(DataFormat.PANDAS).to_sql(
             kwargs['table'],
             self.engine
         )
 
     def write_chunk(
             self,
-            inputb: Bundle,
+            inputb: Data,
             *args, **kwargs
     ):
         self.write_all(inputb, *args, **kwargs)
@@ -65,16 +65,15 @@ class WriterSql(Writer):
         except sqlalchemy.exc.NoSuchTableError:
             if ignore_fail:
                 return
-            else:
-                raise
+            raise
         tbl.drop(self.engine, checkfirst=False)
 
 class WriterCSV(Writer):
     def __init__(self):
-        super(Writer, self).__init__()
+        super().__init__()
 
     def write_all(
             self,
-            data: Bundle,
+            data: Data,
             *args, **kwargs) -> None:
-        data.get(BundleFormat.PANDAS).to_csv(args[0])
+        data.get(DataFormat.PANDAS).to_csv(args[0])

@@ -4,7 +4,7 @@ import unittest
 from overrides import override
 import tfi.data.reader
 import tfi.data.writer
-import tfi.data.bundle
+import tfi.data.data
 import tfi.data.task
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -54,7 +54,6 @@ class WriteTask(tfi.data.task.Task):
 
 class TestSimple(unittest.TestCase):
     def test_simple(self):
-        bundle = tfi.data.bundle.Bundle()
         reader = tfi.data.reader.Reader()
         writer = tfi.data.writer.Writer()
         task = tfi.data.task.Task()
