@@ -6,4 +6,4 @@ class Task:
         pass
 
     def run(self):
-        raise NotImplemented
+        raise NotImplementedError

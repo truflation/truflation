@@ -10,21 +10,16 @@ class Transformer:
 
     def transform_all(
             self,
-            input: Data,
-            output: Data,
+            input_: Data,
             *args,
             **kwargs
-    ):
-        for i in self.transform_chunk(
-                input,
-                output
-        ):
-            pass
+    ) -> Data:
+        raise NotImplementedError
 
     def transform_chunk(
             self,
-            input: Data,
-            output: Data,
+            input_: Data,
+            output_: Data,
             *args,
             **kwargs
     ):
