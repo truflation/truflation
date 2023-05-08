@@ -41,7 +41,7 @@ class Reader:
     ) -> Optional[Data]:
         return None
 
-class ReaderCSV(Reader):
+class ReaderCsv(Reader):
     def __init__(self):
         super().__init__()
 

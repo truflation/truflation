@@ -16,7 +16,7 @@ class ReadTask(tfi.data.task.Task):
                  table_: str):
         self.filename = filename_
         self.table = table_
-        self.reader = tfi.data.reader.ReaderCSV()
+        self.reader = tfi.data.reader.ReaderCsv()
         self.writer = tfi.data.writer.WriterSql(
             database_
         )
@@ -38,7 +38,7 @@ class WriteTask(tfi.data.task.Task):
                  table_: str):
         self.filename = filename_
         self.table = table_
-        self.writer = tfi.data.writer.WriterCSV()
+        self.writer = tfi.data.writer.WriterCsv()
         self.reader = tfi.data.reader.ReaderSql(
             database_
         )

@@ -72,7 +72,7 @@ class WriterSql(Writer):
             raise
         tbl.drop(self.engine, checkfirst=False)
 
-class WriterCSV(Writer):
+class WriterCsv(Writer):
     def __init__(self):
         super().__init__()
 
