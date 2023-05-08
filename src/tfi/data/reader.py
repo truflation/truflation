@@ -2,17 +2,22 @@
 Reader
 """
 
+import os
 import csv
 import pandas
+import requests
 from typing import Optional
 from sqlalchemy import create_engine
-from tfi.data.data import Data, DataPandas
+from tfi.data.data import Data, DataPandas, DataJson
 
 class Reader:
     """
     Base class for Import
     """
     def __init__(self):
+        pass
+
+    def authenticate(self, token):
         pass
 
     def read_all(
@@ -57,11 +62,17 @@ class ReaderSql(Reader):
         df = pandas.read_sql(args[0], self.engine)
         return DataPandas(df)
 
-class ReaderRestJson(Reader):
+class ReaderRest(Reader):
     def __init__(self, base_):
         super().__init__()
         self.base = base_
     def read_all(
             self,
             *args, **kwargs) -> Optional[Data]:
-        pass
+        response = requests.get(
+            os.path.join(
+                self.base,
+                args[0]
+            )
+        )
+        return DataJson(response.json())

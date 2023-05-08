@@ -4,6 +4,7 @@ Writer
 
 import pandas
 import sqlalchemy
+from typing import Iterator, Any
 from sqlalchemy import Table, MetaData, create_engine
 from tfi.data.data import Data, DataFormat
 
@@ -11,21 +12,24 @@ class Writer:
     def __init__(self):
         pass
 
+    def authenticate(self, token):
+        pass
+
     def write_all(
             self,
-            inputb: Data,
+            data: Data,
             *args, **kwargs
-    ):
+    ) -> None:
         for i in self.write_chunk(
-                inputb
+                data
         ):
             pass
 
     def write_chunk(
             self,
-            inputb: Data,
+            data: Data,
             *args, **kwargs
-    ):
+    ) -> Iterator[Any]:
         raise NotImplementedError
 
 class WriterSql(Writer):
@@ -35,22 +39,22 @@ class WriterSql(Writer):
 
     def write_all(
             self,
-            inputb: Data,
+            data: Data,
             *args,
             **kwargs
-    ):
-        inputb.get(DataFormat.PANDAS).to_sql(
+    ) -> None:
+        data.get(DataFormat.PANDAS).to_sql(
             kwargs['table'],
             self.engine
         )
 
     def write_chunk(
             self,
-            inputb: Data,
+            data: Data,
             *args, **kwargs
-    ):
-        self.write_all(inputb, *args, **kwargs)
-
+    ) -> Iterator[Any]:
+        self.write_all(data, *args, **kwargs)
+        yield None
 
     def drop_table(
             self,
