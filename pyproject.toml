@@ -1,16 +1,19 @@
-[tool.poetry]
+[project]
 name = "tfi.data"
 version = "0.0.1"
 description = "TFI data framework"
-authors = ["Laguna Labs"]
-license = "BSD Simplified"
+authors = [
+  { name = "Laguna Labs" }
+]
+license = { text = "BSD Simplified" }
 readme = "README.md"
 
-[tool.poetry.dependencies]
-sqlalchemy = ">= 2.0.12"
-sqlalchemy-stubs = ">= 2.0.12"
-pandas = ">= 2.0.1"
-overrides = ">= 7.3.1"
+dependencies = [
+  'sqlalchemy >= 2.0.12',
+  'sqlalchemy-stubs >= 0.4',
+  'pandas >= 2.0.1',
+  'overrides >= 7.3.1'
+]
 
 [tool.pytest.ini_options]
 pythonpath = "src"
