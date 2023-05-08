@@ -45,5 +45,3 @@ class DataJson(Data):
         if format_ == DataFormat.JSON:
             return self.json
         return None
-
-

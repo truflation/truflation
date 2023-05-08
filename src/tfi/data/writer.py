@@ -2,7 +2,6 @@
 Writer
 """
 
-import pandas
 import sqlalchemy
 from typing import Iterator, Any
 from sqlalchemy import Table, MetaData, create_engine

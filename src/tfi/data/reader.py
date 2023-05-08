@@ -3,10 +3,10 @@ Reader
 """
 
 import os
-import csv
+from typing import Optional
 import pandas
 import requests
-from typing import Optional
+
 from sqlalchemy import create_engine
 from tfi.data.data import Data, DataPandas, DataJson
 
