@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "tfi_data"
+name = "tfi.data"
 version = "0.0.1"
 description = "TFI data framework"
 authors = ["Laguna Labs"]
