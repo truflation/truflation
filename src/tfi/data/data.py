@@ -24,10 +24,10 @@ class DataPandas(Data):
         super().__init__()
         self.df = df
 
-    def set(self, format_: DataFormat, data):
+    def set(self, data, format_: DataFormat = DataFormat.PANDAS ):
         self.df = data
 
-    def get(self, format_: DataFormat):
+    def get(self, format_: DataFormat = DataFormat.PANDAS):
         if format_ == DataFormat.PANDAS:
             return self.df
 
@@ -36,11 +36,11 @@ class DataJson(Data):
         super().__init__()
         self.json = json
 
-    def set(self, format_: DataFormat, data) \
+    def set(self, data, format_: DataFormat = DataFormat.JSON) \
         -> None:
         self.json = data
 
-    def get(self, format_: DataFormat) \
+    def get(self, format_: DataFormat = DataFormat.JSON) \
         -> Optional[object]:
         if format_ == DataFormat.JSON:
             return self.json
