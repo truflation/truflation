@@ -5,5 +5,5 @@ class Task:
     def authenticate(self, token):
         pass
 
-    def run(self):
+    def run(self, *args, **kwargs):
         raise NotImplementedError

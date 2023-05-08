@@ -22,7 +22,7 @@ class ReadTask(tfi.data.task.Task):
         )
 
     @override
-    def run(self):
+    def run(self, *args, **kwargs):
         with open(
                 self.filename,
                 newline=''
@@ -44,7 +44,7 @@ class WriteTask(tfi.data.task.Task):
         )
 
     @override
-    def run(self):
+    def run(self, *args, **kwargs):
         with open(
                 self.filename, 'w',
                 newline=''
