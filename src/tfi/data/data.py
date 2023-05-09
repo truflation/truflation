@@ -4,6 +4,7 @@ Data bundle
 
 from typing import Optional
 from enum import Enum
+import pandas as pd
 
 class DataFormat(Enum):
     PANDAS = 1
@@ -13,7 +14,7 @@ class Data:
     def __init__(self):
         pass
 
-    def set(self, format_: DataFormat, data):
+    def set(self, data, format_: DataFormat):
         pass
 
     def get(self, format_: DataFormat):
@@ -36,6 +37,9 @@ class DataJson(Data):
         super().__init__()
         self.json = json
 
+    def json2df(self) -> pd.DataFrame:
+        raise NotImplementedError
+
     def set(self, data, format_: DataFormat = DataFormat.JSON) \
         -> None:
         self.json = data
@@ -44,4 +48,6 @@ class DataJson(Data):
         -> Optional[object]:
         if format_ == DataFormat.JSON:
             return self.json
+        if format_ == DataFormat.PANDAS:
+            return self.json2df()
         return None
