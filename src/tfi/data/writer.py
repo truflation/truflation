@@ -55,6 +55,10 @@ class WriterSql(Writer):
         self.write_all(data, *args, **kwargs)
         yield None
 
+    def execute(statement, **line):
+        with self.engine.connect() as con:
+            con.execute(statement, **line)
+
     def drop_table(
             self,
             table_name: str,
