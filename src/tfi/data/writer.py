@@ -44,7 +44,8 @@ class WriterSql(Writer):
     ) -> None:
         data.get(DataFormat.PANDAS).to_sql(
             kwargs['table'],
-            self.engine
+            self.engine,
+            **kwargs
         )
 
     def write_chunk(
