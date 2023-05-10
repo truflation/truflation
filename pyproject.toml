@@ -20,3 +20,6 @@ pythonpath = "src"
 addopts = [
     "--import-mode=importlib",
 ]
+
+[tool.setuptools.package-data]
+"tfi.data" = ["py.typed"]
