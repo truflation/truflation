@@ -42,8 +42,10 @@ class WriterSql(Writer):
             *args,
             **kwargs
     ) -> None:
+        table = kwargs['table']
+        del kwargs['table']
         data.get(DataFormat.PANDAS).to_sql(
-            kwargs['table'],
+            table,
             self.engine,
             **kwargs
         )
