@@ -11,7 +11,7 @@ import pandas
 import requests
 
 from sqlalchemy import create_engine
-from tfi.data.data import Data, DataPandas, DataJson
+from data import Data, DataPandas, DataJson
 
 class Reader:
     """

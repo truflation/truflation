@@ -2,7 +2,7 @@
 Transformer
 """
 
-from tfi.data.data import Data
+from data import Data
 
 class Transformer:
     def __init__(self):
