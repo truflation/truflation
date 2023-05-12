@@ -13,6 +13,7 @@ import os
 import shutil
 
 
+
 class DataPipeline:
     '''
     A pipeline class that
@@ -73,4 +74,10 @@ class DataPipeline:
 
         # export data
         pass
+
+        # todo -- temp remove me
+        print(f'Ingested Data: ')
+        for name, ingestor in self.ingestors.items():
+            print(f'{name}')
+            print(pd.read_feather(ingestor.feather_file))
 

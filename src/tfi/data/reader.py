@@ -13,14 +13,16 @@ import requests
 from sqlalchemy import create_engine
 from data import Data, DataPandas, DataJson
 
+
 class Reader:
     """
     Base class for Import
     """
-    def __init__(self):
+
+    def __init__(self, parser=lambda x: x):
         pass
         # Function to parse or transform data received form API to wanted format
-        self.parser: object = None
+        self.parser: object = parser
 
     def authenticate(self, token):
         pass
@@ -47,15 +49,34 @@ class Reader:
     ) -> Optional[Data]:
         return None
 
+
+class ReaderSpecializedCsv(Reader):
+    def __init__(self, path):
+        super().__init__()
+        self.path = path
+
+    def read_all(self) -> Optional[Data]:
+        df = self.parser(pandas.read_csv(self.path))
+        # df -->              <class 'pandas.core.frame.DataFrame'>
+        # DataPandas(df) -->  <class 'data.DataPandas'>
+        # return DataPandas(df)
+        return df
+
+
+
 class ReaderCsv(Reader):
     def __init__(self):
         super().__init__()
 
     def read_all(
-            self,
+            self, test,
             *args, **kwargs) -> Optional[Data]:
-        df = pandas.read_csv(args[0])
+        print(test)
+        print(args)
+        print(kwargs)
+        df = self.parser(pandas.read_csv(args[0]))
         return DataPandas(df)
+
 
 class ReaderSql(Reader):
     def __init__(self, engine):
@@ -68,10 +89,12 @@ class ReaderSql(Reader):
         df = pandas.read_sql(args[0], self.engine)
         return DataPandas(df)
 
+
 class ReaderRest(Reader):
     def __init__(self, base_):
         super().__init__()
         self.base = base_
+
     def read_all(
             self,
             *args, **kwargs) -> Optional[Data]:
