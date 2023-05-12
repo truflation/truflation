@@ -35,7 +35,7 @@ class DataPipeline:
         '''
         add self-contained imports, cleaning, and QA, yielding constrained data
         '''
-        assert ingestor_name not in [name for name in self.ingestors.keys()], "ingestor name already used"
+        assert ingestor_name not in self.ingestors.keys(), "ingestor name already used"
         assert not self.ingestors.get(ingestor_name, None), "ingestor name already used"
         self.ingestors[ingestor_name] = Ingestor(ingestor_name, reader)
 
