@@ -58,7 +58,7 @@ class WriterSql(Writer):
         self.write_all(data, *args, **kwargs)
         yield None
 
-    def execute(statement, **line):
+    def execute(self, statement, **line):
         with self.engine.connect() as con:
             con.execute(statement, **line)
 
