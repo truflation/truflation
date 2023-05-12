@@ -16,7 +16,7 @@ import shutil
 class DataPipeline:
     '''
     A pipeline class that
-       multiple data sources can be added, each which are cleaned and processed.
+       multiple data sources can be added.
        calculations can be performed on the ingested data
        data is exported to database
     '''
