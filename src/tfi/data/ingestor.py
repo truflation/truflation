@@ -112,8 +112,6 @@ class Ingestor:
         print(f'Ingestor verify test has {"passed" if passed else "failed"}')
         assert passed is True
 
-        # todo -- process results, which are in name.results
-
         # todo -- manual check
 
     @staticmethod

@@ -47,9 +47,7 @@ class DataPipeline:
         assert not self.ingestors.get(ingestor_name, None), "ingestor name already used"
         self.ingestors[ingestor_name] = Ingestor(ingestor_name, reader)
 
-    # todo -- it should be clear how data is fed into the transformer
-    #      -- clearly map ingestors (feather files) to transformers
-    # will there be 1 big transformer function or multiple? Likely one
+    # todo -- This was changed from class Transformer to a function --- confirm choice
     def add_transformer(self, transformer: Transformer) -> None:
         """
         this takes the data in the data pipeline and processes it
