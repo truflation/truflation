@@ -10,6 +10,8 @@ from typing import Callable
 # pip install pyarrow
 # pip install feather-format
 
+
+
 class Ingestor:
     """
     A pipeline class that
@@ -163,3 +165,35 @@ class Ingestor:
     def results_file(self):
         """Name of results file"""
         return f'{self.name}.results'
+
+
+
+# Constraint Info
+#
+# TDDA JSON file format
+# ---------------------
+#
+# A ``.tdda`` file is a JSON file containing a single JSON object of the form::
+#
+#     {
+#         "fields": {
+#             field-name: field-constraints,
+#             ...
+#         }
+#     }
+#
+# Each ``field-constraints`` item is a JSON object containing a property for
+# each included constraint::
+#
+#     {
+#         "type": one of int, real, bool, string or date
+#         "min": minimum allowed value,
+#         "max": maximum allowed value,
+#         "min_length": minimum allowed string length (for string fields),
+#         "max_length": maximum allowed string length (for string fields),
+#         "max_nulls": maximum number of null values allowed,
+#         "sign": one of positive, negative, non-positive, non-negative,
+#         "no_duplicates": true if the field values must be unique,
+#         "values": list of distinct allowed values,
+#         "rex": list of regular expressions, to cover all cases
+#     }
