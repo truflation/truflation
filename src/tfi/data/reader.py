@@ -26,12 +26,18 @@ class Reader:
     def authenticate(self, token):
         pass
 
-    # todo -- @joseph this should return a standard format. I will assume a pandas dataframe
+    # todo -- @joseph decide on paramters, document. I am using 'source' and 'parser' in my specialized reader
     def read_all(
             self,
             *args,
             **kwargs
     ) -> Optional[Data]:
+        """
+        Read Source file and parse through parser
+
+        return: DataPandas, the data, of which a dataframe can be accessed via x.df
+        """
+
         data = None
         while True:
             b: Optional[Data] = self.read_chunk(b)
