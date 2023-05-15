@@ -11,8 +11,7 @@ from transformer import Transformer
 import subprocess
 import os
 import shutil
-
-
+from typing import Callable
 
 class DataPipeline:
     """
@@ -32,7 +31,7 @@ class DataPipeline:
         self.exports = dict()
 
     # we should be able to assume that cleaned data exists in each of these ingestors, once we run it
-    def create_ingestor(self, ingestor_name: str, reader: Reader) -> None:
+    def create_ingestor(self, ingestor_name: str, reader: Reader, source: str, parser: Callable = lambda x: x) -> None:
         """
         add self-contained imports, cleaning, and QA, yielding constrained data
 
@@ -42,10 +41,14 @@ class DataPipeline:
                 name of ingestor, used as reference
             reader : Reader
                 Reader to be called for ingestion using read_all
+            source : str
+                source for reading data
+            parser : Object
+                Function to parse data
         """
         assert ingestor_name not in self.ingestors.keys(), "ingestor name already used"
         assert not self.ingestors.get(ingestor_name, None), "ingestor name already used"
-        self.ingestors[ingestor_name] = Ingestor(ingestor_name, reader)
+        self.ingestors[ingestor_name] = Ingestor(ingestor_name, reader, source, parser)
 
     # todo -- This was changed from class Transformer to a function --- confirm choice
     def add_transformer(self, transformer: Transformer) -> None:

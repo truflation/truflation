@@ -4,7 +4,7 @@ from reader import Reader
 import subprocess
 import os
 import shutil
-
+from typing import Callable
 
 # pip install tdda
 # pip install pyarrow
@@ -21,7 +21,7 @@ class Ingestor:
        Returns pandas
     """
 
-    def __init__(self, name: str, reader: Reader):
+    def __init__(self, name: str, reader: Reader, source: str, parser: Callable = lambda x: x):
         """
         initiates object of type Ingestor
 
@@ -29,11 +29,19 @@ class Ingestor:
         ----------
             name : str
                 name of ingestor, needed for reference in transformer
+            reader : Reader
+                Reader to be called for ingestion using read_all
+            source : str
+                source for reading data
+            parser : Object
+                Function to parse data
         """
 
         self.reader = reader
         # Name of instance
         self.name: str = name
+        self.source = source
+        self.parser = parser
         # data file => self.feather_file
         # constraint file => self.tdda_file
         # results file => self.results_file
@@ -67,10 +75,14 @@ class Ingestor:
         Initialize already created Ingestor object by reading in data from Reader and automatically creating a constraint file
         """
         # read data from reader, receive dataframe
-        df = self.reader.read_all()
+
+        print(f'source: {self.source}')
+        print(f'parser: {self.parser}')
+
+        data_pandas = self.reader.read_all(self.source, self.parser)
 
         # save dataframe to feather files => name.feather
-        self.save_df_to_feather(df)
+        self.save_data_pandas_to_feather(data_pandas)
 
         # todo -- run through parser
         # assume data already parsed
@@ -90,10 +102,10 @@ class Ingestor:
         assert os.path.isfile(f'{self.tdda_file}'), f'no constraint file'
 
         # read data from reader, receive dataframe
-        df = self.reader.read_all()
+        data_pandas = self.reader.read_all(self.source, self.parser)
 
         # save dataframe to feather files => name.feather
-        self.save_df_to_feather(df)
+        self.save_data_pandas_to_feather(data_pandas)
 
         # todo -- i think detecting and verifying do the same thing. Detecting gives less details
         # "verifying"
@@ -132,8 +144,9 @@ class Ingestor:
         num_failed = int(failing_str.split(": ")[1])
         return num_failed == 0
 
-    def save_df_to_feather(self, df):
+    def save_data_pandas_to_feather(self, data_pandas):
         """Saves dataframe type as [name].feather"""
+        df = data_pandas.df
         df.to_feather(f'{self.feather_file}')
 
     @property

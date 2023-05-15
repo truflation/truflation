@@ -19,10 +19,9 @@ class Reader:
     Base class for Import
     """
 
+    # returns DataPandas(df)
     def __init__(self, parser=lambda x: x):
         pass
-        # Function to parse or transform data received form API to wanted format
-        self.parser: object = parser
 
     def authenticate(self, token):
         pass
@@ -41,8 +40,8 @@ class Reader:
             data = b
         return data
 
+    @staticmethod
     def read_chunk(
-            self,
             outputb: Optional[Data],
             *args,
             **kwargs
@@ -50,17 +49,22 @@ class Reader:
         return None
 
 
+# todo -- this will not be specialized and we will have to send in a link or path
+# todo -- use this type:
+#      DataPandas(df) -->  <class 'data.DataPandas'>
 class ReaderSpecializedCsv(Reader):
-    def __init__(self, path):
+    def __init__(self):
         super().__init__()
-        self.path = path
 
-    def read_all(self) -> Optional[Data]:
-        df = self.parser(pandas.read_csv(self.path))
+    def read_all(self, source, parser) -> Optional[Data]:
+        df = parser(pandas.read_csv(source))
         # df -->              <class 'pandas.core.frame.DataFrame'>
         # DataPandas(df) -->  <class 'data.DataPandas'>
-        # return DataPandas(df)
-        return df
+        data = DataPandas(df)
+        data.df
+        print(f' df type: {data.df}')
+        return DataPandas(df)
+        # return df
 
 
 

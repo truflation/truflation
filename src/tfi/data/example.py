@@ -8,26 +8,29 @@ import pandas as pd
 my_pipeline = DataPipeline()
 
 # Create a reader that is linked to the file "example.csv"
-reader = ReaderSpecializedCsv("example.csv")
+csv_reader = ReaderSpecializedCsv()
 
 # Create a ingestor based on our reader named 'cat_data'
-my_pipeline.create_ingestor("developer_hours", reader)
+my_pipeline.create_ingestor("developer_hours", csv_reader, source="example.csv")
 # Load in developer_hours and automatically create a file called 'developer_hours.tnna' that guesses data constraints
 my_pipeline.ingestors["developer_hours"].initialize()
 
 # Create a ingestor based on our reader named 'developer_hours'
-my_pipeline.create_ingestor("developer_hours_2", reader)
-# Load in developer_hours_2 and automatically create a file called 'developer_hours_2.tnna' that guesses data constraints
+my_pipeline.create_ingestor("developer_hours_2", csv_reader, source="example.csv")
+# Load in developer_hours_2 and automatically create a file called 'developer_hours_2.tnna' that guesses constraints
 my_pipeline.ingestors["developer_hours_2"].initialize()
 
 
-def add_hours(my_ingestors:dict)-> pd.DataFrame:
+# todo -- use this type:
+#      DataPandas(df) -->  <class 'data.DataPandas'>
+def add_hours(my_ingestors: dict) -> pd.DataFrame:
     df1 = pd.read_feather(my_ingestors["developer_hours"].feather_file)
     df2 = pd.read_feather(my_ingestors["developer_hours_2"].feather_file)
 
     res_df = df1.copy()
     res_df["hours coding"] = df1["hours coding"].add(df2["hours coding"])
     return res_df
+
 
 # add transformer to combine ingested data
 my_pipeline.add_transformer(add_hours)
