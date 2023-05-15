@@ -106,6 +106,9 @@ class DataPipeline:
         # todo -- export data
         pass
 
+        # todo -- run some function after everything else has finished
+        print(f'executing final')
+
     @staticmethod
     def print_feather_file(feather_file_path):
         """
