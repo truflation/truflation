@@ -2,8 +2,8 @@
 Writer
 """
 
-import sqlalchemy
 from typing import Iterator, Any
+import sqlalchemy
 from sqlalchemy import Table, MetaData, create_engine
 from tfi.data.data import Data, DataFormat
 

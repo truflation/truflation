@@ -26,7 +26,6 @@ class Reader:
     def authenticate(self, token):
         pass
 
-    # todo -- @joseph decide on paramters, document. I am using 'source' and 'parser' in my specialized reader
     def read_all(
             self,
             *args,
@@ -54,26 +53,6 @@ class Reader:
     ) -> Optional[Data]:
         return None
 
-
-# todo -- this will not be specialized and we will have to send in a link or path
-# todo -- use this type:
-#      DataPandas(df) -->  <class 'data.DataPandas'>
-class ReaderSpecializedCsv(Reader):
-    def __init__(self):
-        super().__init__()
-
-    def read_all(self, source, parser) -> Optional[Data]:
-        df = parser(pandas.read_csv(source))
-        # df -->              <class 'pandas.core.frame.DataFrame'>
-        # DataPandas(df) -->  <class 'data.DataPandas'>
-        data = DataPandas(df)
-        data.df
-        print(f' df type: {data.df}')
-        return DataPandas(df)
-        # return df
-
-
-
 class ReaderCsv(Reader):
     def __init__(self):
         super().__init__()
@@ -81,9 +60,6 @@ class ReaderCsv(Reader):
     def read_all(
             self, test,
             *args, **kwargs) -> Optional[Data]:
-        print(test)
-        print(args)
-        print(kwargs)
         df = pandas.read_csv(test)
         return DataPandas(df)
 

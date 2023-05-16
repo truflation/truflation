@@ -8,8 +8,7 @@ class ReaderCache(Reader):
 
     def read_all(self, *args, **kwargs):
         key = kwargs.get('key', self.default_key)
-        if key is not None:
-            return self.cache.get(key)
+        return self.cache.get(key) if key is not None else None
 
 class WriterCache(Writer):
     def __init__(self, cache, default_key = None):
@@ -35,6 +34,5 @@ class Cache:
 
     def writer(self, default_key = None):
         return WriterCache(self, default_key)
-
     
 

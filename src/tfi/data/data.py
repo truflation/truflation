@@ -31,6 +31,7 @@ class DataPandas(Data):
     def get(self, format_: DataFormat = DataFormat.PANDAS):
         if format_ == DataFormat.PANDAS:
             return self.df
+        return None
 
 class DataJson(Data):
     def __init__(self, json):
