@@ -58,9 +58,9 @@ class ReaderCsv(Reader):
         super().__init__()
 
     def read_all(
-            self, test,
-            *args, **kwargs) -> Optional[Data]:
-        df = pandas.read_csv(test)
+            self, *args, **kwargs
+    ) -> Optional[Data]:
+        df = pandas.read_csv(args[0])
         return DataPandas(df)
 
 
