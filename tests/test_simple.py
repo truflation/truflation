@@ -2,12 +2,12 @@ import os
 import unittest
 
 from overrides import override
-import tfi.data.reader
-import tfi.data.writer
+import tfi.data.connector
 import tfi.data.data
 import tfi.data.task
 import tfi.data.cache
 import tfi.data.validator
+import tfi.data.connector
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 cache = tfi.data.cache.Cache()
@@ -19,8 +19,8 @@ class ReadTask(tfi.data.task.Task):
                  table_: str):
         self.filename = filename_
         self.table = table_
-        self.reader = tfi.data.reader.ReaderCsv()
-        self.writer = tfi.data.writer.WriterSql(
+        self.reader = tfi.data.connector.ConnectorCsv()
+        self.writer = tfi.data.connector.ConnectorSql(
             database_
         )
 
@@ -41,8 +41,8 @@ class WriteTask(tfi.data.task.Task):
                  table_: str):
         self.filename = filename_
         self.table = table_
-        self.writer = tfi.data.writer.WriterCsv()
-        self.reader = tfi.data.reader.ReaderSql(
+        self.writer = tfi.data.writer.ConnectorCsv()
+        self.reader = tfi.data.reader.ConnectorSql(
             database_
         )
 
@@ -57,8 +57,7 @@ class WriteTask(tfi.data.task.Task):
 
 class TestSimple(unittest.TestCase):
     def test_simple(self):
-        reader = tfi.data.reader.Reader()
-        writer = tfi.data.writer.Writer()
+        connector = tfi.data.connector.Connector()
         task = tfi.data.task.Task()
 
     def test_read_csv(self):
@@ -78,8 +77,7 @@ class TestSimple(unittest.TestCase):
         task.run()
 
     def test_cache(self):
-        r = tfi.data.cache.ReaderCache('key1')
-        r = tfi.data.cache.WriterCache('key1')
+        r = tfi.data.cache.ConnectorCache('key1')
 
 if __name__ == '__main__':
     unittest.main()
