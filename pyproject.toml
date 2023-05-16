@@ -12,7 +12,9 @@ dependencies = [
   'sqlalchemy >= 2.0.12',
   'sqlalchemy-stubs >= 0.4',
   'pandas >= 2.0.1',
-  'overrides >= 7.3.1'
+  'overrides >= 7.3.1',
+  'tdda >= 1.0.13',
+  'feather-format >= 0.4.1'
 ]
 
 [tool.pytest.ini_options]

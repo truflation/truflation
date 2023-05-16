@@ -7,6 +7,7 @@ import tfi.data.writer
 import tfi.data.data
 import tfi.data.task
 import tfi.data.cache
+import tfi.data.validator
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 cache = tfi.data.cache.Cache()

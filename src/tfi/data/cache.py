@@ -11,7 +11,7 @@ class ReaderCache(Reader):
         if key is not None:
             return self.cache.get(key)
 
-class WriterCache(Reader):
+class WriterCache(Writer):
     def __init__(self, cache, default_key = None):
         self.default_key = default_key
         self.cache = cache
@@ -19,7 +19,6 @@ class WriterCache(Reader):
     def write_all(self, value, *args, **kwargs):
         key = kwargs.get('key', self.default_key)
         self.cache.set(key, value)
-
 
 class Cache:
     def __init__(self):
