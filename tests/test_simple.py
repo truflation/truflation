@@ -6,8 +6,10 @@ import tfi.data.reader
 import tfi.data.writer
 import tfi.data.data
 import tfi.data.task
+import tfi.data.cache
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+cache = tfi.data.cache.Cache()
 
 class ReadTask(tfi.data.task.Task):
     def __init__(self,
@@ -74,6 +76,9 @@ class TestSimple(unittest.TestCase):
         )
         task.run()
 
+    def test_cache(self):
+        r = tfi.data.cache.ReaderCache('key1')
+        r = tfi.data.cache.WriterCache('key1')
 
 if __name__ == '__main__':
     unittest.main()
