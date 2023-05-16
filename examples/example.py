@@ -4,16 +4,10 @@ import sys
 from tfi.data.cache import Cache
 from tfi.data.validator import Validator
 from tfi.data.task import Task
+from tfi.data.loader import Loader
 from tfi.data.data import DataPandas
-from tfi.data.reader import Reader, ReaderCsv, ReaderSpecializedCsv
+from tfi.data.reader import Reader, ReaderCsv
 from tfi.data.writer import WriterCsv
-
-class Loader(Task):
-    def __init__(self, reader, writer):
-        super().__init__(reader, writer)
-    def run(self, source, key):
-        d = self.reader.read_all(source)
-        self.writer.write_all(d, key=key)
 
 class AddHours(Task):
     def __init__(self, reader, writer):
