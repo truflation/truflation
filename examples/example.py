@@ -16,8 +16,7 @@ from tfi.data.validator import Validator
 from tfi.data.task import Task
 from tfi.data.loader import Loader
 from tfi.data.data import DataPandas, DataFormat
-from tfi.data.reader import Reader, ReaderCsv
-from tfi.data.writer import WriterCsv
+from tfi.data.connector import Connector, ConnectorCsv
 
 
 class AddHours(Task):
@@ -41,10 +40,13 @@ class CalculateDeveloperHours(Task):
         super().__init__(reader, writer)
         self.data = ["developer_hours", "developer_hours2"]
         self.cache = Cache()
-        self.loader = Loader(reader, self.cache.writer())
-        self.validator = Validator(self.cache.reader(), self.cache.writer())
+        self.loader = Loader(reader, self.cache.connector())
+        self.validator = Validator(
+            self.cache.connector(),
+            self.cache.connector()
+        )
         self.calculator = \
-            AddHours(self.cache.reader(), writer)
+            AddHours(self.cache.connector(), writer)
 
     def run(self, fileh) -> None:
         for i in self.data:
@@ -54,6 +56,6 @@ class CalculateDeveloperHours(Task):
 
 
 if __name__ == '__main__':
-    r = ReaderCsv()
-    p = CalculateDeveloperHours(r, WriterCsv())
+    r = ConnectorCsv()
+    p = CalculateDeveloperHours(r, r)
     p.run("examples/example.csv")

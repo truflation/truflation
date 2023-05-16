@@ -1,7 +1,6 @@
-from tfi.data.reader import Reader
-from tfi.data.writer import Writer
+from tfi.data.connector import Connector
 
-class ReaderCache(Reader):
+class ConnectorCache(Connector):
     def __init__(self, cache, default_key = None):
         self.default_key = default_key
         self.cache = cache
@@ -9,11 +8,6 @@ class ReaderCache(Reader):
     def read_all(self, *args, **kwargs):
         key = kwargs.get('key', self.default_key)
         return self.cache.get(key) if key is not None else None
-
-class WriterCache(Writer):
-    def __init__(self, cache, default_key = None):
-        self.default_key = default_key
-        self.cache = cache
 
     def write_all(self, value, *args, **kwargs):
         key = kwargs.get('key', self.default_key)
@@ -29,10 +23,7 @@ class Cache:
     def get(self, key):
         return self.cache_data[key]
 
-    def reader(self, default_key = None):
-        return ReaderCache(self, default_key)
-
-    def writer(self, default_key = None):
-        return WriterCache(self, default_key)
+    def connector(self, default_key = None):
+        return ConnectorCache(self, default_key)
     
 
