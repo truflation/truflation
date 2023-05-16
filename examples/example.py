@@ -9,6 +9,7 @@ from tfi.data.data import DataPandas, DataFormat
 from tfi.data.reader import Reader, ReaderCsv
 from tfi.data.writer import WriterCsv
 
+
 class AddHours(Task):
     def __init__(self, reader, writer):
         super().__init__(reader, writer)
@@ -23,6 +24,7 @@ class AddHours(Task):
         res_df = df1.copy()
         res_df["hours coding"] = df1["hours coding"].add(df2["hours coding"])
         self.writer.write_all(DataPandas(res_df), key="hours_coding")
+
 
 class CalculateDeveloperHours(Task):
     def __init__(self, reader, writer):
@@ -39,7 +41,8 @@ class CalculateDeveloperHours(Task):
             self.loader.run(fileh, i)
             self.validator.run(i)
         self.calculator.run()
-    
+
+
 if __name__ == '__main__':
     r = ReaderCsv()
     p = CalculateDeveloperHours(r, WriterCsv())
