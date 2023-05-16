@@ -1,18 +1,24 @@
 #!/usr/bin/env python3
 
 from tfi.data.cache import Cache
-from tfi.data.ingestor import Ingestor
+from tfi.data.validator import Validator
 from tfi.data.task import Task
 from tfi.data.reader import Reader, ReaderCsv, ReaderSpecializedCsv
 from tfi.data.writer import WriterCsv
+
+class Loader(Task):
+    def __init__(self, reader, writer):
+        super().__init__(reader, writer)
+    def run(self, source, key):
+        pass
 
 class AddHours(Task):
     def __init__(self, reader, writer):
         super().__init__(reader, writer)
     
-    def run():
-        df1 = self.reader.get(key="developer_hours")
-        df2 = self.reader.get(key="developer_hours2")
+    def run(self):
+        df1 = self.reader.read_all(key="developer_hours")
+        df2 = self.reader.read_all(key="developer_hours2")
 
         res_df = df1.copy()
         res_df["hours coding"] = df1["hours coding"].add(df2["hours coding"])
@@ -21,17 +27,17 @@ class AddHours(Task):
 class CalculateDeveloperHours(Task):
     def __init__(self, reader, writer):
         super().__init__(reader, writer)
+        self.data = ["developer_hours", "developer_hours2"]
         self.cache = Cache()
-        self.ingestors = [
-            Ingestor(reader, self.cache.writer(), "example.csv", "developer_hours"),
-            Ingestor(reader, self.cache.writer(), "example.csv", "developer_hours2")
-        ]
+        self.loader = Loader(reader, self.cache.writer())
+        self.validator = Validator(self.cache.reader(), self.cache.writer())
         self.calculator = \
             AddHours(self.cache.reader(), writer)
 
     def run(self) -> None:
-        for i in self.ingestors:
-            i.run()
+        for i in self.data:
+            self.loader.run("example.csv", i)
+            self.validator.run(i)
         self.calculator.run()
     
 if __name__ == '__main__':
