@@ -1,39 +1,40 @@
 #!/usr/bin/env python3
 
+from tfi.data.cache import Cache
+from tfi.data.ingestor import Ingestor
+from tfi.data.task import Task
 from tfi.data.reader import Reader, ReaderCsv, ReaderSpecializedCsv
-from tfi.data.data_pipeline import DataPipeline
-import pandas as pd
+from tfi.data.writer import WriterCsv
 
-# create data pipeline
-my_pipeline = DataPipeline()
+class AddHours(Task):
+    def __init__(self, reader, writer):
+        super().__init__(reader, writer)
+    
+    def run():
+        df1 = self.reader.get(key="developer_hours")
+        df2 = self.reader.get(key="developer_hours2")
 
-# Create a reader that is linked to the file "example.csv"
-csv_reader = ReaderSpecializedCsv()
+        res_df = df1.copy()
+        res_df["hours coding"] = df1["hours coding"].add(df2["hours coding"])
+        self.writer.set(res_df, key="hours_coding")
 
-# Create a ingestor based on our reader named 'cat_data'
-my_pipeline.create_ingestor("developer_hours", csv_reader, source="example.csv")
-# Load in developer_hours and automatically create a file called 'developer_hours.tnna' that guesses data constraints
-my_pipeline.ingestors["developer_hours"].initialize()
+class CalculateDeveloperHours(Task):
+    def __init__(self, reader, writer):
+        super().__init__(reader, writer)
+        self.cache = Cache()
+        self.ingestors = [
+            Ingestor(reader, self.cache.writer(), "example.csv", "developer_hours"),
+            Ingestor(reader, self.cache.writer(), "example.csv", "developer_hours2")
+        ]
+        self.calculator = \
+            AddHours(self.cache.reader(), writer)
 
-# Create a ingestor based on our reader named 'developer_hours'
-my_pipeline.create_ingestor("developer_hours_2", csv_reader, source="example.csv")
-# Load in developer_hours_2 and automatically create a file called 'developer_hours_2.tnna' that guesses constraints
-my_pipeline.ingestors["developer_hours_2"].initialize()
-
-
-# todo -- use this type:
-#      DataPandas(df) -->  <class 'data.DataPandas'>
-def add_hours(my_ingestors: dict) -> pd.DataFrame:
-    df1 = pd.read_feather(my_ingestors["developer_hours"].feather_file)
-    df2 = pd.read_feather(my_ingestors["developer_hours_2"].feather_file)
-
-    res_df = df1.copy()
-    res_df["hours coding"] = df1["hours coding"].add(df2["hours coding"])
-    return res_df
-
-
-# add transformer to combine ingested data
-my_pipeline.add_transformer(add_hours)
-
-# Run the whole data pipeline
-my_pipeline.run_pipeline()
+    def run(self) -> None:
+        for i in self.ingestors:
+            i.run()
+        self.calculator.run()
+    
+if __name__ == '__main__':
+    r = ReaderSpecializedCsv()
+    p = CalculateDeveloperHours(r, WriterCsv())
+    p.run()

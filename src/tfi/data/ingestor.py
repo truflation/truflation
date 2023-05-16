@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-from reader import Reader
+from tfi.data.task import Task
+from tfi.data.reader import Reader
+from tfi.data.writer import Writer
 import subprocess
 import os
 import shutil
@@ -12,7 +14,7 @@ from typing import Callable
 
 
 
-class Ingestor:
+class Ingestor(Task):
     """
     A pipeline class that
        imports data from API, Excel, or TruData
@@ -23,30 +25,10 @@ class Ingestor:
        Returns pandas
     """
 
-    def __init__(self, name: str, reader: Reader, source: str, parser: Callable = lambda x: x):
-        """
-        initiates object of type Ingestor
-
-        Parameters
-        ----------
-            name : str
-                name of ingestor, needed for reference in transformer
-            reader : Reader
-                Reader to be called for ingestion using read_all
-            source : str
-                source for reading data
-            parser : Object
-                Function to parse data
-        """
-
-        self.reader = reader
-        # Name of instance
+    def __init__(self, reader: Reader, writer: Writer, source: str, name: str):
+        super().__init__(reader, writer)
         self.name: str = name
         self.source = source
-        self.parser = parser
-        # data file => self.feather_file
-        # constraint file => self.tdda_file
-        # results file => self.results_file
 
     def create_constraints(self):
         """
@@ -72,16 +54,15 @@ class Ingestor:
         assert os.path.isfile(constraint_path)
         shutil.copyfile(constraint_path, f'{self.feather_file}')
 
-    def initialize(self):
+    def run(self):
         """
         Initialize already created Ingestor object by reading in data from Reader and automatically creating a constraint file
         """
         # read data from reader, receive dataframe
 
         print(f'source: {self.source}')
-        print(f'parser: {self.parser}')
 
-        data_pandas = self.reader.read_all(self.source, self.parser)
+        data_pandas = self.reader.read_all(self.source)
 
         # save dataframe to feather files => name.feather
         self.save_data_pandas_to_feather(data_pandas)
