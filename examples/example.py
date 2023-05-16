@@ -5,7 +5,7 @@ from tfi.data.cache import Cache
 from tfi.data.validator import Validator
 from tfi.data.task import Task
 from tfi.data.loader import Loader
-from tfi.data.data import DataPandas
+from tfi.data.data import DataPandas, DataFormat
 from tfi.data.reader import Reader, ReaderCsv
 from tfi.data.writer import WriterCsv
 
@@ -14,8 +14,12 @@ class AddHours(Task):
         super().__init__(reader, writer)
     
     def run(self):
-        df1 = self.reader.read_all(key="developer_hours").get()
-        df2 = self.reader.read_all(key="developer_hours2").get()
+        df1 = self.reader.read_all(
+            key="developer_hours"
+        ).get(DataFormat.PANDAS)
+        df2 = self.reader.read_all(
+            key="developer_hours2"
+        ).get(DataFormat.PANDAS)
         res_df = df1.copy()
         res_df["hours coding"] = df1["hours coding"].add(df2["hours coding"])
         self.writer.write_all(DataPandas(res_df), key="hours_coding")
