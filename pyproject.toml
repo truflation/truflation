@@ -1,21 +1,6 @@
-[project]
-name = "tfi.data"
-version = "0.0.1"
-description = "TFI data framework"
-authors = [
-  { name = "Laguna Labs" }
-]
-license = { text = "BSD Simplified" }
-readme = "README.md"
-
-dependencies = [
-  'sqlalchemy >= 2.0.12',
-  'sqlalchemy-stubs >= 0.4',
-  'pandas >= 2.0.1',
-  'overrides >= 7.3.1',
-  'tdda >= 1.0.13',
-  'feather-format >= 0.4.1'
-]
+[build-system]
+requires = ["setuptools >= 61.0.0.0"]
+build-backend = "setuptools.build_meta"
 
 [tool.pytest.ini_options]
 addopts = [
