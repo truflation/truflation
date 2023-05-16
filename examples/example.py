@@ -1,5 +1,15 @@
 #!/usr/bin/env python3
 
+
+# My concerns -- is this smart enough to have n data sources that split into y expors via z calculators
+# -- How readily will this scale and what will that solution look like when we have multiple of these reading and exporting, especially if there are needed updates
+# -- what if I wanted to add preprocess and post process -- after deploying 80 ingestors
+
+
+# Cameron wants exports to be one time series of numbers: date / value / created_at
+# -- one ingestor should create one table (updateable) -- maybe initial setup is, like creating infrastructure tables, can bypass this rule
+# --
+
 import sys
 from tfi.data.cache import Cache
 from tfi.data.validator import Validator
