@@ -11,7 +11,7 @@ import pandas
 import requests
 
 from sqlalchemy import create_engine
-from data import Data, DataPandas, DataJson
+from tfi.data.data import Data, DataPandas, DataJson
 
 
 class Reader:
@@ -84,7 +84,7 @@ class ReaderCsv(Reader):
         print(test)
         print(args)
         print(kwargs)
-        df = self.parser(pandas.read_csv(args[0]))
+        df = pandas.read_csv(test)
         return DataPandas(df)
 
 

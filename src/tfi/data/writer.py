@@ -5,7 +5,7 @@ Writer
 import sqlalchemy
 from typing import Iterator, Any
 from sqlalchemy import Table, MetaData, create_engine
-from data import Data, DataFormat
+from tfi.data.data import Data, DataFormat
 
 class Writer:
     def __init__(self):

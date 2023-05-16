@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-from reader import Reader, ReaderCsv, ReaderSpecializedCsv
-from data_pipeline import DataPipeline
+from tfi.data.reader import Reader, ReaderCsv, ReaderSpecializedCsv
+from tfi.data.data_pipeline import DataPipeline
 import pandas as pd
 
 # create data pipeline
