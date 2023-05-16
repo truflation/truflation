@@ -86,4 +86,7 @@ class WriterCsv(Writer):
             self,
             data: Data,
             *args, **kwargs) -> None:
-        data.get(DataFormat.PANDAS).to_csv(args[0])
+        filename = kwargs.get('key', None)
+        if filename is None and len(args) > 0:
+            filename = args[0]
+        data.get(DataFormat.PANDAS).to_csv(filename)
