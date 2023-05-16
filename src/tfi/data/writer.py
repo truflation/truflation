@@ -35,6 +35,7 @@ class WriterSql(Writer):
     def __init__(self, engine):
         super().__init__()
         self.engine = create_engine(engine)
+        self.conn = self.engine.connect()
 
     def write_all(
             self,
@@ -58,9 +59,8 @@ class WriterSql(Writer):
         self.write_all(data, *args, **kwargs)
         yield None
 
-    def execute(statement, **line):
-        with self.engine.connect() as con:
-            con.execute(statement, **line)
+    def execute(self, statement, **line):
+        self.conn.execute(statement, **line)
 
     def drop_table(
             self,
