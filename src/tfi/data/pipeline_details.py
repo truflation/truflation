@@ -1,5 +1,6 @@
 class PipeLineDetails:
-    def __init__(self, name,
+    def __init__(self,
+                 name,
                  sources,
                  exporter,
                  pre_ingestion_function=None,

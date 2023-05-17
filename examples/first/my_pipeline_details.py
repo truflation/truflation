@@ -2,7 +2,8 @@ from tfi.data.validator import Validator
 from tfi.data.task import Task
 from tfi.data.loader import Loader
 from tfi.data.data import DataPandas, DataFormat
-from tfi.data.details import PipeLineDetails
+from tfi.data.pipeline_details import PipeLineDetails
+from tfi.data.source_details import SourceDetails
 
 # self.name = None
 # self.pre_ingestion_function = None
@@ -12,26 +13,37 @@ from tfi.data.details import PipeLineDetails
 # self.export = None
 
 # Name
-name = "Hello World"
+pipeline_name = "Hello World"
+name = "DONKEY"
+
+# class SourceDetails:
+#     def __init__(self, name, source_type, source, parser=lambda x: x):
+#         self.name = name
+#         self.source_type = source_type
+#         self.source = source
+#         self.parser = parser
 
 
-# self.pre_ingestion_function
 def pre_ingestion_function():
     print(f'I do this before Ingestion')
 
 
-# self.post_ingestion_function
 def post_ingestion_function():
     print(f'I do this after Ingestion')
 
 
-sources = {
-    's1': "example.csv",
-    's2': "example_2.csv"
-}
+# Source Types: csv, API, Excel, Google Sheet, TrueData
+sources = [
+    SourceDetails("first", "csv", "example.csv"),
+    SourceDetails("second", "csv", "example_2.csv")
+]
 
 
-def transformer(x):
+def transformer(data_dict: dict):
+    pass
+    return data_dict
+
+    #
     # df1 = self.reader.read_all(
     #     key="developer_hours"
     # ).get(DataFormat.PANDAS)
@@ -41,23 +53,22 @@ def transformer(x):
     # res_df = df1.copy()
     # res_df["hours coding"] = df1["hours coding"].add(df2["hours coding"])
     # self.writer.write_all(DataPandas(res_df), key="hours_coding")
-    return x
 
 
 def exporter():
     print('to do')
 
 
-def main():
-    my_pipeline = PipeLineDetails(name=name,
+def get_details():
+    my_pipeline = PipeLineDetails(name=pipeline_name,
                                   sources=sources,
                                   exporter=exporter,
                                   pre_ingestion_function=pre_ingestion_function,
                                   post_ingestion_function=post_ingestion_function,
                                   transformer=transformer
                                   )
+    print(f'my_pipeline name: {my_pipeline.name}')
     return my_pipeline
 
-
 if __name__ == "__main__":
-    main()
+    get_details()
