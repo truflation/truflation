@@ -4,24 +4,19 @@ from tfi.data.loader import Loader
 # from tfi.data.data import DataPandas, DataFormat
 from tfi.data.details import PipeLineDetails
 
+# todo -- later, create a new pipeline to process al data in parallel -- new class
+
 
 class Pipeline(Task):
-    # def __init__(self, reader, writer):
-    #     super().__init__(reader, writer)
-    #     self.data = ["developer_hours", "developer_hours2"]
-    #     self.loader = Loader(self.reader, "cache")
-    #     self.validator = Validator(
-    #         "cache", "cache"
-    #     )
-    #     self.calculator = \
-    #         AddHours("cache", self.writer)
-
     def __init__(self, pipeline_details: PipeLineDetails):
-        # todo -- decide if we are using Task
+        # todo -- decide if we are using Task as inherited
         # todo -- remove reader and writer and make fluid over all types
+
+        # todo -- this is going to be removed ----  vvvvv
         self.reader = "csv"
         self.writer = "csv"
         self.task = Task(self.reader, self.writer)
+        # todo -- remove ----  ^^^^^^^^^
 
         # super().__init__(reader, writer)
         self.name = pipeline_details.name
@@ -32,10 +27,6 @@ class Pipeline(Task):
         self.validator = Validator(self.reader, self.writer)  # todo -- this should be general purpose
         self.transformer = pipeline_details.transformer
 
-        # print(f'ingestion function: {self.pre_ingestion_function}')
-        # print(self.pre_ingestion_function())
-        print(f'pipeline name: {pipeline_details.name}')
-
     def ingest(self) -> None:
         # todo -- create try except after functionality works
 
@@ -45,8 +36,8 @@ class Pipeline(Task):
         # Read, Parse,  and Validate from all sources
         for source_name, source in self.sources.items():
             print(f'Reading, Parsing, and Validating {source_name} -> {source.source_type} -> {source.source}')
-        #     self.loader.run(source_type, URL)
-        #     self.validator.run(URL)
+            #     self.loader.run(source_type, URL)
+            #     self.validator.run(URL)
 
         # Transform x sources into y dataframes
         print(f'Transforming -- todo ')
