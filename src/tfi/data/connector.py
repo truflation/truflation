@@ -188,8 +188,20 @@ class ConnectorRest(Connector):
 cache_ = Cache()
 
 def connector_factory(url: str) -> Optional[Connector]:
-    if url == "cache":
+    if url.startswith('cache'):
         return cache_.connector()
-    if url == "csv":
+    if url.startswith('csv'):
         return ConnectorCsv()
+    if url.startswith('http'):
+        return ConnectorRest(url)
+    if url.startswith('sqlite') or \
+       url.startswith('postgresql') or \
+       url.startswith('mysql') or \
+       url.startswith('mariadb') or \
+       url.startswith('oracle') or \
+       url.startswtih('mssql') or \
+       url.startswith('sqlalchemy') or \
+       url.startswith('gsheets') or \
+       url.startswith('pybigquery'):
+        return ConnectorSql(url)
     return None
