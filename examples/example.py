@@ -29,6 +29,7 @@ from tfi.data.validator import Validator
 from tfi.data.task import Task
 from tfi.data.loader import Loader
 from tfi.data.data import DataPandas, DataFormat
+from 1 import
 
 
 class AddHours(Task):
