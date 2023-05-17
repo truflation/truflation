@@ -6,7 +6,6 @@ from first import my_pipeline_details
 
 # todo -- add AP scheduler functionality and settings in my details
 def main():
-
     my_pipeline = Pipeline(my_pipeline_details.get_details())
     my_pipeline.ingest()
 

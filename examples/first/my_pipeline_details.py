@@ -50,5 +50,6 @@ def get_details():
                                   )
     return my_pipeline
 
+
 if __name__ == "__main__":
     get_details()
