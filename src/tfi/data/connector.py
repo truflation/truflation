@@ -119,6 +119,7 @@ class ConnectorSql(Connector):
     def __init__(self, engine):
         super().__init__()
         self.engine = create_engine(engine)
+        self.conn = self.engine.connect()
 
     def read_all(
             self,
