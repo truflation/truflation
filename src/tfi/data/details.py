@@ -12,3 +12,4 @@ class PipeLineDetails:
         self.pre_ingestion_function = pre_ingestion_function
         self.post_ingestion_function = post_ingestion_function
         self.transformer = transformer
+        self.first = 123

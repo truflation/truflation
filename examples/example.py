@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+'''
+#  Temp Dev Notes
 
 # My concerns -- is this smart enough to have n data sources that split into y expors via z calculators
 # -- How readily will this scale and what will that solution look like when we have multiple of these reading and exporting, especially if there are needed updates
@@ -23,19 +25,23 @@
 # Task --- David, do the generalized pipeline using Joseph's updates and feeding in data generally
 # Task --- Joseph, consider multiple inputs (of different types) and outputs (to different dbs  and outputting different rows/structures)
 # Task --- Jospeh, consider a better way of scaling -- compared to our current scaling solution.
+'''
 
-import sys
-from tfi.data.validator import Validator
-from tfi.data.task import Task
-from tfi.data.loader import Loader
-from tfi.data.data import DataPandas, DataFormat
+
+
+# import sys
+# from tfi.data.validator import Validator
+# from tfi.data.task import Task
+# from tfi.data.loader import Loader
+# from tfi.data.data import DataPandas, DataFormat
 from tfi.data.pipeline import Pipeline
 from first import my_pipeline_details
 
 
 def main():
+    print('====================== example.py ==========================')
     my_pipeline = Pipeline(my_pipeline_details)
-    my_pipeline.run()
+    my_pipeline.ingest()
 
 
 if __name__ == '__main__':
