@@ -29,14 +29,41 @@ from tfi.data.validator import Validator
 from tfi.data.task import Task
 from tfi.data.loader import Loader
 from tfi.data.data import DataPandas, DataFormat
-from tfi.data.pipeline import Pipeline
-from first import my_pipeline_details
+
+class AddHours(Task):
+    def __init__(self, reader, writer):
+        super().__init__(reader, writer)
+
+    def run(self):
+        df1 = self.reader.read_all(
+            key="developer_hours"
+        ).get(DataFormat.PANDAS)
+        df2 = self.reader.read_all(
+            key="developer_hours2"
+        ).get(DataFormat.PANDAS)
+        res_df = df1.copy()
+        res_df["hours coding"] = df1["hours coding"].add(df2["hours coding"])
+        self.writer.write_all(DataPandas(res_df), key="hours_coding")
 
 
-def main():
-    my_pipeline = Pipeline(my_pipeline_details)
-    my_pipeline.run()
+class CalculateDeveloperHours(Task):
+    def __init__(self, reader, writer):
+        super().__init__(reader, writer)
+        self.data = ["developer_hours", "developer_hours2"]
+        self.loader = Loader(self.reader, "cache")
+        self.validator = Validator(
+            "cache", "cache"
+        )
+        self.calculator = \
+            AddHours("cache", self.writer)
+
+    def run(self, fileh) -> None:
+        for i in self.data:
+            self.loader.run(fileh, i)
+            self.validator.run(i)
+        self.calculator.run()
 
 
 if __name__ == '__main__':
-    main()
+    p = CalculateDeveloperHours("csv", "csv")
+    p.run("examples/example.csv")
