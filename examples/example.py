@@ -5,19 +5,16 @@
 # -- How readily will this scale and what will that solution look like when we have multiple of these reading and exporting, especially if there are needed updates
 # -- what if I wanted to add preprocess and post process -- after deploying 80 ingestors
 
-
 # Cameron wants exports to be one time series of numbers: date / value / created_at
 # -- one ingestor should create one table (updateable) -- maybe initial setup is, like creating infrastructure tables, can bypass this rule
 # --
 
+
 import sys
-from tfi.data.cache import Cache
 from tfi.data.validator import Validator
 from tfi.data.task import Task
 from tfi.data.loader import Loader
 from tfi.data.data import DataPandas, DataFormat
-from tfi.data.connector import Connector, ConnectorCsv
-
 
 class AddHours(Task):
     def __init__(self, reader, writer):
@@ -39,14 +36,13 @@ class CalculateDeveloperHours(Task):
     def __init__(self, reader, writer):
         super().__init__(reader, writer)
         self.data = ["developer_hours", "developer_hours2"]
-        self.cache = Cache()
-        self.loader = Loader(reader, self.cache.connector())
+
+        self.loader = Loader(self.reader, "cache")
         self.validator = Validator(
-            self.cache.connector(),
-            self.cache.connector()
+            "cache", "cache"
         )
         self.calculator = \
-            AddHours(self.cache.connector(), writer)
+            AddHours("cache", self.writer)
 
     def run(self, fileh) -> None:
         for i in self.data:
@@ -56,6 +52,5 @@ class CalculateDeveloperHours(Task):
 
 
 if __name__ == '__main__':
-    r = ConnectorCsv()
-    p = CalculateDeveloperHours(r, r)
+    p = CalculateDeveloperHours("csv", "csv")
     p.run("examples/example.csv")

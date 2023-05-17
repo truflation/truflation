@@ -11,13 +11,14 @@ import sqlalchemy
 from sqlalchemy import create_engine, Table, MetaData
 from tfi.data.data import Data, DataPandas, DataJson, DataFormat
 
+
+
 class Connector:
     """
     Base class for Import
     """
 
-    # returns DataPandas(df)
-    def __init__(self, parser=lambda x: x):
+    def __init__(self, *args, **kwargs):
         pass
 
     def authenticate(self, token):
@@ -67,6 +68,32 @@ class Connector:
     ) -> Iterator[Any]:
         raise NotImplementedError
 
+class ConnectorCache(Connector):
+    def __init__(self, cache, default_key = None):
+        super().__init__()
+        self.default_key = default_key
+        self.cache = cache
+
+    def read_all(self, *args, **kwargs):
+        key = kwargs.get('key', self.default_key)
+        return self.cache.get(key) if key is not None else None
+
+    def write_all(self, value, *args, **kwargs):
+        key = kwargs.get('key', self.default_key)
+        self.cache.set(key, value)
+
+class Cache:
+    def __init__(self):
+        self.cache_data = {}
+
+    def set(self, key, value):
+        self.cache_data[key] = value
+
+    def get(self, key):
+        return self.cache_data[key]
+
+    def connector(self, default_key = None):
+        return ConnectorCache(self, default_key)
 
 class ConnectorCsv(Connector):
     def __init__(self):
@@ -156,3 +183,12 @@ class ConnectorRest(Connector):
             )
         )
         return DataJson(response.json())
+
+cache_ = Cache()
+
+def connector_factory(url: str) -> Optional[Connector]:
+    if url == "cache":
+        return cache_.connector()
+    if url == "csv":
+        return ConnectorCsv()
+    return None

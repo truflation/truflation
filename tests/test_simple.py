@@ -5,12 +5,11 @@ from overrides import override
 import tfi.data.connector
 import tfi.data.data
 import tfi.data.task
-import tfi.data.cache
 import tfi.data.validator
 import tfi.data.connector
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-cache = tfi.data.cache.Cache()
+cache = tfi.data.connector.Cache()
 
 class ReadTask(tfi.data.task.Task):
     def __init__(self,
@@ -77,7 +76,7 @@ class TestSimple(unittest.TestCase):
         task.run()
 
     def test_cache(self):
-        r = tfi.data.cache.ConnectorCache('key1')
+        r = tfi.data.connector.ConnectorCache('key1')
 
 if __name__ == '__main__':
     unittest.main()
