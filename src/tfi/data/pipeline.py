@@ -51,18 +51,41 @@ class Pipeline(Task):
         #     res = reader.read_all()
         #     print(res)
 
+        '''
+        Dev Note -- I don't understand why these loops are looking at duplicated dat, except A
+        '''
+
+        print("\n\nA------------------")
         # Read, Parse,  and Validate from all sources
         for source_name, source in self.sources.items():
             print(f'Reading, Parsing, and Validating {source_name} -> {source.source_type} -> {source.source}')
             self.loaders[source_name].run(source.source, "cache")
             # my_data = self.loaders[source_name].writer.cache.cache_data["cache"].df
-            # my_data = self.loaders[source_name].writer.read_all(key="cache").df
-            # print(my_data)
+            my_data = self.loaders[source_name].writer.read_all(key="cache").df
+            print(my_data)
 
-        # for source_name, loader in self.loaders.items():
-        #     my_data = loader.writer.read_all(key="cache").df
-        #     print(f'{source_name} -> {loader}')
-        #     print(my_data)
+
+        print("\n\nB------------------")
+        for source_name, source in self.sources.items():
+            print(f'Reading, Parsing, and Validating {source_name} -> {source.source_type} -> {source.source}')
+            self.loaders[source_name].run(source.source, "cache")
+            # my_data = self.loaders[source_name].writer.cache.cache_data["cache"].df
+            my_data = self.loaders[source_name].writer.read_all(key="cache").df
+            print(my_data)
+
+
+        print("\n\nC------------------")
+        for source_name, loader in self.loaders.items():
+            print(f'{source_name} -> {loader}')
+            my_data = loader.writer.read_all(key="cache").df
+            print(my_data)
+
+
+        print("\n\nD------------------")
+        for source_name, source in self.sources.items():
+            print(f'{source_name} -> {source}')
+            my_data = self.loaders[source_name].writer.read_all(key="cache").df
+            print(my_data)
 
 
         # Transform x sources into y dataframes
