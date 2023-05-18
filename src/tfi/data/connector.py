@@ -3,6 +3,7 @@ Connector
 """
 
 import os
+import json
 from typing import Optional, Iterator, Any
 import pandas
 import requests
@@ -127,8 +128,11 @@ class ConnectorJson(Connector):
     def read_all(
             self, *args, **kwargs
     ) -> Optional[Data]:
-        with open(os.path.join(self.path_root, args[0])) as fileh:
-            obj = json.loads(fileh)
+        filename = kwargs.get('key', None)
+        if filename is None and len(args) > 0:
+            filename = args[0]
+        with open(os.path.join(self.path_root, filename)) as fileh:
+            obj = json.load(fileh)
         return DataJson(obj)
 
     def write_all(
@@ -160,8 +164,14 @@ class ConnectorSql(Connector):
             *args,
             **kwargs
     ) -> None:
-        table = kwargs['table']
-        del kwargs['table']
+        table = kwargs.get('key', None)
+        if table is not None:
+            del kwargs['table']
+        else:
+            table = kwargs.get('key', None)
+            del kwargs['key']
+        if table is None and len(args) > 0:
+            table = args[0]
         data.get(DataFormat.PANDAS).to_sql(
             table,
             self.engine,

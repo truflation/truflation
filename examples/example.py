@@ -53,7 +53,7 @@ class CalculateDeveloperHours(Task):
         self.data = ["developer_hours", "developer_hours2"]
         self.loader = Loader(self.reader, "cache")
         self.validator = Validator(
-            "cache", "cache"
+            "cache", "cache", constraints="json:data"
         )
         self.calculator = \
             AddHours("cache", self.writer)
