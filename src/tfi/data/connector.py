@@ -12,7 +12,6 @@ from sqlalchemy import create_engine, Table, MetaData
 from tfi.data.data import Data, DataPandas, DataJson, DataFormat
 
 
-
 class Connector:
     """
     Base class for Import
