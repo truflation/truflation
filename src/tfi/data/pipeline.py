@@ -52,12 +52,12 @@ class Pipeline(Task):
         #     print(res)
 
         # Read, Parse,  and Validate from all sources
-        # for source_name, source in self.sources.items():
-        #     print(f'Reading, Parsing, and Validating {source_name} -> {source.source_type} -> {source.source}')
-        #     self.loaders[source_name].run(source.source, "cache")
-        #     # my_data = self.loaders[source_name].writer.cache.cache_data["cache"].df
-        #     my_data = self.loaders[source_name].writer.read_all(key="cache").df
-        #     # print(my_data)
+        for source_name, source in self.sources.items():
+            print(f'Reading, Parsing, and Validating {source_name} -> {source.source_type} -> {source.source}')
+            self.loaders[source_name].run(source.source, "cache")
+            # my_data = self.loaders[source_name].writer.cache.cache_data["cache"].df
+            # my_data = self.loaders[source_name].writer.read_all(key="cache").df
+            # print(my_data)
 
         # for source_name, loader in self.loaders.items():
         #     my_data = loader.writer.read_all(key="cache").df
