@@ -16,8 +16,8 @@ def post_ingestion_function():
 # Source Types: csv, API, Excel, Google Sheet, TrueData
 sources = [
     # name, source_type, source, parser function (default is pass through))
-    SourceDetails("first", "csv", "example.csv"),
-    SourceDetails("second", "csv", "example_2.csv", lambda x: x)
+    SourceDetails("first", "csv", "examples/example.csv"),
+    SourceDetails("second", "csv", "examples/example_2.csv", lambda x: x)
 ]
 
 

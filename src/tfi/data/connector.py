@@ -77,6 +77,7 @@ class ConnectorCache(Connector):
     def read_all(self, *args, **kwargs):
         key = kwargs.get('key', self.default_key)
         return self.cache.get(key) if key is not None else None
+        # return self.cache.get(key if key else self.default_key)
 
     def write_all(self, value, *args, **kwargs):
         key = kwargs.get('key', self.default_key)

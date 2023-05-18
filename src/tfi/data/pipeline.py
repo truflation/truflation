@@ -23,9 +23,14 @@ class Pipeline(Task):
         self.pre_ingestion_function = pipeline_details.pre_ingestion_function,
         self.post_ingestion_function = pipeline_details.post_ingestion_function,
         self.sources = dict({x.name: x for x in pipeline_details.sources})
-        self.loader = Loader(self.reader, "cache")  # todo -- this should be general purpose
+        # self.loader = Loader(self.reader, "cache")  # todo -- this should be general purpose
+        self.loader = dict({name: Loader(f'{source.source_type}:{source.source}', "cache") for (name,source) in self.sources.items()}) #         Loader(self.reader, "cache")  # todo -- this should be general purpose
         self.validator = Validator(self.reader, self.writer)  # todo -- this should be general purpose
         self.transformer = pipeline_details.transformer
+
+
+        for name, l in self.loader.items():
+            print(f'{name}: {l} --> {l.reader}, {l.writer}')
 
     def ingest(self) -> None:
         # todo -- create try except after functionality works
@@ -36,11 +41,17 @@ class Pipeline(Task):
         # Read, Parse,  and Validate from all sources
         for source_name, source in self.sources.items():
             print(f'Reading, Parsing, and Validating {source_name} -> {source.source_type} -> {source.source}')
-            #     self.loader.run(source_type, URL)
-            #     self.validator.run(URL)
+            print(f'source_name: {source_name}')
+            print(f'source.source: {source.source}')
+            self.loader[source_name].run(source.source, "cache")
+            # my_data = self.loader[source_name].writer.cache.cache_data["cache"].df
+            # my_data = self.loader[source_name].writer.read_all(key="cache").df
 
         # Transform x sources into y dataframes
         print(f'Transforming -- todo ')
+        my_data = dict({name: loader.writer.read_all(key="cache").df for (name, loader) in self.loader.items()})
+
+        print(f'my_data: {my_data}')
         self.transformer(self.sources.keys())
 
         #  Export y dataframes into z tables on servers
