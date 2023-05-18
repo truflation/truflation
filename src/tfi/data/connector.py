@@ -6,6 +6,7 @@ import os
 from typing import Optional, Iterator, Any
 import pandas
 import requests
+from pathlib import Path
 
 import sqlalchemy
 from sqlalchemy import create_engine, Table, MetaData
@@ -96,13 +97,15 @@ class Cache:
         return ConnectorCache(self, default_key)
 
 class ConnectorCsv(Connector):
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         super().__init__()
+        self.path_root = kwargs.get('path_root', os.getcwd())
+        Path(self.path_root).mkdir(parents=True, exist_ok=True)
 
     def read_all(
             self, *args, **kwargs
     ) -> Optional[Data]:
-        df = pandas.read_csv(args[0])
+        df = pandas.read_csv(os.path.join(self.path_root, args[0]))
         return DataPandas(df)
 
     def write_all(
@@ -112,8 +115,32 @@ class ConnectorCsv(Connector):
         filename = kwargs.get('key', None)
         if filename is None and len(args) > 0:
             filename = args[0]
+        filename = os.path.join(self.path_root, filename)
         data.get(DataFormat.PANDAS).to_csv(filename)
 
+class ConnectorJson(Connector):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.path_root = kwargs.get('path_root', os.getcwd())
+        Path(self.path_root).mkdir(parents=True, exist_ok=True)
+
+    def read_all(
+            self, *args, **kwargs
+    ) -> Optional[Data]:
+        with open(os.path.join(self.path_root, args[0])) as fileh:
+            obj = json.loads(fileh)
+        return DataJson(obj)
+
+    def write_all(
+            self,
+            data: Data,
+            *args, **kwargs) -> None:
+        filename = kwargs.get('key', None)
+        if filename is None and len(args) > 0:
+            filename = args[0]
+        filename = os.path.join(self.path_root, filename)
+        with open(filename, 'w') as fileh:
+            fileh.write(json.dumps(data.get(DataFormat.JSON)))
 
 class ConnectorSql(Connector):
     def __init__(self, engine):
@@ -191,7 +218,17 @@ def connector_factory(url: str) -> Optional[Connector]:
     if url.startswith('cache'):
         return cache_.connector()
     if url.startswith('csv'):
-        return ConnectorCsv()
+        l = url.split(':', 1)
+        if len(l) > 1:
+            return ConnectorCsv(path_root=l[1])
+        else:
+            return ConnectorCsv()
+    if url.startswith('json'):
+        l = url.split(':', 1)
+        if len(l) > 1:
+            return ConnectorJson(path_root=l[1])
+        else:
+            return ConnectorJson()
     if url.startswith('http'):
         return ConnectorRest(url)
     if url.startswith('sqlite') or \

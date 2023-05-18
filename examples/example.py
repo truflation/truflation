@@ -66,5 +66,5 @@ class CalculateDeveloperHours(Task):
 
 
 if __name__ == '__main__':
-    p = CalculateDeveloperHours("csv", "csv")
-    p.run("examples/example.csv")
+    p = CalculateDeveloperHours("csv:examples", "csv:data")
+    p.run("example.csv")
