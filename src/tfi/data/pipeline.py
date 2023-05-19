@@ -47,6 +47,17 @@ class Pipeline(Task):
             # my_data = self.loaders[source_name].writer.read_all(key="cache")
             # print(my_data)
 
+        for source_name, loader in self.loaders.items():
+            # todo -- i would rather loader work on all types given source -- more abstraction
+            # example --- self.loader.run(source, key)
+            # This way, I could use one loader class and read all the files and save it into the same place.
+            # If i wanted it saved somewhere else--even as a database?--, I would need to specify flags, but the default shoulde be a cache
+            # Flag for procoessing on cache with a parser?
+
+            # self.loaders[source_name].run(source.source, source_name)
+            pass
+
+
 
         # Transform x sources into y dataframes
         print(f'Transforming ...')
