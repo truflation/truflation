@@ -3,7 +3,6 @@ import unittest
 
 from overrides import override
 import tfi.data.connector
-import tfi.data.data
 import tfi.data.task
 import tfi.data.validator
 import tfi.data.connector

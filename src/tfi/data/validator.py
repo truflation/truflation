@@ -4,7 +4,6 @@ import shutil
 from tdda.constraints import discover_df, verify_df
 from tfi.data.task import Task
 from tfi.data.connector import connector_factory
-from tfi.data.data import DataJson
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -25,10 +24,10 @@ class Validator(Task):
         self.verify_constraints(name)
 
     def create_constraints(self, name):
-        df = self.reader.read_all(key=name).get()
+        df = self.reader.read_all(key=name)
         constraints = discover_df(df)
         self.constraints.write_all(
-            DataJson(constraints.to_dict()),
+            constraints.to_dict(),
             key = f'{name}.tdda'
         )
 
@@ -40,11 +39,11 @@ class Validator(Task):
     def verify_constraints(self, name):
         tdda_file = f'{name}.tdda'
 
-        df = self.reader.read_all(key=name).get()
+        df = self.reader.read_all(key=name)
         tdda = self.constraints.read_all(
             f'{name}.tdda'
         )
-        v = verify_df(df, tdda.get())
+        v = verify_df(df, tdda)
         logging.debug('Constraints passing: %d', v.passes)
         logging.debug('Constraints failures: %d', v.failures)
         assert v.failures == 0

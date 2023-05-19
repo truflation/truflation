@@ -28,8 +28,6 @@ import sys
 from tfi.data.validator import Validator
 from tfi.data.task import Task
 from tfi.data.loader import Loader
-from tfi.data.data import DataPandas, DataFormat
-
 
 class AddHours(Task):
     def __init__(self, reader, writer):
@@ -38,13 +36,13 @@ class AddHours(Task):
     def run(self):
         df1 = self.reader.read_all(
             key="developer_hours"
-        ).get(DataFormat.PANDAS)
+        )
         df2 = self.reader.read_all(
             key="developer_hours2"
-        ).get(DataFormat.PANDAS)
+        )
         res_df = df1.copy()
         res_df["hours coding"] = df1["hours coding"].add(df2["hours coding"])
-        self.writer.write_all(DataPandas(res_df), key="hours_coding")
+        self.writer.write_all(res_df, key="hours_coding")
 
 
 class CalculateDeveloperHours(Task):

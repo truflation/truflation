@@ -11,9 +11,6 @@ from pathlib import Path
 
 import sqlalchemy
 from sqlalchemy import create_engine, Table, MetaData
-from tfi.data.data import Data, DataPandas, DataJson, DataFormat
-
-
 
 class Connector:
     """
@@ -30,7 +27,7 @@ class Connector:
             self,
             *args,
             **kwargs
-    ) -> Optional[Data]:
+    ) -> Any:
         """
         Read Source file and parse through parser
 
@@ -39,7 +36,7 @@ class Connector:
 
         data = None
         while True:
-            b: Optional[Data] = self.read_chunk(b)
+            b = self.read_chunk(b)
             if b is None:
                 break
             data = b
@@ -47,15 +44,15 @@ class Connector:
 
     def read_chunk(
             self,
-            outputb: Optional[Data],
+            outputb,
             *args,
             **kwargs
-    ) -> Optional[Data]:
+    ) -> Any:
         return None
 
     def write_all(
             self,
-            data: Data,
+            data,
             *args, **kwargs
     ) -> None:
         for i in self.write_chunk(
@@ -65,7 +62,7 @@ class Connector:
 
     def write_chunk(
             self,
-            data: Data,
+            data,
             *args, **kwargs
     ) -> Iterator[Any]:
         raise NotImplementedError
@@ -105,19 +102,18 @@ class ConnectorCsv(Connector):
 
     def read_all(
             self, *args, **kwargs
-    ) -> Optional[Data]:
-        df = pandas.read_csv(os.path.join(self.path_root, args[0]))
-        return DataPandas(df)
+    ) -> Any:
+        return pandas.read_csv(os.path.join(self.path_root, args[0]))
 
     def write_all(
             self,
-            data: Data,
+            data,
             *args, **kwargs) -> None:
         filename = kwargs.get('key', None)
         if filename is None and len(args) > 0:
             filename = args[0]
         filename = os.path.join(self.path_root, filename)
-        data.get(DataFormat.PANDAS).to_csv(filename)
+        data.to_csv(filename)
 
 class ConnectorJson(Connector):
     def __init__(self, *args, **kwargs):
@@ -127,24 +123,24 @@ class ConnectorJson(Connector):
 
     def read_all(
             self, *args, **kwargs
-    ) -> Optional[Data]:
+    ) -> Any:
         filename = kwargs.get('key', None)
         if filename is None and len(args) > 0:
             filename = args[0]
         with open(os.path.join(self.path_root, filename)) as fileh:
             obj = json.load(fileh)
-        return DataJson(obj)
+        return obj
 
     def write_all(
             self,
-            data: Data,
+            data,
             *args, **kwargs) -> None:
         filename = kwargs.get('key', None)
         if filename is None and len(args) > 0:
             filename = args[0]
         filename = os.path.join(self.path_root, filename)
         with open(filename, 'w') as fileh:
-            fileh.write(json.dumps(data.get(DataFormat.JSON)))
+            fileh.write(json.dumps(data))
 
 class ConnectorSql(Connector):
     def __init__(self, engine):
@@ -154,25 +150,26 @@ class ConnectorSql(Connector):
 
     def read_all(
             self,
-            *args, **kwargs) -> Optional[Data]:
+            *args, **kwargs) -> Any:
         df = pandas.read_sql(args[0], self.engine)
-        return DataPandas(df)
+        return df
 
     def write_all(
             self,
-            data: Data,
+            data,
             *args,
             **kwargs
     ) -> None:
         table = kwargs.get('key', None)
-        if table is not None:
+        if table is None:
+            table = kwargs.get('table', None)
             del kwargs['table']
-        else:
+        if table is None:
             table = kwargs.get('key', None)
             del kwargs['key']
         if table is None and len(args) > 0:
             table = args[0]
-        data.get(DataFormat.PANDAS).to_sql(
+        data.to_sql(
             table,
             self.engine,
             **kwargs
@@ -180,7 +177,7 @@ class ConnectorSql(Connector):
 
     def write_chunk(
             self,
-            data: Data,
+            data,
             *args, **kwargs
     ) -> Iterator[Any]:
         self.write_all(data, *args, **kwargs)
@@ -213,14 +210,14 @@ class ConnectorRest(Connector):
 
     def read_all(
             self,
-            *args, **kwargs) -> Optional[Data]:
+            *args, **kwargs) -> Any:
         response = requests.get(
             os.path.join(
                 self.base,
                 args[0]
             )
         )
-        return DataJson(response.json())
+        return response.json()
 
 cache_ = Cache()
 
