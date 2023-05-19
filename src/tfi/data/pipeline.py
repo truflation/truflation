@@ -24,8 +24,8 @@ class Pipeline(Task):
         self.pre_ingestion_function = pipeline_details.pre_ingestion_function,
         self.post_ingestion_function = pipeline_details.post_ingestion_function,
         self.sources = dict({x.name: x for x in pipeline_details.sources})
-        self.readers = dict({x.name: connector_factory(f'{x.source_type}:{x.source}') for x in pipeline_details.sources})
-        # self.loaders = Loader(self.reader, "cache")  # todo -- this should be general purpose
+        # self.readers = dict({x.name: connector_factory(f'{x.source_type}:{x.source}') for x in pipeline_details.sources})
+
         self.loaders = dict({name: Loader(f'{source.source_type}:{source.source}', "cache") for (name, source) in self.sources.items()}) #         Loader(self.reader, "cache")  # todo -- this should be general purpose
         self.validator = Validator(self.reader, self.writer)  # todo -- this should be general purpose
         self.transformer = pipeline_details.transformer
@@ -38,6 +38,14 @@ class Pipeline(Task):
 
         # Pre-Ingestion Function
         self.pre_ingestion_function[0]()  # The class saves the function as a tuple
+
+
+        # self.loader = Loader(self.reader, "cache")
+        # self.validator = Validator(
+        #     "cache", "cache", constraints="json:data"
+        # )
+        # self.calculator = \
+        #     AddHours("cache", self.writer)
 
 
         '''
