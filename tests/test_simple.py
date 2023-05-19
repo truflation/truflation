@@ -3,7 +3,6 @@ import unittest
 
 from overrides import override
 import tfi.data.connector
-import tfi.data.data
 import tfi.data.task
 import tfi.data.validator
 import tfi.data.connector
@@ -18,20 +17,18 @@ class ReadTask(tfi.data.task.Task):
                  table_: str):
         self.filename = filename_
         self.table = table_
-        self.reader = tfi.data.connector.ConnectorCsv()
+        self.reader = tfi.data.connector.ConnectorCsv(
+            path_root=SCRIPT_DIR
+        )
         self.writer = tfi.data.connector.ConnectorSql(
             database_
         )
 
     @override
     def run(self, *args, **kwargs):
-        with open(
-                self.filename,
-                newline=''
-        ) as csvfile:
-            self.writer.drop_table(self.table, True)
-            b = self.reader.read_all(csvfile)
-            self.writer.write_all(b, table=self.table)
+        self.writer.drop_table(self.table, True)
+        b = self.reader.read_all(self.filename)
+        self.writer.write_all(b, table=self.table)
 
 class WriteTask(tfi.data.task.Task):
     def __init__(self,
@@ -40,19 +37,17 @@ class WriteTask(tfi.data.task.Task):
                  table_: str):
         self.filename = filename_
         self.table = table_
-        self.writer = tfi.data.writer.ConnectorCsv()
+        self.writer = tfi.data.writer.ConnectorCsv(
+            path_root=SCRIPT_DIR
+        )
         self.reader = tfi.data.reader.ConnectorSql(
             database_
         )
 
     @override
     def run(self, *args, **kwargs):
-        with open(
-                self.filename, 'w',
-                newline=''
-        ) as csvfile:
-            b = self.reader.read_all(self.table)
-            self.writer.write_all(b, csvfile)
+        b = self.reader.read_all(self.table)
+        self.writer.write_all(b, key=self.filename)
 
 class TestSimple(unittest.TestCase):
     def test_simple(self):
@@ -62,7 +57,7 @@ class TestSimple(unittest.TestCase):
     def test_read_csv(self):
         task = ReadTask(
             f'sqlite:///{SCRIPT_DIR}/database.db',
-            os.path.join(SCRIPT_DIR, 'eggs.csv'),
+            'eggs.csv',
             'demo'
         )
         task.run()
@@ -70,7 +65,7 @@ class TestSimple(unittest.TestCase):
     def test_write_csv(self):
         task = WriteTask(
             f'sqlite:///{SCRIPT_DIR}/database.db',
-            os.path.join(SCRIPT_DIR, 'eggs.out.csv'),
+            'eggs.out.csv',
             'demo'
         )
         task.run()
