@@ -2,7 +2,7 @@ from tfi.data.validator import Validator
 from tfi.data.task import Task
 from tfi.data.loader import Loader
 # from tfi.data.data import DataPandas, DataFormat
-from tfi.data.details import PipeLineDetails
+from tfi.data.pipeline_details import PipeLineDetails
 from tfi.data.connector import connector_factory
 
 # todo -- later, create a new pipeline to process al data in parallel -- new class
