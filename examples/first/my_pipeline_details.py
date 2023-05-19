@@ -22,20 +22,18 @@ sources = [
 
 
 def transformer(data_dict: dict):
-    return data_dict
+    df1 = data_dict['first']
+    df2 = data_dict['second']
+    res_df = df1.copy()
+    res_df["hours coding"] = df1["hours coding"].add(df2["hours coding"])
 
-    #
-    # df1 = self.reader.read_all(
-    #     key="developer_hours"
-    # ).get(DataFormat.PANDAS)
-    # df2 = self.reader.read_all(
-    #     key="developer_hours2"
-    # ).get(DataFormat.PANDAS)
-    # res_df = df1.copy()
-    # res_df["hours coding"] = df1["hours coding"].add(df2["hours coding"])
-    # self.writer.write_all(DataPandas(res_df), key="hours_coding")
+    print(f'res_df type: {type(res_df)}')
+
+    res_dict = {"sum": res_df}
+    return res_dict
 
 
+# todo --  ability to dump all or add row by row
 def exporter():
     print('to do')
 
