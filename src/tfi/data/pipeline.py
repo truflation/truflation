@@ -26,7 +26,7 @@ class Pipeline(Task):
         self.sources = dict({x.name: x for x in pipeline_details.sources})
         # self.readers = dict({x.name: connector_factory(f'{x.source_type}:{x.source}') for x in pipeline_details.sources})
 
-        self.loaders = dict({name: Loader(f'{source.source_type}:{source.source}', "cache") for (name, source) in self.sources.items()}) #         Loader(self.reader, "cache")  # todo -- this should be general purpose
+        self.loaders = dict({name: Loader(source.source_type, "cache") for (name, source) in self.sources.items()}) #         Loader(self.reader, "cache")  # todo -- this should be general purpose
         self.validator = Validator(self.reader, self.writer)  # todo -- this should be general purpose
         self.transformer = pipeline_details.transformer
 
@@ -69,7 +69,7 @@ class Pipeline(Task):
             print(f'Reading, Parsing, and Validating {source_name} -> {source.source_type} -> {source.source}')
             self.loaders[source_name].run(source.source, "cache")
             # my_data = self.loaders[source_name].writer.cache.cache_data["cache"].df
-            my_data = self.loaders[source_name].writer.read_all(key="cache").df
+            my_data = self.loaders[source_name].writer.read_all(key="cache")
             print(my_data)
 
 
@@ -78,27 +78,27 @@ class Pipeline(Task):
             print(f'Reading, Parsing, and Validating {source_name} -> {source.source_type} -> {source.source}')
             self.loaders[source_name].run(source.source, "cache")
             # my_data = self.loaders[source_name].writer.cache.cache_data["cache"].df
-            my_data = self.loaders[source_name].writer.read_all(key="cache").df
+            my_data = self.loaders[source_name].writer.read_all(key="cache")
             print(my_data)
 
 
         print("\n\nC------------------")
         for source_name, loader in self.loaders.items():
             print(f'{source_name} -> {loader}')
-            my_data = loader.writer.read_all(key="cache").df
+            my_data = loader.writer.read_all(key="cache")
             print(my_data)
 
 
         print("\n\nD------------------")
         for source_name, source in self.sources.items():
             print(f'{source_name} -> {source}')
-            my_data = self.loaders[source_name].writer.read_all(key="cache").df
+            my_data = self.loaders[source_name].writer.read_all(key="cache")
             print(my_data)
 
 
         # Transform x sources into y dataframes
         print(f'Transforming -- todo ')
-        my_data = dict({name: loader.writer.read_all(key="cache").df for (name, loader) in self.loaders.items()})
+        my_data = dict({name: loader.writer.read_all(key="cache") for (name, loader) in self.loaders.items()})
 
         # print(f'my_data: {my_data}')
         self.transformer(self.sources.keys())
