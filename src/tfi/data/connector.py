@@ -222,6 +222,7 @@ class ConnectorRest(Connector):
 
 cache_ = Cache()
 
+
 def connector_factory(url: str) -> Optional[Connector]:
     if url.startswith('cache'):
         return cache_.connector()

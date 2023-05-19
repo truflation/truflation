@@ -1,9 +1,9 @@
 from tfi.data.validator import Validator
 from tfi.data.task import Task
 from tfi.data.loader import Loader
+from tfi.data.general_loader import GeneralLoader
 # from tfi.data.data import DataPandas, DataFormat
 from tfi.data.pipeline_details import PipeLineDetails
-from tfi.data.connector import connector_factory
 
 # todo -- later, create a new pipeline to process al data in parallel -- new class
 
@@ -24,9 +24,11 @@ class Pipeline(Task):
         self.pre_ingestion_function = pipeline_details.pre_ingestion_function,
         self.post_ingestion_function = pipeline_details.post_ingestion_function,
         self.sources = dict({x.name: x for x in pipeline_details.sources})
-        # self.readers = dict({x.name: connector_factory(f'{x.source_type}:{x.source}') for x in pipeline_details.sources})
 
+
+        # todo -- This should be self.loader, loading in a general purpose reader/writer which can function across all
         self.loaders = dict({name: Loader(source.source_type, "cache") for (name, source) in self.sources.items()}) #         Loader(self.reader, "cache")  # todo -- this should be general purpose
+        self.loader = GeneralLoader()
         self.validator = Validator(self.reader, self.writer)  # todo -- this should be general purpose
         self.transformer = pipeline_details.transformer
 
@@ -35,39 +37,51 @@ class Pipeline(Task):
 
     def ingest(self) -> None:
         # todo -- create try except after functionality works
-
+        self.header("Ingesting...")
         # Pre-Ingestion Function
+
+        self.header("Pre Ingestion Function...")
         self.pre_ingestion_function[0]()  # The class saves the function as a tuple
 
         # Read, Parse,  and Validate from all sources
-        print(f'Reading, Parsing, and Validating...')
+        self.header("Loading...")
+        '''
+        # David Replaced this with GeneralizedLoader
         for source_name, source in self.sources.items():
             self.loaders[source_name].run(source.source, source_name)
             # my_data = self.loaders[source_name].writer.cache.cache_data["cache"].df
             # my_data = self.loaders[source_name].writer.read_all(key="cache")
             # print(my_data)
+        '''
 
-        for source_name, loader in self.loaders.items():
-            # todo -- i would rather loader work on all types given source -- more abstraction
-            # example --- self.loader.run(source, key)
-            # This way, I could use one loader class and read all the files and save it into the same place.
-            # If i wanted it saved somewhere else--even as a database?--, I would need to specify flags, but the default shoulde be a cache
-            # Flag for procoessing on cache with a parser?
+        for source_name, source_details in self.sources.items():
+            self.loader.run(source_details, source_name)
 
-            # self.loaders[source_name].run(source.source, source_name)
-            pass
-
-
+        self.header("Cache:...")
+        print(f'{self.loader.cache}')
 
         # Transform x sources into y dataframes
-        print(f'Transforming ...')
-        my_cache = self.loaders[source_name].writer.cache.cache_data
+        self.header("Transforming...")
+        # using loader
+        # my_cache = self.loaders[source_name].writer.cache.cache_data
+        # using generalizedloader
+
         # todo -- consider incorporating a loader here
-        df = self.transformer(my_cache)
-        print(f'transformed: {df}')
+        # df = self.transformer(my_cache)
+        # self.header("Transformed: ")
+        # print(f'{df}')
+
+        self.loader.transform(self.transformer)
+        my_cache = self.loader.cache
+        print(f'my_cache: {my_cache}')
 
         #  Export y dataframes into z tables on servers
-        print(f'Exporting -- todo')
+        self.header("Exporting...")
 
         #  Post ingestion function
+        self.header("Post Ingestion Function...")
         self.post_ingestion_function[0]()
+
+    @staticmethod
+    def header(s: str):
+        print('\n\n' + f'#'*20 + f'   {s}   ' + '#'*(20 - len(s)))

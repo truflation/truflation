@@ -27,8 +27,6 @@ def transformer(data_dict: dict):
     res_df = df1.copy()
     res_df["hours coding"] = df1["hours coding"].add(df2["hours coding"])
 
-    print(f'res_df type: {type(res_df)}')
-
     res_dict = {"sum": res_df}
     return res_dict
 
