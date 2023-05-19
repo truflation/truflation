@@ -1,5 +1,6 @@
 from tfi.data.pipeline_details import PipeLineDetails
 from tfi.data.source_details import SourceDetails
+from tfi.data.export_details import ExportDetails
 
 # Name
 pipeline_name = "Hello World"
@@ -20,6 +21,9 @@ sources = [
     SourceDetails("second", "csv", "examples/example_2.csv", lambda x: x)
 ]
 
+exports =  [
+    ExportDetails("sum", ip = 'localhost', port=3303, username='guest', password= 'retrieved_from_env')
+]
 
 def transformer(data_dict: dict):
     df1 = data_dict['first']
@@ -31,15 +35,10 @@ def transformer(data_dict: dict):
     return res_dict
 
 
-# todo --  ability to dump all or add row by row
-def exporter():
-    print('to do')
-
-
 def get_details():
     my_pipeline = PipeLineDetails(name=pipeline_name,
                                   sources=sources,
-                                  exporter=exporter,
+                                  exports=exports,
                                   pre_ingestion_function=pre_ingestion_function,
                                   post_ingestion_function=post_ingestion_function,
                                   transformer=transformer

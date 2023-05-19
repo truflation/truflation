@@ -3,6 +3,7 @@ from tfi.data.connector import connector_factory
 from tfi.data.source_details import SourceDetails
 from typing import Callable
 
+
 class GeneralLoader:
     def __init__(self):
         self.writer = connector_factory("cache")
@@ -18,10 +19,16 @@ class GeneralLoader:
         self.writer.write_all(d, key=key)
 
     def transform(self, transformer: Callable):
+        """ transforms cache with transformer function   """
         self.writer.cache.cache_data.update(transformer(self.writer.cache.cache_data))
 
-    # todo -- clear cache
-    # todo -- replace cache
+    def clear(self):
+        """ Clears the cache"""
+        self.writer.cache.cache_data = {}
+
+    def replace_cache(self, cache: dict):
+        """ Clears the cache"""
+        self.writer.cache.cache_data = cache
 
     @property
     def cache(self):
