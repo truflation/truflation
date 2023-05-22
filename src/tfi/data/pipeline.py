@@ -37,8 +37,8 @@ class Pipeline(Task):
         for source_name, source_details in self.sources.items():
             self.loader.run(source_details, source_name)
 
-        self.header("Cache:...")
-        print(f'{self.loader.cache}')
+        # self.header("Cache:...")
+        # print(f'{self.loader.cache}')
 
         # Transform x sources into y dataframes
         self.header("Transforming...")
@@ -46,7 +46,7 @@ class Pipeline(Task):
 
         # todo -- remove -- print only to show success
         my_cache = self.loader.cache
-        print(f'my_cache: {my_cache}')
+        # print(f'my_cache: {my_cache}')
 
         #  Export y dataframes into z tables on servers
         self.header("Exporting...")
@@ -57,6 +57,20 @@ class Pipeline(Task):
         self.header("Post Ingestion Function...")
         self.post_ingestion_function[0]()
 
+        self.header("TESTING FROZEN DATA...")
+        df_frozen = self.exporter.get_frozen_data(self.exports[0], frozen_timestamp=1684558307) # Timestamp for may 19 2023
+        print(f'df_frozen: \n{df_frozen}')
+
     @staticmethod
     def header(s: str):
-        print('\n\n' + f'#'*20 + f'   {s}   ' + '#'*(20 - len(s)))
+        print('\n' + f'#'*20 + f'   {s}   ' + '#'*(20 - len(s)))
+
+# Create docker setup -- David
+# Create exporter class functionality -- David
+# Set up server-side SQL tables and login ---- @Joseph
+# Deploy everything --- ? together where -- production? and test?? @Joseph, @David
+# Write Functionality for 4 ingestion @David
+# Documentation ---- @David
+### Time-Series Data Model ---- @David
+# Code review ----- next week @David @Joseph
+# List of 'things' to decide ---- @Joseph first

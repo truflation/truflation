@@ -1,10 +1,16 @@
 class ExportDetails:
-    def __init__(self, name, ip, port, username, password):
+    def __init__(self, name, host, port, db, table, username, password):
         self.name = name
-        self.ip = ip
+        self.host = host
         self.port = port
+        self.db = db
+        self.table = table
         self.username = username
         self.password = password
 
-    # Todo -- exporter here or in separt class
+    def __repr__(self):
+        return "ExportDetails()"
+
+    def __str__(self):
+        return f"ExportDetails({self.username}@{self.host}:{self.port}, db:{self.db})"
 

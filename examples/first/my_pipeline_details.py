@@ -1,6 +1,11 @@
 from tfi.data.pipeline_details import PipeLineDetails
 from tfi.data.source_details import SourceDetails
 from tfi.data.export_details import ExportDetails
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+DB_PASS = os.getenv('DB_PASS')
 
 # Name
 pipeline_name = "Hello World"
@@ -21,15 +26,22 @@ sources = [
     SourceDetails("second", "csv", "examples/example_2.csv", lambda x: x)
 ]
 
-exports =  [
-    ExportDetails("sum", ip = 'localhost', port=3303, username='guest', password= 'retrieved_from_env')
+exports = [
+    ExportDetails(name='sum',
+                  host ='127.0.0.1',
+                  port=3306,
+                  db='test',
+                  table='work_details',
+                  username="root",
+                  password=DB_PASS)
 ]
+
 
 def transformer(data_dict: dict):
     df1 = data_dict['first']
     df2 = data_dict['second']
     res_df = df1.copy()
-    res_df["hours coding"] = df1["hours coding"].add(df2["hours coding"])
+    res_df["value"] = df1["value"].add(df2["value"])
 
     res_dict = {"sum": res_df}
     return res_dict
