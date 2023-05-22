@@ -161,15 +161,10 @@ class ConnectorSql(Connector):
             *args,
             **kwargs
     ) -> None:
-        table = kwargs.get('key', None)
-        if table is None:
-            table = kwargs.get('table', None)
-            del kwargs['table']
-        if table is None:
-            table = kwargs.get('key', None)
-            del kwargs['key']
+        table = kwargs.pop('key', kwargs.pop('table', None))
         if table is None and len(args) > 0:
             table = args[0]
+            
         data.to_sql(
             table,
             self.engine,
