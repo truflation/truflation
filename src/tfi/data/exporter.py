@@ -12,20 +12,28 @@ import pandas as pd
 import time
 import datetime
 
+
 class Exporter:
+    """
+    Exporter is a class that is able to export data to databases.
+    """
     def __init__(self):
         pass
 
     def export(self, export_details: ExportDetails, df_local):
+        """
+        Export dataframe to database.
 
+        param:
+          export_details: ExportDetails: database details
+          df_local: Pandas.DataFrame: dataframe to export
+        """
         # Works but throws 'mariadb.ProgrammingError: Cursor is closed' error
         # sql_alchemy_uri = f"mariadb+mariadbconnector://{export_details.username}:{export_details.password}@127.0.0.1:{export_details.port}/{export_details.db}"
 
         # create created at for df if none exists (new data)
         if 'createdAt' not in df_local:
             df_local['createdAt'] = pd.to_datetime(pd.Timestamp.now(), unit='s')
-
-        print(f'df_local\n{df_local}')
 
         # Read in remote database as dataframe
         df_remote = self.read(export_details)
@@ -39,9 +47,8 @@ class Exporter:
         # If remote exists, reconcile and receive the data needing to be added
         df_new_data = self.reconcile_dataframes(df_remote, df_local) if df_remote is not None else df_local
 
-        print(f'df_remote\n{df_remote}')
-        print(f'df_new_data\n{df_new_data}')
-
+        # print(f'df_remote\n{df_remote}')
+        # print(f'df_new_data\n{df_new_data}')
 
         if 'date' in df_local:
             df_local['date'] = pd.to_datetime(df_local['date'])  # make sure the 'date' column is in datetime format
@@ -78,12 +85,26 @@ class Exporter:
 
     @staticmethod
     def export_dump(export_details: ExportDetails, df):
+        """
+        Export dataframe to database. Theis replace the table in database with the dataframe.
+
+        param:
+          export_details: ExportDetails: database details
+          df_local: Pandas.DataFrame: dataframe to export
+        """
+
         sql_alchemy_uri = f'mariadb+pymysql://{export_details.username}:{export_details.password}@{export_details.host}:{export_details.port}/{export_details.db}'
         engine = create_engine(sql_alchemy_uri)
         df.to_sql(export_details.table, con=engine, if_exists='replace', chunksize=1000)
 
     @staticmethod
     def read(export_details: ExportDetails):
+        """
+        Read data from database
+
+        param:
+          export_details: ExportDetails: database details
+        """
         # Connect to the database
         connection = pymysql.connect(host=export_details.host,
                                      user=export_details.username,
@@ -102,7 +123,6 @@ class Exporter:
         if my_cursor.fetchone()[0] == 0:
             my_cursor.close()
             return None
-
 
         # Get row names
         my_cursor.execute(f"SHOW columns FROM {export_details.table}")
@@ -125,6 +145,12 @@ class Exporter:
 
     @staticmethod
     def reduce_future_created_at(df):
+        """
+        Reduces createdAt to present time for future values.
+
+        param:
+          df: Pandas.DataFrame: dataframe to reduce
+        """
 
         if df is None or 'createdAt' not in df:
             return df
@@ -135,60 +161,15 @@ class Exporter:
         df.loc[mask, 'createdAt'] = date_time_now
         return df
 
-    # @staticmethod
-    # def reconcile_dataframes(df_base, df_other):
-    #     # filter db to most recent (createdAt) date-value pairs
-    #     df_base['date'] = pd.to_datetime(df_base['date'])  # make sure the 'date' column is in datetime format
-    #     df_base = df_base.sort_values('createdAt', ascending=False).drop_duplicates('date').sort_index()
-    #
-    #     # ensure date columns are in datetime format
-    #     df_base['date'] = pd.to_datetime(df_base['date'])
-    #     df_other['date'] = pd.to_datetime(df_other['date'])
-    #
-    #     # perform merge operation on 'date', 'value' and 'createdAt'
-    #     df_merge = pd.merge(df_base, df_other, how='outer', on=['date', 'value'], indicator=True)
-    #
-    #     # filter rows that are in df_other only
-    #     df_new_data = df_merge.loc[df_merge['_merge'] == 'right_only'].drop(columns=['_merge'])
-    #
-    #     # remove the unnecessary index column if exists
-    #     if 'index' in df_new_data.columns:
-    #         df_new_data = df_new_data.drop(columns=['index'])
-    #
-    #     print(f'df_merge: \n{df_merge}')
-    #
-    #     return df_new_data
-
-
-
-    # @staticmethod
-    # def reconcile_dataframes(df_base, df_other):
-    #     # step 2 -- filter db to most recent (createdAt) date-value pairs
-    #     df_base['date'] = pd.to_datetime(df_base['date'])  # make sure the 'date' column is in datetime format
-    #     df_base = df_base.sort_values(['date', 'value', 'createdAt'], ascending=False).drop_duplicates(
-    #         ['date', 'value']).sort_index()
-    #
-    #     # Merge
-    #     # ensure date columns are in datetime format
-    #     df_base['date'] = pd.to_datetime(df_base['date'])
-    #     df_other['date'] = pd.to_datetime(df_other['date'])
-    #
-    #     # perform merge operation on 'date' and 'value'
-    #     df_merge = pd.merge(df_base, df_other, how='outer', on=['date', 'value'], indicator=True)
-    #
-    #     # filter rows that are in df_other only
-    #     df_new_data = df_merge.loc[df_merge['_merge'] == 'right_only'].drop(columns=['_merge'])
-    #
-    #     # remove the unnecessary index column if exists
-    #     if 'index' in df_new_data.columns:
-    #         df_new_data = df_new_data.drop(columns=['index'])
-    #
-    #     # append df_new_data to df_base
-    #     # df_base_updated = df_base.append(df_new_data, ignore_index=True)
-    #     return df_new_data
-
     @staticmethod
-    def reconcile_dataframes(df_base, df_other):
+    def reconcile_dataframes(df_base, df_incoming):
+        """
+        Retrieve a dataframe that contains the rows needed to update df_base with the values from df_incoming
+
+        param:
+          df_base: Pandas.DataFrame: dataframe to add to
+          df_incoming: Pandas.DataFrame: dataframe to add
+        """
         # step 2 -- filter db to most recent (createdAt) date-value pairs
         df_base['date'] = pd.to_datetime(df_base['date'])  # make sure the 'date' column is in datetime format
         df_base = df_base.sort_values(['date', 'value', 'createdAt'], ascending=False).drop_duplicates(
@@ -197,12 +178,12 @@ class Exporter:
         # Merge
         # ensure date columns are in datetime format
         df_base['date'] = pd.to_datetime(df_base['date'])
-        df_other['date'] = pd.to_datetime(df_other['date'])
+        df_incoming['date'] = pd.to_datetime(df_incoming['date'])
 
         # perform merge operation on 'date' and 'value'
-        df_merge = pd.merge(df_base, df_other, how='outer', on=['date', 'value'], indicator=True, suffixes=('', '_y'))
+        df_merge = pd.merge(df_base, df_incoming, how='outer', on=['date', 'value'], indicator=True, suffixes=('', '_y'))
 
-        # filter rows that are in df_other only
+        # filter rows that are in df_incoming only
         df_new_data = df_merge.loc[df_merge['_merge'] == 'right_only'].drop(columns=['_merge'])
 
         # remove the unnecessary index and createdAt_x column if exists
@@ -218,12 +199,20 @@ class Exporter:
 
     # todo -- review, as this was ChatGPT originated
     def get_frozen_data(self, export_details: ExportDetails, frozen_datetime=None):
+        """
+        Get a dataframe with the most recent date-value pairs such that:
+            1. all dates at or before frozen_datetime must contain createdAt values before or equal to frozen_datetime
+            2. all dates after frozen_datetime must contain createdAt values before or equal to the date in question
+        Date-value pairs are immutable.
+
+        param:
+          export_details: ExportDetails: database details
+          frozen_datetime: datetime.datetime: time in which we view snapshot.
+        """
+
         # define frozen_date and frozen_datetime
-        # frozen_datetime = datetime.datetime.now().timestamp() if frozen_datetime is None else frozen_datetime
         frozen_datetime = datetime.datetime.now() if frozen_datetime is None else frozen_datetime
-        # frozen_date = datetime.datetime.fromtimestamp(frozen_datetime)  # .date()
-        frozen_date = frozen_datetime.date()  # .date()
-        # frozen_datetime = pd.to_datetime(frozen_datetime, unit='s')
+        frozen_date = frozen_datetime.date()
 
         df = self.read(export_details)
         df['date'] = pd.to_datetime(df['date'])  # make sure the 'date' column is in datetime format
@@ -238,7 +227,7 @@ class Exporter:
 
         # apply the filter
         # df_a = df[cond_before_frozen_date] # Original
-        # df_b = df[cond_after_frozen_date] # all data that came after, day by day
+        # df_b = df[cond_after_frozen_date] # all data that came after frozen_date, day by day
         df = df[cond_before_frozen_date | cond_after_frozen_date]
 
         # reduce the DataFrame to only contain rows with the latest 'createdAt'
