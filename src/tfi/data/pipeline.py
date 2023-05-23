@@ -72,3 +72,5 @@ class Pipeline(Task):
 ### Time-Series Data Model ---- @David
 # Code review ----- next week @David @Joseph
 # List of 'things' to decide ---- @Joseph first
+
+# Incorporate Logging @David

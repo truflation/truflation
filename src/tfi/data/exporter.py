@@ -1,6 +1,4 @@
-from tfi.data.connector import connector_factory
 from tfi.data.export_details import ExportDetails
-# import the module
 from sqlalchemy import create_engine, types, MetaData, Table, Column
 from sqlalchemy.dialects.mysql import DATETIME, DATE
 import pymysql
@@ -11,6 +9,16 @@ import pandas as pd
 # sudo apt install libmariadb3 libmariadb-dev # needed for mariadb installation
 import time
 import datetime
+
+'''
+  Dev Notes
+    In general, all databases should have the following fields
+    identifiers -- identifiers used in getting identifiers-value pairs
+        date -- a date object speficifying the date
+        misc identifiers -- like country, position, name, color, source, et cetera
+    value -- a value with consistent type, such as double or string
+    createdAt -- a datetime object indicated when this data was added to the database
+'''
 
 
 class Exporter:
@@ -38,11 +46,9 @@ class Exporter:
         # Read in remote database as dataframe
         df_remote = self.read(export_details)
 
-
-        # Reduce future created at to curren time
+        # Reduce future created at to current time
         df_local = self.reduce_future_created_at(df_local)
         df_remote = self.reduce_future_created_at(df_remote)
-
 
         # If remote exists, reconcile and receive the data needing to be added
         df_new_data = self.reconcile_dataframes(df_remote, df_local) if df_remote is not None else df_local
@@ -180,8 +186,11 @@ class Exporter:
         df_base['date'] = pd.to_datetime(df_base['date'])
         df_incoming['date'] = pd.to_datetime(df_incoming['date'])
 
+        identifiers = [x for x in df_base.columns if x not in ['createdAt']]
+
         # perform merge operation on 'date' and 'value'
-        df_merge = pd.merge(df_base, df_incoming, how='outer', on=['date', 'value'], indicator=True, suffixes=('', '_y'))
+        # df_merge = pd.merge(df_base, df_incoming, how='outer', on=['date', 'value'], indicator=True, suffixes=('', '_y'))
+        df_merge = pd.merge(df_base, df_incoming, how='outer', on=identifiers, indicator=True, suffixes=('', '_y'))
 
         # filter rows that are in df_incoming only
         df_new_data = df_merge.loc[df_merge['_merge'] == 'right_only'].drop(columns=['_merge'])
@@ -197,10 +206,11 @@ class Exporter:
 
         return df_new_data
 
+    # todo -- consider making this take in only a dataframe
     # todo -- review, as this was ChatGPT originated
     def get_frozen_data(self, export_details: ExportDetails, frozen_datetime=None):
         """
-        Get a dataframe with the most recent date-value pairs such that:
+        Get a dataframe from a database with the most recent date-value pairs such that:
             1. all dates at or before frozen_datetime must contain createdAt values before or equal to frozen_datetime
             2. all dates after frozen_datetime must contain createdAt values before or equal to the date in question
         Date-value pairs are immutable.
