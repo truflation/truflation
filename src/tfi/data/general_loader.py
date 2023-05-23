@@ -2,6 +2,7 @@ from tfi.data.task import Task
 from tfi.data.connector import connector_factory
 from tfi.data.source_details import SourceDetails
 from typing import Callable
+import pandas as pd
 
 
 class GeneralLoader:
@@ -15,8 +16,13 @@ class GeneralLoader:
         reader = connector_factory(s_type) \
             if isinstance(s_type, str) \
             else s_type
-        d = reader.read_all(source)
-        self.writer.write_all(d, key=key)
+        df = reader.read_all(source)
+        if 'date' in df:
+            df['date'] = pd.to_datetime(df['date'])  # make sure the 'date' column is in datetime format
+        if 'createdAt' in df:
+            df['createdAt'] = pd.to_datetime(df['createdAt'])
+
+        self.writer.write_all(df, key=key)
 
     def transform(self, transformer: Callable):
         """ transforms cache with transformer function   """

@@ -1,3 +1,5 @@
+import datetime
+
 from tfi.data.validator import Validator
 from tfi.data.task import Task
 from tfi.data.loader import Loader
@@ -46,7 +48,7 @@ class Pipeline(Task):
 
         # todo -- remove -- print only to show success
         my_cache = self.loader.cache
-        # print(f'my_cache: {my_cache}')
+        print(f'my_cache: {my_cache}')
 
         #  Export y dataframes into z tables on servers
         self.header("Exporting...")
@@ -58,7 +60,7 @@ class Pipeline(Task):
         self.post_ingestion_function[0]()
 
         self.header("TESTING FROZEN DATA...")
-        df_frozen = self.exporter.get_frozen_data(self.exports[0], frozen_timestamp=1684558307) # Timestamp for may 19 2023
+        df_frozen = self.exporter.get_frozen_data(self.exports[0], frozen_datetime=datetime.datetime.now() - datetime.timedelta(days=5)) # Timestamp for may 19 2023
         print(f'df_frozen: \n{df_frozen}')
 
     @staticmethod

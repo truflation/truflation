@@ -28,9 +28,9 @@ sources = [
 
 exports = [
     ExportDetails(name='sum',
-                  host ='127.0.0.1',
+                  host ='api-test.truflation.io',
                   port=3306,
-                  db='test',
+                  db='timeseries',
                   table='work_details',
                   username="root",
                   password=DB_PASS)
