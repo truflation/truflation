@@ -39,16 +39,12 @@ class Pipeline(Task):
         for source_name, source_details in self.sources.items():
             self.loader.run(source_details, source_name)
 
-        # self.header("Cache:...")
-        # print(f'{self.loader.cache}')
-
         # Transform x sources into y dataframes
         self.header("Transforming...")
         self.loader.transform(self.transformer)
 
-        # todo -- remove -- print only to show success
+        # Get cache
         my_cache = self.loader.cache
-        # print(f'my_cache: {my_cache}')
 
         #  Export y dataframes into z tables on servers
         self.header("Exporting...")
