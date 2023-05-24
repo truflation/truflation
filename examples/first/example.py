@@ -11,7 +11,7 @@ import time
 
 # todo -- consider loading in all pipeline_details from a directory
 # todo -- add AP scheduler functionality and settings in my details
-def ingest(pipeline_details:PipeLineDetails):
+def ingest(pipeline_details: PipeLineDetails):
     my_pipeline = Pipeline(pipeline_details)
     my_pipeline.ingest()
 
@@ -39,6 +39,7 @@ def main():
     # Runs an infinite loop
     while True:
         time.sleep(1)
+
 
 if __name__ == '__main__':
     main()
