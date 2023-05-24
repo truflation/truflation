@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# pip install. & &./ examples / example.py
+# pip install. && ./examples/example.py
 
 from tfi.data.pipeline import Pipeline
 from first import my_pipeline_details
