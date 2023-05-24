@@ -1,7 +1,7 @@
 **/.DS_Store
 **/node_modules
 build
-
+# /ignore
 dist
 .env
 README.md

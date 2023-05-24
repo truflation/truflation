@@ -1,0 +1,9 @@
+services:
+  ingestor_one:
+      build: .
+      command: python3 examples/first/example.py
+      volumes:
+        - pipeline_details:/data/todo
+volumes:
+  pipeline_details:
+    driver: local
