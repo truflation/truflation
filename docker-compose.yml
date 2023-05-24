@@ -4,6 +4,11 @@ services:
       command: python3 examples/first/example.py
       volumes:
         - pipeline_details:/data/todo
+  ingestor_two:
+      build: .
+      command: python3 examples/first/example.py
+      volumes:
+        - pipeline_details:/data/todo
 volumes:
   pipeline_details:
     driver: local
