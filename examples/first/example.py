@@ -2,9 +2,10 @@
 # pip install. && ./examples/example.py
 
 from tfi.data.pipeline import Pipeline
-from first import my_pipeline_details
+import my_pipeline_details
 
 
+# todo -- consider loading in all pipeline_details from a directory
 # todo -- add AP scheduler functionality and settings in my details
 def main():
     my_pipeline = Pipeline(my_pipeline_details.get_details())

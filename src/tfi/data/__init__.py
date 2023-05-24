@@ -1,3 +1,3 @@
-from tfi.data.data import Data
+# from tfi.data.data import Data
 from tfi.data.reader import Reader
 from tfi.data.writer import Writer
