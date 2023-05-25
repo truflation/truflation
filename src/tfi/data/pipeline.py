@@ -25,7 +25,6 @@ class Pipeline(Task):
         self.exports = pipeline_details.exports
         self.exporter = Exporter()
 
-
     def ingest(self) -> None:
         # todo -- create try except after functionality works
         self.header("Ingesting...")

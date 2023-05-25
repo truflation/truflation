@@ -36,6 +36,9 @@ class GeneralLoader:
         """ Clears the cache"""
         self.writer.cache.cache_data = cache
 
+    # todo -- write
+    # Create a generalized writer that accepts a cache_key_string, an export type, and a output location, which will take the df from the string in cache and output it in the expected type to the output location
+
     @property
     def cache(self):
         return self.writer.cache.cache_data
