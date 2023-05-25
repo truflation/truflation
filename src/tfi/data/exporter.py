@@ -9,7 +9,9 @@ import pandas as pd
 # sudo apt install libmariadb3 libmariadb-dev # needed for mariadb installation
 import time
 import datetime
+import logging
 
+logging.basicConfig(level=logging.DEBUG)
 '''
   Dev Notes
     In general, all databases should have the following fields
@@ -17,7 +19,7 @@ import datetime
         date -- a date object speficifying the date
         misc identifiers -- like country, position, name, color, source, et cetera
     value -- a value with consistent type, such as double or string
-    createdAt -- a datetime object indicated when this data was added to the database
+    created_at -- a datetime object indicated when this data was added to the database
 '''
 
 
@@ -40,11 +42,15 @@ class Exporter:
         # sql_alchemy_uri = f"mariadb+mariadbconnector://{export_details.username}:{export_details.password}@127.0.0.1:{export_details.port}/{export_details.db}"
 
         # create created at for df if none exists (new data)
-        if 'createdAt' not in df_local:
-            df_local['createdAt'] = pd.to_datetime(pd.Timestamp.now(), unit='s')
+        if 'created_at' not in df_local:
+            df_local['created_at'] = pd.to_datetime(pd.Timestamp.now(), unit='s')
+        logging.debug(df_local)
+
 
         # Read in remote database as dataframe
+        logging.debug(export_details)
         df_remote = self.read(export_details)
+        logging.debug(df_remote)
 
         # Reduce future created at to current time
         df_local = self.reduce_future_created_at(df_local)
@@ -67,7 +73,7 @@ class Exporter:
         # table = Table(
         #     export_details.table, metadata,
         #     Column('date', DATE()),  # specifying fractional seconds precision
-        #     Column('createdAt', DATETIME(fsp=6)),  # specifying fractional seconds precision
+        #     Column('created_at', DATETIME(fsp=6)),  # specifying fractional seconds precision
         #     # add other columns as needed
         # )
 
@@ -80,12 +86,12 @@ class Exporter:
                            con=engine,
                            if_exists='append',
                            chunksize=1000,
-                           index=False,  # change to True if you want to write the index into a separate column
+                           index= (df_new_data.index.name == 'date'),
                            dtype={
-                               # 'createdAt': types.DateTime(precision=6),
+                               # 'created_at': types.DateTime(precision=6),
                                'date': types.Date(),
-                               # 'createdAt': types.TIMESTAMP() # TIMESTAMP is limited to 2038
-                               'createdAt': types.DATETIME()  # TIMESTAMP is limited to 2038
+                               # 'created_at': types.TIMESTAMP() # TIMESTAMP is limited to 2038
+                               'created_at': types.DATETIME()  # TIMESTAMP is limited to 2038
                            }
                            )
 
@@ -152,19 +158,19 @@ class Exporter:
     @staticmethod
     def reduce_future_created_at(df):
         """
-        Reduces createdAt to present time for future values.
+        Reduces created_at to present time for future values.
 
         param:
           df: Pandas.DataFrame: dataframe to reduce
         """
 
-        if df is None or 'createdAt' not in df:
+        if df is None or 'created_at' not in df:
             return df
         # create mask for timestamps greater than now
         date_time_now = datetime.datetime.now()
-        mask = df['createdAt'] > date_time_now
+        mask = df['created_at'] > date_time_now
         # Update those rows
-        df.loc[mask, 'createdAt'] = date_time_now
+        df.loc[mask, 'created_at'] = date_time_now
         return df
 
     @staticmethod
@@ -176,9 +182,9 @@ class Exporter:
           df_base: Pandas.DataFrame: dataframe to add to
           df_incoming: Pandas.DataFrame: dataframe to add
         """
-        # step 2 -- filter db to most recent (createdAt) date-value pairs
+        # step 2 -- filter db to most recent (created_at) date-value pairs
         df_base['date'] = pd.to_datetime(df_base['date'])  # make sure the 'date' column is in datetime format
-        df_base = df_base.sort_values(['date', 'value', 'createdAt'], ascending=False).drop_duplicates(
+        df_base = df_base.sort_values(['date', 'value', 'created_at'], ascending=False).drop_duplicates(
             ['date', 'value']).sort_index()
 
         # Merge
@@ -186,7 +192,7 @@ class Exporter:
         df_base['date'] = pd.to_datetime(df_base['date'])
         df_incoming['date'] = pd.to_datetime(df_incoming['date'])
 
-        identifiers = [x for x in df_base.columns if x not in ['createdAt']]
+        identifiers = [x for x in df_base.columns if x not in ['created_at']]
 
         # perform merge operation on 'date' and 'value'
         # df_merge = pd.merge(df_base, df_incoming, how='outer', on=['date', 'value'], indicator=True, suffixes=('', '_y'))
@@ -195,14 +201,14 @@ class Exporter:
         # filter rows that are in df_incoming only
         df_new_data = df_merge.loc[df_merge['_merge'] == 'right_only'].drop(columns=['_merge'])
 
-        # remove the unnecessary index and createdAt_x column if exists
+        # remove the unnecessary index and created_at_x column if exists
         if 'index' in df_new_data.columns:
             df_new_data = df_new_data.drop(columns=['index'])
-        if 'createdAt' in df_new_data.columns:
-            df_new_data = df_new_data.drop(columns=['createdAt'])
+        if 'created_at' in df_new_data.columns:
+            df_new_data = df_new_data.drop(columns=['created_at'])
 
-        # rename createdAt_y to createdAt
-        df_new_data = df_new_data.rename(columns={"createdAt_y": "createdAt"})
+        # rename created_at_y to created_at
+        df_new_data = df_new_data.rename(columns={"created_at_y": "created_at"})
 
         return df_new_data
 
@@ -211,8 +217,8 @@ class Exporter:
     def get_frozen_data(self, export_details: ExportDetails, frozen_datetime=None):
         """
         Get a dataframe from a database with the most recent date-value pairs such that:
-            1. all dates at or before frozen_datetime must contain createdAt values before or equal to frozen_datetime
-            2. all dates after frozen_datetime must contain createdAt values before or equal to the date in question
+            1. all dates at or before frozen_datetime must contain created_at values before or equal to frozen_datetime
+            2. all dates after frozen_datetime must contain created_at values before or equal to the date in question
         Date-value pairs are immutable.
 
         param:
@@ -232,16 +238,16 @@ class Exporter:
         # df['endOfDayDatetime'] = (df['date'] + pd.DateOffset(days=1) - pd.Timedelta(seconds=1)).apply(lambda x: x.timestamp())
 
         # create conditions for the filter
-        cond_before_frozen_date = (df['date'].dt.date <= frozen_date) & (df['createdAt'] <= frozen_datetime)
-        cond_after_frozen_date = (df['date'].dt.date > frozen_date) & (df['createdAt'] <= df['endOfDayDatetime'])
+        cond_before_frozen_date = (df['date'].dt.date <= frozen_date) & (df['created_at'] <= frozen_datetime)
+        cond_after_frozen_date = (df['date'].dt.date > frozen_date) & (df['created_at'] <= df['endOfDayDatetime'])
 
         # apply the filter
         # df_a = df[cond_before_frozen_date] # Original
         # df_b = df[cond_after_frozen_date] # all data that came after frozen_date, day by day
         df = df[cond_before_frozen_date | cond_after_frozen_date]
 
-        # reduce the DataFrame to only contain rows with the latest 'createdAt'
-        df = df.sort_values('createdAt', ascending=False).drop_duplicates('date').sort_index()
+        # reduce the DataFrame to only contain rows with the latest 'created_at'
+        df = df.sort_values('created_at', ascending=False).drop_duplicates('date').sort_index()
 
         del df['endOfDayDatetime']
 
@@ -253,9 +259,9 @@ class Exporter:
 
 # ChatGPT Snippet -- gets the most recent data
 # todo -- have a created at function that removes all
-'''# assuming df is your DataFrame and it has columns 'date', 'value', and 'createdAt'
+'''# assuming df is your DataFrame and it has columns 'date', 'value', and 'created_at'
 df['date'] = pd.to_datetime(df['date'])  # make sure the 'date' column is in datetime format
-df = df.sort_values('createdAt', ascending=False).drop_duplicates('date').sort_index()
+df = df.sort_values('created_at', ascending=False).drop_duplicates('date').sort_index()
 '''
 
 
@@ -263,7 +269,7 @@ df = df.sort_values('createdAt', ascending=False).drop_duplicates('date').sort_i
 '''
 import pandas as pd
 
-# assuming df is your DataFrame and it has columns 'date', 'value', 'createdAt', 'endOfDayTimestamp'
+# assuming df is your DataFrame and it has columns 'date', 'value', 'created_at', 'endOfDayTimestamp'
 
 df['date'] = pd.to_datetime(df['date'])  # make sure the 'date' column is in datetime format
 
@@ -272,12 +278,12 @@ frozen_date = pd.to_datetime('yyyy-mm-dd')  # replace with actual frozen date
 frozen_timestamp = 123456789.123456  # replace with actual frozen timestamp
 
 # create conditions for the filter
-cond_before_frozen_date = (df['date'] < frozen_date) & (df['createdAt'] < frozen_timestamp)
-cond_after_frozen_date = (df['date'] > frozen_date) & (df['createdAt'] < df['endOfDayTimestamp'])
+cond_before_frozen_date = (df['date'] < frozen_date) & (df['created_at'] < frozen_timestamp)
+cond_after_frozen_date = (df['date'] > frozen_date) & (df['created_at'] < df['endOfDayTimestamp'])
 
 # apply the filter
 df = df[cond_before_frozen_date | cond_after_frozen_date]
 
-# reduce the DataFrame to only contain rows with the latest 'createdAt'
-df = df.sort_values('createdAt', ascending=False).drop_duplicates('date').sort_index()
+# reduce the DataFrame to only contain rows with the latest 'created_at'
+df = df.sort_values('created_at', ascending=False).drop_duplicates('date').sort_index()
 '''
