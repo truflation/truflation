@@ -242,7 +242,7 @@ def connector_factory(url: str) -> Optional[Connector]:
        url.startswith('mysql') or \
        url.startswith('mariadb') or \
        url.startswith('oracle') or \
-       url.startswtih('mssql') or \
+       url.startswith('mssql') or \
        url.startswith('sqlalchemy') or \
        url.startswith('gsheets') or \
        url.startswith('pybigquery'):
