@@ -4,12 +4,13 @@ Connector
 
 import os
 import json
-from typing import Optional, Iterator, Any
+from typing import Optional, Iterator, Any, List
 import pandas
 import requests
 from pathlib import Path
 
 import sqlalchemy
+from sqlalchemy.sql import text
 from sqlalchemy import create_engine, Table, MetaData
 
 class Connector:
@@ -147,7 +148,6 @@ class ConnectorSql(Connector):
     def __init__(self, engine):
         super().__init__()
         self.engine = create_engine(engine)
-        self.conn = self.engine.connect()
 
     def read_all(
             self,
@@ -164,12 +164,12 @@ class ConnectorSql(Connector):
         table = kwargs.pop('key', kwargs.pop('table', None))
         if table is None and len(args) > 0:
             table = args[0]
-            
-        data.to_sql(
-            table,
-            self.engine,
-            **kwargs
-        )
+        with self.engine.connect() as conn:
+            data.to_sql(
+                table,
+                conn,
+                **kwargs
+            )
 
     def write_chunk(
             self,
@@ -179,8 +179,10 @@ class ConnectorSql(Connector):
         self.write_all(data, *args, **kwargs)
         yield None
 
-    def execute(self, statement, **line):
-        self.conn.execute(statement, **line)
+    def execute(self, statement_list: List[str], **line):
+        with self.engine.connect() as conn:
+            for statement in statement_list:
+                conn.execute(text(statement), **line)
 
     def drop_table(
             self,
@@ -209,7 +211,7 @@ class ConnectorRest(Connector):
             *args, **kwargs) -> Any:
         response = requests.get(
             os.path.join(
-                self.base,
+                self.base.format(**kwargs),
                 args[0]
             )
         )
