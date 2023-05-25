@@ -152,8 +152,11 @@ class ConnectorSql(Connector):
     def read_all(
             self,
             *args, **kwargs) -> Any:
-        df = pandas.read_sql(args[0], self.engine)
-        return df
+        try:
+            df = pandas.read_sql(args[0], self.engine)
+            return df
+        except Exception as e:
+            return None
 
     def write_all(
             self,

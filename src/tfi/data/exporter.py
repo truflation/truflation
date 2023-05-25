@@ -44,12 +44,14 @@ class Exporter:
         # create created at for df if none exists (new data)
         if 'created_at' not in df_local:
             df_local['created_at'] = pd.to_datetime(pd.Timestamp.now(), unit='s')
+        else:
+            df_local['created_at'] = pd.to_datetime(df_local['created_at'])
         logging.debug(df_local)
 
 
         # Read in remote database as dataframe
         logging.debug(export_details)
-        df_remote = self.read(export_details)
+        df_remote = export_details.read()
         logging.debug(df_remote)
 
         # Reduce future created at to current time
@@ -65,35 +67,20 @@ class Exporter:
         if 'date' in df_local:
             df_local['date'] = pd.to_datetime(df_local['date'])  # make sure the 'date' column is in datetime format
 
-
-        # # Initialize metadata object
-        # metadata = MetaData()
-        #
-        # # Define the table
-        # table = Table(
-        #     export_details.table, metadata,
-        #     Column('date', DATE()),  # specifying fractional seconds precision
-        #     Column('created_at', DATETIME(fsp=6)),  # specifying fractional seconds precision
-        #     # add other columns as needed
-        # )
-
-
         # Insert
-        sql_alchemy_uri = f'mariadb+pymysql://{export_details.username}:{export_details.password}@{export_details.host}:{export_details.port}/{export_details.db}'
-        engine = create_engine(sql_alchemy_uri)
-        # metadata.create_all(engine)
-        df_new_data.to_sql(export_details.table,
-                           con=engine,
-                           if_exists='append',
-                           chunksize=1000,
-                           index= (df_new_data.index.name == 'date'),
-                           dtype={
-                               # 'created_at': types.DateTime(precision=6),
-                               'date': types.Date(),
-                               # 'created_at': types.TIMESTAMP() # TIMESTAMP is limited to 2038
-                               'created_at': types.DATETIME()  # TIMESTAMP is limited to 2038
-                           }
-                           )
+        export_details.write(
+            df_new_data,
+            if_exists='append',
+            chunksize=1000,
+            index= (df_new_data.index.name == 'date'),
+            dtype={
+                # 'created_at': types.DateTime(precision=6),
+                'date': types.Date(),
+                # 'created_at': types.TIMESTAMP() # TIMESTAMP is limited to 2038
+                'created_at': types.DATETIME()  # TIMESTAMP is limited to 2038
+            },
+            
+        )
 
     @staticmethod
     def export_dump(export_details: ExportDetails, df):
@@ -108,52 +95,6 @@ class Exporter:
         sql_alchemy_uri = f'mariadb+pymysql://{export_details.username}:{export_details.password}@{export_details.host}:{export_details.port}/{export_details.db}'
         engine = create_engine(sql_alchemy_uri)
         df.to_sql(export_details.table, con=engine, if_exists='replace', chunksize=1000)
-
-    @staticmethod
-    def read(export_details: ExportDetails):
-        """
-        Read data from database
-
-        param:
-          export_details: ExportDetails: database details
-        """
-        # Connect to the database
-        connection = pymysql.connect(host=export_details.host,
-                                     user=export_details.username,
-                                     password=export_details.password,
-                                     db=export_details.db)
-
-        # create cursor
-        my_cursor = connection.cursor()
-
-        # Check if table exists
-        my_cursor.execute("""
-            SELECT COUNT(*)
-            FROM information_schema.tables
-            WHERE table_name = '{0}'
-            """.format(export_details.table.replace('\'', '\'\'')))
-        if my_cursor.fetchone()[0] == 0:
-            my_cursor.close()
-            return None
-
-        # Get row names
-        my_cursor.execute(f"SHOW columns FROM {export_details.table}")
-        column_names_info = my_cursor.fetchall()
-        column_names = [x[0] for x in column_names_info]
-
-        # Execute Query
-        my_cursor.execute(f"SELECT * from {export_details.table}")
-
-        # Fetch the records
-        data = my_cursor.fetchall()
-
-        # Convert to dataframe
-        df = pd.DataFrame(data, columns=column_names)
-
-        # Close the connection
-        connection.close()
-
-        return df
 
     @staticmethod
     def reduce_future_created_at(df):
@@ -232,7 +173,7 @@ class Exporter:
         frozen_datetime = datetime.datetime.now() if frozen_datetime is None else frozen_datetime
         frozen_date = frozen_datetime.date()
 
-        df = self.read(export_details)
+        df = export_details.read()
         df['date'] = pd.to_datetime(df['date'])  # make sure the 'date' column is in datetime format
 
         # Create new column for the end of the day

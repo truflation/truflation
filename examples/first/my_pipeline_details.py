@@ -27,15 +27,12 @@ sources = [
 ]
 
 exports = [
-    ExportDetails(name='sum',
-                  host ='api-test.truflation.io',
-                  port=3306,
-                  db='timeseries',
-                  table='work_details',
-                  username="root",
-                  password=DB_PASS)
+    ExportDetails(
+        name='sum',
+        connector = f'mariadb+pymysql://root:{DB_PASS}@api-test.truflation.io:3306/timeseries',
+        key='work_details'
+    )
 ]
-
 
 def transformer(data_dict: dict):
     df1 = data_dict['first']
