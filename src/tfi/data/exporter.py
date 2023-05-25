@@ -189,6 +189,8 @@ class Exporter:
 
         # Merge
         # ensure date columns are in datetime format
+        if df_incoming.index.name == 'date':
+            df_incoming = df_incoming.reset_index() # reset index if date is being used as index
         df_base['date'] = pd.to_datetime(df_base['date'])
         df_incoming['date'] = pd.to_datetime(df_incoming['date'])
 
