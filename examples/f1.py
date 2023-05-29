@@ -2,8 +2,8 @@
 
 # http://ergast.com/api/f1/2004/1/results.json
 
-from tfi.data.reader import ReaderRest
-from tfi.data.task import Task
+from truflation.data.reader import ReaderRest
+from truflation.data.task import Task
 
 class F1Task(Task):
     def __init__(self):

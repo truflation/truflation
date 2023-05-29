@@ -2,7 +2,7 @@
 Reader
 """
 
-from tfi.data.connector import Connector, ConnectorSql, \
+from truflation.data.connector import Connector, ConnectorSql, \
     ConnectorCsv, ConnectorRest
 
 Reader = Connector

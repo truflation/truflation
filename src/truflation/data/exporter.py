@@ -1,4 +1,4 @@
-from tfi.data.export_details import ExportDetails
+from truflation.data.export_details import ExportDetails
 from sqlalchemy import create_engine, types, MetaData, Table, Column
 from sqlalchemy.dialects.mysql import DATETIME, DATE
 import pymysql

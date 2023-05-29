@@ -1,4 +1,4 @@
-from tfi.data.task import Task
+from truflation.data.task import Task
 
 
 class Loader(Task):

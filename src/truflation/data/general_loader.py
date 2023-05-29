@@ -1,6 +1,6 @@
-from tfi.data.task import Task
-from tfi.data.connector import connector_factory
-from tfi.data.source_details import SourceDetails
+from truflation.data.task import Task
+from truflation.data.connector import connector_factory
+from truflation.data.source_details import SourceDetails
 from typing import Callable
 import pandas as pd
 

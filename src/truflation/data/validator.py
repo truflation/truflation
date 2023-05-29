@@ -2,8 +2,8 @@ import os
 import logging
 import shutil
 from tdda.constraints import discover_df, verify_df
-from tfi.data.task import Task
-from tfi.data.connector import connector_factory
+from truflation.data.task import Task
+from truflation.data.connector import connector_factory
 
 logging.basicConfig(level=logging.DEBUG)
 

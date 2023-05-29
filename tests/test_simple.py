@@ -2,25 +2,25 @@ import os
 import unittest
 
 from overrides import override
-import tfi.data.connector
-import tfi.data.task
-import tfi.data.validator
-import tfi.data.connector
+import truflation.data.connector
+import truflation.data.task
+import truflation.data.validator
+import truflation.data.connector
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-cache = tfi.data.connector.Cache()
+cache = truflation.data.connector.Cache()
 
-class ReadTask(tfi.data.task.Task):
+class ReadTask(truflation.data.task.Task):
     def __init__(self,
                  database_: str,
                  filename_: str,
                  table_: str):
         self.filename = filename_
         self.table = table_
-        self.reader = tfi.data.connector.ConnectorCsv(
+        self.reader = truflation.data.connector.ConnectorCsv(
             path_root=SCRIPT_DIR
         )
-        self.writer = tfi.data.connector.ConnectorSql(
+        self.writer = truflation.data.connector.ConnectorSql(
             database_
         )
 
@@ -30,17 +30,17 @@ class ReadTask(tfi.data.task.Task):
         b = self.reader.read_all(self.filename)
         self.writer.write_all(b, table=self.table)
 
-class WriteTask(tfi.data.task.Task):
+class WriteTask(truflation.data.task.Task):
     def __init__(self,
                  database_: str,
                  filename_: str,
                  table_: str):
         self.filename = filename_
         self.table = table_
-        self.writer = tfi.data.writer.ConnectorCsv(
+        self.writer = truflation.data.writer.ConnectorCsv(
             path_root=SCRIPT_DIR
         )
-        self.reader = tfi.data.reader.ConnectorSql(
+        self.reader = truflation.data.reader.ConnectorSql(
             database_
         )
 
@@ -51,8 +51,8 @@ class WriteTask(tfi.data.task.Task):
 
 class TestSimple(unittest.TestCase):
     def test_simple(self):
-        connector = tfi.data.connector.Connector()
-        task = tfi.data.task.Task()
+        connector = truflation.data.connector.Connector()
+        task = truflation.data.task.Task()
 
     def test_read_csv(self):
         task = ReadTask(
@@ -71,7 +71,7 @@ class TestSimple(unittest.TestCase):
         task.run()
 
     def test_cache(self):
-        r = tfi.data.connector.ConnectorCache('key1')
+        r = truflation.data.connector.ConnectorCache('key1')
 
 if __name__ == '__main__':
     unittest.main()

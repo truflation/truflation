@@ -1,4 +1,4 @@
-from tfi.data.connector import connector_factory
+from truflation.data.connector import connector_factory
 
 class Task:
     def __init__(self, reader=None, writer=None, **kwargs):

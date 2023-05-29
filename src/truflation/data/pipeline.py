@@ -1,12 +1,12 @@
 import datetime
 
-from tfi.data.validator import Validator
-from tfi.data.task import Task
-from tfi.data.loader import Loader
-from tfi.data.general_loader import GeneralLoader
-# from tfi.data.data import DataPandas, DataFormat
-from tfi.data.pipeline_details import PipeLineDetails
-from tfi.data.exporter import Exporter
+from truflation.data.validator import Validator
+from truflation.data.task import Task
+from truflation.data.loader import Loader
+from truflation.data.general_loader import GeneralLoader
+# from truflation.data.data import DataPandas, DataFormat
+from truflation.data.pipeline_details import PipeLineDetails
+from truflation.data.exporter import Exporter
 
 
 # todo -- later, create a new pipeline to process al data in parallel -- new class
