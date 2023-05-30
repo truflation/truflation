@@ -61,15 +61,3 @@ class Pipeline(Task):
     @staticmethod
     def header(s: str):
         print('\n' + f'#'*20 + f'   {s}   ' + '#'*(20 - len(s)))
-
-# Create docker setup -- David
-# Create exporter class functionality -- David
-# Set up server-side SQL tables and login ---- @Joseph
-# Deploy everything --- ? together where -- production? and test?? @Joseph, @David
-# Write Functionality for 4 ingestion @David
-# Documentation ---- @David
-### Time-Series Data Model ---- @David
-# Code review ----- next week @David @Joseph
-# List of 'things' to decide ---- @Joseph first
-
-# Incorporate Logging @David
