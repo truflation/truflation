@@ -147,7 +147,7 @@ class ConnectorJson(Connector):
 class ConnectorSql(Connector):
     def __init__(self, engine):
         super().__init__()
-        self.engine = create_engine(engine)
+        self.engine = create_engine(engine, echo=True)
 
     def read_all(
             self,
@@ -203,6 +203,15 @@ class ConnectorSql(Connector):
             raise
         tbl.drop(self.engine, checkfirst=False)
 
+    def create_table(
+            self,
+            table_name: str,
+            columns,
+            **params):
+        metadata = MetaData()
+        print(columns)
+        Table(table_name, metadata, *columns)
+        metadata.create_all(self.engine, **params)
 
 class ConnectorRest(Connector):
     def __init__(self, base_):

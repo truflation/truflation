@@ -6,6 +6,7 @@ import truflation.data.connector
 import truflation.data.task
 import truflation.data.validator
 import truflation.data.connector
+import truflation.data.metadata
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 cache = truflation.data.connector.Cache()
@@ -72,6 +73,26 @@ class TestSimple(unittest.TestCase):
 
     def test_cache(self):
         r = truflation.data.connector.ConnectorCache('key1')
+
+class TestMetadataWrite(unittest.TestCase):
+    def test_metadata_write(self):
+        metadata = truflation.data.metadata.Metadata(
+            f'sqlite:///{SCRIPT_DIR}/database.db',
+        )
+
+        metadata.write_all('table', {
+            'foo': "3434",
+            'bar': 232,
+            'pow': 1.55
+        })
+
+class TestMetadataRead(unittest.TestCase):
+    def test_metadata_read(self):
+        metadata = truflation.data.metadata.Metadata(
+            f'sqlite:///{SCRIPT_DIR}/database.db',
+        )
+        obj = metadata.read_all('table')
+        self.assertEqual(obj['foo'], "3434")
 
 if __name__ == '__main__':
     unittest.main()
