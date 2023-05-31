@@ -64,7 +64,6 @@ class Metadata:
                 MetadataTable.table == table
             )
             result = session.execute(stmt)
-            session.commit()
             for obj in result.scalars().all():
                 if obj.valuei is not None:
                     l[obj.key] = obj.valuei
@@ -74,8 +73,23 @@ class Metadata:
                     l[obj.key] = obj.valued
                 elif obj.values is not None:
                     l[obj.key] = obj.values
-                print('foo: ', obj)
         return l
 
+    def read_by_key(self, key):
+        l = {}
+        with Session(self.connector.engine) as session:
+            stmt = select(MetadataTable).where(
+                MetadataTable.key == key
+            )
+            result = session.execute(stmt)
+            for obj in result.scalars().all():
+                if obj.valuei is not None:
+                    l[obj.table] = obj.valuei
+                elif obj.valuef is not None:
+                    l[obj.table] = obj.valuef
+                elif obj.valued is not None:
+                    l[obj.table] = obj.valued
+                elif obj.values is not None:
+                    l[obj.table] = obj.values
+        return l
 
-        
