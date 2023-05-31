@@ -6,7 +6,6 @@ import os
 
 load_dotenv()
 DB_PASS = os.getenv('DB_PASS')
-
 # Name
 pipeline_name = "Hello World"
 
@@ -26,13 +25,8 @@ sources = [
     SourceDetails("second", "csv", "examples/first/example_2.csv", lambda x: x)
 ]
 
-exports = [
-    ExportDetails(
-        name='sum',
-        connector = f'mariadb+pymysql://root:{DB_PASS}@api-test.truflation.io:3306/timeseries',
-        key='work_details'
-    )
-]
+
+
 
 def transformer(data_dict: dict):
     df1 = data_dict['first']
@@ -45,6 +39,18 @@ def transformer(data_dict: dict):
 
 
 def get_details():
+    CONNECTOR = os.getenv('CONNECTOR', None)
+    if CONNECTOR is None:
+        CONNECTOR = f'mariadb+pymysql://root:{DB_PASS}@api-test.truflation.io:3306/timeseries'
+
+    exports = [
+        ExportDetails(
+            name='sum',
+            connector = CONNECTOR,
+            key='work_details'
+        )
+    ]
+
     my_pipeline = PipeLineDetails(name=pipeline_name,
                                   sources=sources,
                                   exports=exports,
