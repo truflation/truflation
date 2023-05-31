@@ -1,7 +1,9 @@
+import datetime
 from truflation.data.connector import ConnectorSql
 from datetime import datetime
-from sqlalchemy import cast, select, String, Float, Integer, Date
+from sqlalchemy import cast, select, String, Float, Integer, DateTime
 from sqlalchemy import Column
+from sqlalchemy.sql import func
 from sqlalchemy.orm import declarative_base, Session
 
 # https://stackoverflow.com/questions/33053241/sqlalchemy-if-table-does-not-exist
@@ -18,9 +20,10 @@ class MetadataTable(Base):
         primary_key=True, nullable=False
     )
     valuei = Column(Integer)
-    valued = Column(Date)
+    valued = Column(DateTime)
     valuef = Column(Float)
     values = Column(String(1024))
+    created_at = Column(DateTime(), server_default=func.now())
 
 
 class Metadata:
@@ -35,23 +38,28 @@ class Metadata:
 
     def write_all(self, table, data):
         with Session(self.connector.engine) as session:
+            now = datetime.utcnow()
             for k, v in data.items():
                 l = None
                 if isinstance(v, int):
                     l = MetadataTable(
-                        table=table, key=k, valuei=v
+                        table=table, key=k, valuei=v,
+                        created_at= now
                     )
                 elif isinstance(v, datetime):
                     l = MetadataTable(
-                        table=table, key=k, valued=v
+                        table=table, key=k, valued=v,
+                        created_at= now
                     )
                 elif isinstance(v, float):
                     l = MetadataTable(
-                        table=table, key=k, valuef=v
+                        table=table, key=k, valuef=v,
+                        created_at= now
                     )
                 elif isinstance(v, str):
                     l = MetadataTable(
-                        table=table, key=k, values=v
+                        table=table, key=k, values=v,
+                        created_at= now
                     )
                 if l is not None:
                     session.merge(l)
