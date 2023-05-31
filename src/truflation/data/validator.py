@@ -5,7 +5,8 @@ from tdda.constraints import discover_df, verify_df
 from truflation.data.task import Task
 from truflation.data.connector import connector_factory
 
-logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 class Validator(Task):
     def __init__(self, reader, writer, **kwargs):
@@ -44,6 +45,6 @@ class Validator(Task):
             f'{name}.tdda'
         )
         v = verify_df(df, tdda)
-        logging.debug('Constraints passing: %d', v.passes)
-        logging.debug('Constraints failures: %d', v.failures)
+        logger.debug('Constraints passing: %d', v.passes)
+        logger.debug('Constraints failures: %d', v.failures)
         assert v.failures == 0

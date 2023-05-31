@@ -11,7 +11,9 @@ import time
 import datetime
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 '''
   Dev Notes
     In general, all databases should have the following fields
@@ -46,13 +48,13 @@ class Exporter:
             df_local['created_at'] = pd.to_datetime(pd.Timestamp.now(), unit='s')
         else:
             df_local['created_at'] = pd.to_datetime(df_local['created_at'])
-        logging.debug(df_local)
+        logger.debug(df_local)
 
 
         # Read in remote database as dataframe
-        logging.debug(export_details)
+        logger.debug(export_details)
         df_remote = export_details.read()
-        logging.debug(df_remote)
+        logger.debug(df_remote)
 
         # Reduce future created at to current time
         df_local = self.reduce_future_created_at(df_local)

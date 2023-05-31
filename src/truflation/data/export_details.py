@@ -1,7 +1,8 @@
-from truflation.data.task import Task
 import logging
+from truflation.data.task import Task
 
-logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 class ExportDetails(Task):
     def __init__(self, name, connector, key):
