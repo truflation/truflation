@@ -8,6 +8,9 @@ import truflation.data.validator
 import truflation.data.connector
 import truflation.data.metadata
 
+import examples.first.my_pipeline_details
+import examples.first.example
+
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 cache = truflation.data.connector.Cache()
 
@@ -93,6 +96,12 @@ class TestMetadataRead(unittest.TestCase):
         )
         obj = metadata.read_all('table')
         self.assertEqual(obj['foo'], "3434")
+
+class TestExample(unittest.TestCase):
+    def test_example(self):
+        examples.first.example.ingest(
+            examples.first.my_pipeline_details.get_details()
+        )
 
 if __name__ == '__main__':
     unittest.main()

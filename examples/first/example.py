@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 # pip install. && ./examples/example.py
 
+import time
+from apscheduler.schedulers.background import BackgroundScheduler
 from truflation.data.pipeline import Pipeline
 from truflation.data.pipeline_details import PipeLineDetails
-import my_pipeline_details
-from apscheduler.schedulers.background import BackgroundScheduler
-import datetime
-import time
 
 
 # todo -- consider loading in all pipeline_details from a directory
@@ -17,7 +15,8 @@ def ingest(pipeline_details: PipeLineDetails):
 
 
 def main():
-    pipeline_details = my_pipeline_details.get_details()
+    from my_pipeline_details import get_details
+    pipeline_details = get_details()
     # scheduling_details = pipeline_details.scheduling_details
 
     scheduler = BackgroundScheduler()
