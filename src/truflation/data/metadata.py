@@ -10,17 +10,17 @@ Base = declarative_base()
 class MetadataTable(Base):
     __tablename__ = '__metadata__'
     table = Column(
-        String(65536),
+        String(4096),
         primary_key=True, nullable=False
     )
     key = Column(
-        String(65536),
+        String(4096),
         primary_key=True, nullable=False
     )
     valuei = Column(Integer)
     valued = Column(Date)
     valuef = Column(Float)
-    values = Column(String(65536))
+    values = Column(String(4096))
 
 
 class Metadata:
