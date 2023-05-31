@@ -1,6 +1,6 @@
-from tfi.data.pipeline_details import PipeLineDetails
-from tfi.data.source_details import SourceDetails
-from tfi.data.export_details import ExportDetails
+from truflation.data.pipeline_details import PipeLineDetails
+from truflation.data.source_details import SourceDetails
+from truflation.data.export_details import ExportDetails
 from dotenv import load_dotenv
 import os
 

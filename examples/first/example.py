@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # pip install. && ./examples/example.py
 
-from tfi.data.pipeline import Pipeline
-from tfi.data.pipeline_details import PipeLineDetails
+from truflation.data.pipeline import Pipeline
+from truflation.data.pipeline_details import PipeLineDetails
 import my_pipeline_details
 from apscheduler.schedulers.background import BackgroundScheduler
 import datetime
