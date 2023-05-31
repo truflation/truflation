@@ -20,7 +20,7 @@ class MetadataTable(Base):
     valuei = Column(Integer)
     valued = Column(Date)
     valuef = Column(Float)
-    values = Column(String)
+    values = Column(String(65536))
 
 
 class Metadata:
