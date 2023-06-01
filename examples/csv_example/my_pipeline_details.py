@@ -21,8 +21,8 @@ def post_ingestion_function():
 # Source Types: csv, API, Excel, Google Sheet, TrueData
 sources = [
     # name, source_type, source, parser function (default is pass through))
-    SourceDetails("first", "csv", "examples/first/example.csv"),
-    SourceDetails("second", "csv", "examples/first/example_2.csv", lambda x: x)
+    SourceDetails("csv_example", "csv", "examples/csv_example/example.csv"),
+    SourceDetails("second", "csv", "examples/csv_example/example_2.csv", lambda x: x)
 ]
 
 
@@ -30,7 +30,7 @@ cron_schedule = {
     "second": "15",  # At the start of the minute
     # "minute": "*",  # All minutes
     # "hour": "*",  # All hours
-    # "day": "1",  # On the first day of the month
+    # "day": "1",  # On the csv_example day of the month
     # "month": "1",  # In January
     # "day_of_week": "mon",  # On Mondays
 }
@@ -39,7 +39,7 @@ cron_schedule = {
 
 
 def transformer(data_dict: dict):
-    df1 = data_dict['first']
+    df1 = data_dict['csv_example']
     df2 = data_dict['second']
     res_df = df1.copy()
     res_df["value"] = df1["value"].add(df2["value"])
