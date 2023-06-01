@@ -8,6 +8,7 @@ from truflation.data.connector import connector_factory
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+
 class Validator(Task):
     def __init__(self, reader, writer, **kwargs):
         super().__init__(reader, writer)

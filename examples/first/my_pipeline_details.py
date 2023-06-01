@@ -26,6 +26,16 @@ sources = [
 ]
 
 
+cron_schedule = {
+    "second": "15",  # At the start of the minute
+    # "minute": "*",  # All minutes
+    # "hour": "*",  # All hours
+    # "day": "1",  # On the first day of the month
+    # "month": "1",  # In January
+    # "day_of_week": "mon",  # On Mondays
+}
+
+
 
 
 def transformer(data_dict: dict):
@@ -39,6 +49,7 @@ def transformer(data_dict: dict):
 
 
 def get_details():
+    # todo -- Joseph, "CONNECTOR" name should be changed as it is different than our CONNECTOR class and will be confused
     CONNECTOR = os.getenv('CONNECTOR', None)
     if CONNECTOR is None:
         CONNECTOR = f'mariadb+pymysql://root:{DB_PASS}@api-test.truflation.io:3306/timeseries'
@@ -54,6 +65,7 @@ def get_details():
     my_pipeline = PipeLineDetails(name=pipeline_name,
                                   sources=sources,
                                   exports=exports,
+                                  cron_schedule=cron_schedule,
                                   pre_ingestion_function=pre_ingestion_function,
                                   post_ingestion_function=post_ingestion_function,
                                   transformer=transformer

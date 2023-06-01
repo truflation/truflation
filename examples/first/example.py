@@ -5,6 +5,7 @@ import time
 from apscheduler.schedulers.background import BackgroundScheduler
 from truflation.data.pipeline import Pipeline
 from truflation.data.pipeline_details import PipeLineDetails
+from my_pipeline_details import get_details
 
 
 # todo -- consider loading in all pipeline_details from a directory
@@ -15,13 +16,14 @@ def ingest(pipeline_details: PipeLineDetails):
 
 
 def main():
-    from my_pipeline_details import get_details
+    # Get details for pipeline
     pipeline_details = get_details()
-    # scheduling_details = pipeline_details.scheduling_details
 
+    # Instantiate scheduler
     scheduler = BackgroundScheduler()
-    scheduler.add_job(ingest,  'interval', seconds=15, args=[pipeline_details])
 
+    # Add job based off of cron_schedule in pipeline_details
+    scheduler.add_job(ingest,  'cron', **pipeline_details.cron_schedule, args=[pipeline_details])
 
     # todo -- pass in scheduling information from pipeline_details
     # In 2022-4-30 12:00:00 Run once job Method
