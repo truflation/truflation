@@ -45,3 +45,7 @@ The `Pipeline` class is designed to be deployed as a Docker image. This allows f
 The `Pipeline` class and its associated components will be stored in a public repository named `tfi-data`. This repository will also include all the necessary modules and classes for data ingestion, transformation, and export. It will not include the module that will call and run the 'Pipeline' class or the details that get fed to the class. 
 
 The details specific to the data processing, including `PipelineDetails`, will be stored in a separate private repository named `dataloaders`. This separation ensures that the core pipeline functionality is openly accessible, while the specific details and configurations used by the company are kept private and secure.
+
+## Example
+
+An example implementation of the pipeline can be found here (todo). Description of example (todo)
