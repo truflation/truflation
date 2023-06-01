@@ -16,7 +16,7 @@ class PipeLineDetails:
         self.name = name
         self.sources = sources
         self.exports = exports
-        self.cron_schedule = cron_schedule
+        self.cron_schedule = cron_schedule if cron_schedule else {'hour': '1'}  # defaults to 1 am
         self.pre_ingestion_function = pre_ingestion_function
         self.post_ingestion_function = post_ingestion_function
         self.transformer = transformer
