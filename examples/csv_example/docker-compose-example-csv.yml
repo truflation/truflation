@@ -1,5 +1,5 @@
 #docker-compose up --build
-#docker-compose -f docker-compose-example-csv.yml up
+#docker-compose -f docker-compose-example-csv.yml up --build
 
 services:
   ingestor_one:
