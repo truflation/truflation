@@ -26,16 +26,16 @@ sources = [
 ]
 
 
+# Every day at 1 am
 cron_schedule = {
-    "second": "15",  # At the start of the minute
-    # "minute": "*",  # All minutes
-    # "hour": "*",  # All hours
-    # "day": "1",  # On the csv_example day of the month
-    # "month": "1",  # In January
+    "second": "0",  # At the start of the minute
+    "minute": "0",  # At the start of the minute
+    "hour": "1",  # First hour
+    "day": "*",  # On the csv_example day of the month
+    "month": "*",  # In January
+    "year": "*",  # In January
     # "day_of_week": "mon",  # On Mondays
 }
-
-
 
 
 def transformer(data_dict: dict):
