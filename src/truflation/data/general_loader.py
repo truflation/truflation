@@ -13,10 +13,13 @@ class GeneralLoader:
         s_type = source_details.source_type
         source = source_details.source
         # source_url = f'{source_details.source_type}:{source_details.source}'
-        reader = connector_factory(s_type) \
-            if isinstance(s_type, str) \
-            else s_type
-        df = reader.read_all(source)
+        if s_type != "override":
+            reader = connector_factory(s_type) \
+                if isinstance(s_type, str) \
+                else s_type
+        else:
+            reader = source_details.connector
+        df = reader.read_all(source) # todo -- is the parser working here?
         if 'date' in df:
             df['date'] = pd.to_datetime(df['date'])  # make sure the 'date' column is in datetime format
         if 'createdAt' in df:
