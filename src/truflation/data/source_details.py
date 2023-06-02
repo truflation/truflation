@@ -9,5 +9,7 @@ class SourceDetails:
         self.source_type = source_type
         self.source = source
         self.connector = connector # instance of overriden class
-        self.parser = parser
+        # todo -- @joseph I think you will need connector_parameters
+        self.parser = parser # parser is run on the dataframe that is returned
+
 
