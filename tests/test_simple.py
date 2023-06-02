@@ -2,10 +2,10 @@ import os
 import unittest
 
 from overrides import override
-import truflation.data.connector
+from truflation.data.connector import ConnectorCsv,\
+    ConnectorSql, ConnectorRest
 import truflation.data.task
 import truflation.data.validator
-import truflation.data.connector
 import truflation.data.metadata
 from truflation.data.pipeline import Pipeline
 
@@ -20,14 +20,16 @@ class ReadTask(truflation.data.task.Task):
                  database_: str,
                  filename_: str,
                  table_: str):
+        super().__init__(
+            ConnectorCsv(
+                path_root=SCRIPT_DIR
+            ),
+            ConnectorSql(
+                database_
+            )
+        )
         self.filename = filename_
         self.table = table_
-        self.reader = truflation.data.connector.ConnectorCsv(
-            path_root=SCRIPT_DIR
-        )
-        self.writer = truflation.data.connector.ConnectorSql(
-            database_
-        )
 
     @override
     def run(self, *args, **kwargs):
@@ -40,14 +42,16 @@ class WriteTask(truflation.data.task.Task):
                  database_: str,
                  filename_: str,
                  table_: str):
+        super().__init__(
+            ConnectorSql(
+                database_
+            ),
+            ConnectorCsv(
+                path_root=SCRIPT_DIR
+            )
+        )
         self.filename = filename_
         self.table = table_
-        self.writer = truflation.data.connector.ConnectorCsv(
-            path_root=SCRIPT_DIR
-        )
-        self.reader = truflation.data.connector.ConnectorSql(
-            database_
-        )
 
     @override
     def run(self, *args, **kwargs):
@@ -77,6 +81,13 @@ class TestSimple(unittest.TestCase):
 
     def test_cache(self):
         r = truflation.data.connector.ConnectorCache('key1')
+
+    def test_playwrite(self):
+        r = ConnectorRest(
+            'http://ergast.com/api',
+            playwrite=True
+        )
+        b = r.read_all('f1/2004/1/results.json')
 
 class TestMetadataWrite(unittest.TestCase):
     def test_metadata_write(self):
@@ -117,7 +128,6 @@ class TestExample(unittest.TestCase):
             examples.csv_example.my_pipeline_details.get_details()
         my_pipeline = Pipeline(pipeline_details)
         my_pipeline.ingest()
-
 
 if __name__ == '__main__':
     unittest.main()

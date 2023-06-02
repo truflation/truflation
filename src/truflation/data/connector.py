@@ -5,9 +5,10 @@ Connector
 import os
 import json
 from typing import Optional, Iterator, Any, List
+from pathlib import Path
 import pandas
 import requests
-from pathlib import Path
+from playwright.sync_api import sync_playwright
 
 import sqlalchemy
 from sqlalchemy.sql import text
@@ -214,20 +215,36 @@ class ConnectorSql(Connector):
         metadata.create_all(self.engine, **params)
 
 class ConnectorRest(Connector):
-    def __init__(self, base_):
+    def __init__(self, base_, **kwargs):
         super().__init__()
         self.base = base_
+        self.playwright = kwargs.get('playwright', False)
 
     def read_all(
             self,
             *args, **kwargs) -> Any:
-        response = requests.get(
-            os.path.join(
-                self.base.format(**kwargs),
-                args[0]
+        url = self.base.format(**kwargs)
+        if len(args) > 0:
+            url = os.path.join(url, args[0])
+        if self.playwright:
+            with sync_playwright() as p:
+                browser_type = p.firefox
+                browser = browser_type.launch()
+                page = browser.new_page()
+                response = page.goto(
+                    url
+                )
+        else:
+            response = requests.get(
+                os.path.join(
+                    url
+                )
             )
-        )
-        return response.json()
+        return self.process_json(response.json())
+
+    @staticmethod
+    def process_json(json_obj):
+        return json_obj
 
 cache_ = Cache()
 
@@ -239,14 +256,12 @@ def connector_factory(url: str) -> Optional[Connector]:
         l = url.split(':', 1)
         if len(l) > 1:
             return ConnectorCsv(path_root=l[1])
-        else:
-            return ConnectorCsv()
+        return ConnectorCsv()
     if url.startswith('json'):
         l = url.split(':', 1)
         if len(l) > 1:
             return ConnectorJson(path_root=l[1])
-        else:
-            return ConnectorJson()
+        return ConnectorJson()
     if url.startswith('http'):
         return ConnectorRest(url)
     if url.startswith('sqlite') or \
