@@ -52,15 +52,14 @@ An example implementation of the pipeline can be found here (https://github.com/
 
 ```docker-compose -f docker-compose-example-csv.yml up -- build```
 
-### Files
+    ### Files ###
 
-Dockerfile -> use in creation of docker container
+    Dockerfile -> use in creation of docker container
+    README.MD -> description of how to run the example as a docker container 
+    docker-compose-example-csv.yml -> used in creatio of docker container 
+    example.csv -> simple data file with 3 columns: date,value,created_at 
+    example.py -> couples and runs my_pipeline_details and pipeline class 
+    example_2.csv	-> simple data file with 3 columns: date,value,created_at 
+    my_pipeline_details.py -> details for loading and exporting example.py into api-test 
+    .env_template -> template for creating .env files, which shouldn't be checked in
 
-README.MD -> description of how to run the example as a docker container
-
-docker-compose-example-csv.yml -> used in creatio of docker container
-
-example.csv -> simple data file with 3 columns: date,value,created_at
-example.py -> couples and runs my_pipeline_details and pipeline class
-example_2.csv	-> simple data file with 3 columns: date,value,created_at
-my_pipeline_details.py -> details for loading and exporting example.py into api-test
