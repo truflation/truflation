@@ -5,6 +5,5 @@ FROM python:3.10.6-slim
 RUN mkdir /ingestor
 ADD . /ingestor
 WORKDIR /ingestor
-RUN pip install -r src/truflation.data.egg-info/requires.txt
 RUN pip install .
 # CMD ["python", "examples/csv_example/example.py"]
