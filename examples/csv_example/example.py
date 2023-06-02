@@ -20,7 +20,6 @@ def main():
     # Instantiate scheduler
     scheduler = BackgroundScheduler()
 
-    print(f'schedule: {pipeline_details.cron_schedule}')
     # Add job based off of cron_schedule in pipeline_details
     scheduler.add_job(ingest,  'cron', **pipeline_details.cron_schedule, args=[pipeline_details])
     scheduler.start()
