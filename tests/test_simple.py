@@ -7,9 +7,9 @@ import truflation.data.task
 import truflation.data.validator
 import truflation.data.connector
 import truflation.data.metadata
+from truflation.data.pipeline import Pipeline
 
-import examples.first.my_pipeline_details
-import examples.first.example
+import examples.csv_example.my_pipeline_details
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 cache = truflation.data.connector.Cache()
@@ -42,10 +42,10 @@ class WriteTask(truflation.data.task.Task):
                  table_: str):
         self.filename = filename_
         self.table = table_
-        self.writer = truflation.data.writer.ConnectorCsv(
+        self.writer = truflation.data.connector.ConnectorCsv(
             path_root=SCRIPT_DIR
         )
-        self.reader = truflation.data.reader.ConnectorSql(
+        self.reader = truflation.data.connector.ConnectorSql(
             database_
         )
 
@@ -113,9 +113,10 @@ class TestMetadataRead(unittest.TestCase):
 
 class TestExample(unittest.TestCase):
     def test_example(self):
-        examples.first.example.ingest(
-            examples.first.my_pipeline_details.get_details()
-        )
+        pipeline_details = \
+            examples.csv_example.my_pipeline_details.get_details()
+        my_pipeline = Pipeline(pipeline_details)
+        my_pipeline.ingest()
 
 
 if __name__ == '__main__':
