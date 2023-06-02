@@ -6,6 +6,40 @@ import pandas as pd
 
 
 class GeneralLoader:
+    """
+    The GeneralLoader class is responsible for reading data from various sources,
+    transforming it if necessary, and storing it in a cache for later use. It
+    uses the "connector_factory" to create reader and writer objects for
+    different types of data sources and destinations.
+
+    Parameters
+    ----------
+    None
+
+    Attributes
+    ----------
+    writer: Connector
+        A writer object that is used to write data to the cache.
+
+    Methods
+    -------
+    run(source_details: SourceDetails, key: str) -> None:
+        Reads data from the specified source, transforms certain columns to
+        datetime format if they exist, and writes the data to cache.
+
+    transform(transformer: Callable[[pd.DataFrame], pd.DataFrame]) -> None:
+        Transforms the data stored in the cache using the provided
+        transformer function.
+
+    clear() -> None:
+        Clears the data stored in the cache.
+
+    replace_cache(cache: dict) -> None:
+        Replaces the data in the cache with a new set of data.
+
+    cache() -> dict:
+        Returns the data currently stored in the cache.
+    """
     def __init__(self):
         self.writer = connector_factory("cache")
 
@@ -27,7 +61,7 @@ class GeneralLoader:
 
         self.writer.write_all(df, key=key)
 
-    def transform(self, transformer: Callable):
+    def transform(self, transformer: Callable[[pd.DataFrame], pd.DataFrame] ):
         """ transforms cache with transformer function   """
         self.writer.cache.cache_data.update(transformer(self.writer.cache.cache_data))
 

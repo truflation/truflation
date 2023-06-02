@@ -22,7 +22,7 @@ class Connector:
     def __init__(self, *args, **kwargs):
         pass
 
-    def authenticate(self, token):
+    def authenticate(self, token: str):
         pass
 
     def read_all(

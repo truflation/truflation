@@ -1,11 +1,36 @@
 import logging
 from truflation.data.task import Task
+from truflation.data.connector import Connector
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+
 class ExportDetails(Task):
-    def __init__(self, name, connector, key):
+    """
+    A class used to represent export details for a data task.
+
+    The class is derived from the Task class and it inherits
+    the `reader` and `writer` attributes from it. The class also
+    provides functionality for reading and writing data.
+
+    Attributes
+    ----------
+    name : str
+        The name of the export task
+    connector : Connector
+        The connector used for data operations
+    key : str
+        The key used for reading and writing data
+
+    Methods
+    -------
+    read():
+        Reads data using the assigned key and returns the result
+    write(data):
+        Writes the given data using the assigned key
+    """
+    def __init__(self, name: str, connector: Connector, key: str):
         super().__init__(connector, connector)
         self.name = name
         self.key = key

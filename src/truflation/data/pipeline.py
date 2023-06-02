@@ -13,6 +13,40 @@ from truflation.data.exporter import Exporter
 
 
 class Pipeline(Task):
+    """
+    A class that defines a data pipeline, used for ingesting, transforming, and exporting data.
+
+    This class inherits from the `Task` base class and implements the ingestion
+    process for a specific pipeline, as defined by a `PipeLineDetails` object.
+    Each `Pipeline` object can ingest data from multiple sources, transform the
+    data, and then export it to multiple destinations.
+
+    Attributes
+    ----------
+    name : str
+        The name of the pipeline.
+    pre_ingestion_function : callable
+        The function to run before the ingestion process starts.
+    post_ingestion_function : callable
+        The function to run after the ingestion process ends.
+    sources : dict
+        The sources where the pipeline should ingest data from.
+    loader : GeneralLoader
+        The loader to use for ingesting and parsing the data.
+    transformer : Transformer
+        The transformer to use for transforming the data.
+    exports : list
+        A list of exports where the pipeline should send the data.
+    exporter : Exporter
+        The exporter to use for sending the data.
+
+    Methods
+    -------
+    ingest() -> None:
+        Executes the entire pipeline: ingestion, transformation, and exporting.
+    header(s: str) -> None:
+        Prints a header for a section of the pipeline process.
+    """
     def __init__(self, pipeline_details: PipeLineDetails):
         # super().__init__(reader, writer)
         self.name = pipeline_details.name

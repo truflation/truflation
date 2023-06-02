@@ -1,8 +1,8 @@
+import pandas
 from truflation.data.export_details import ExportDetails
 from sqlalchemy import create_engine, types, MetaData, Table, Column
 from sqlalchemy.dialects.mysql import DATETIME, DATE
 import pymysql
-import pandas as pd
 # pip install SQLAlchemy
 # pip install PyMySQL
 # pip install mariadb
@@ -32,7 +32,7 @@ class Exporter:
     def __init__(self):
         pass
 
-    def export(self, export_details: ExportDetails, df_local):
+    def export(self, export_details: ExportDetails, df_local: pandas.DataFrame) -> None:
         """
         Export dataframe to database.
 
@@ -45,9 +45,9 @@ class Exporter:
 
         # create created at for df if none exists (new data)
         if 'created_at' not in df_local:
-            df_local['created_at'] = pd.to_datetime(pd.Timestamp.now(), unit='s')
+            df_local['created_at'] = pandas.to_datetime(pandas.Timestamp.now(), unit='s')
         else:
-            df_local['created_at'] = pd.to_datetime(df_local['created_at'])
+            df_local['created_at'] = pandas.to_datetime(df_local['created_at'])
         logger.debug(df_local)
 
 
@@ -67,7 +67,7 @@ class Exporter:
         # print(f'df_new_data\n{df_new_data}')
 
         if 'date' in df_local:
-            df_local['date'] = pd.to_datetime(df_local['date'])  # make sure the 'date' column is in datetime format
+            df_local['date'] = pandas.to_datetime(df_local['date'])  # make sure the 'date' column is in datetime format
 
         # Insert
         export_details.write(
@@ -85,7 +85,7 @@ class Exporter:
         )
 
     @staticmethod
-    def export_dump(export_details: ExportDetails, df):
+    def export_dump(export_details: ExportDetails, df: pandas.DataFrame) -> None:
         """
         Export dataframe to database. Theis replace the table in database with the dataframe.
 
@@ -99,7 +99,7 @@ class Exporter:
         df.to_sql(export_details.table, con=engine, if_exists='replace', chunksize=1000)
 
     @staticmethod
-    def reduce_future_created_at(df):
+    def reduce_future_created_at(df: pandas.DataFrame) -> pandas.DataFrame :
         """
         Reduces created_at to present time for future values.
 
@@ -117,7 +117,7 @@ class Exporter:
         return df
 
     @staticmethod
-    def reconcile_dataframes(df_base, df_incoming):
+    def reconcile_dataframes(df_base: pandas.DataFrame, df_incoming: pandas.DataFrame) -> pandas.DataFrame :
         """
         Retrieve a dataframe that contains the rows needed to update df_base with the values from df_incoming
 
@@ -126,7 +126,7 @@ class Exporter:
           df_incoming: Pandas.DataFrame: dataframe to add
         """
         # step 2 -- filter db to most recent (created_at) date-value pairs
-        df_base['date'] = pd.to_datetime(df_base['date'])  # make sure the 'date' column is in datetime format
+        df_base['date'] = pandas.to_datetime(df_base['date'])  # make sure the 'date' column is in datetime format
         df_base = df_base.sort_values(['date', 'value', 'created_at'], ascending=False).drop_duplicates(
             ['date', 'value']).sort_index()
 
@@ -134,14 +134,14 @@ class Exporter:
         # ensure date columns are in datetime format
         if df_incoming.index.name == 'date':
             df_incoming = df_incoming.reset_index() # reset index if date is being used as index
-        df_base['date'] = pd.to_datetime(df_base['date'])
-        df_incoming['date'] = pd.to_datetime(df_incoming['date'])
+        df_base['date'] = pandas.to_datetime(df_base['date'])
+        df_incoming['date'] = pandas.to_datetime(df_incoming['date'])
 
         identifiers = [x for x in df_base.columns if x not in ['created_at']]
 
         # perform merge operation on 'date' and 'value'
-        # df_merge = pd.merge(df_base, df_incoming, how='outer', on=['date', 'value'], indicator=True, suffixes=('', '_y'))
-        df_merge = pd.merge(df_base, df_incoming, how='outer', on=identifiers, indicator=True, suffixes=('', '_y'))
+        # df_merge = pandas.merge(df_base, df_incoming, how='outer', on=['date', 'value'], indicator=True, suffixes=('', '_y'))
+        df_merge = pandas.merge(df_base, df_incoming, how='outer', on=identifiers, indicator=True, suffixes=('', '_y'))
 
         # filter rows that are in df_incoming only
         df_new_data = df_merge.loc[df_merge['_merge'] == 'right_only'].drop(columns=['_merge'])
@@ -159,7 +159,7 @@ class Exporter:
 
     # todo -- consider making this take in only a dataframe
     # todo -- review, as this was ChatGPT originated
-    def get_frozen_data(self, export_details: ExportDetails, frozen_datetime=None):
+    def get_frozen_data(self, export_details: ExportDetails, frozen_datetime: datetime.datetime = None) -> pandas.DataFrame:
         """
         Get a dataframe from a database with the most recent date-value pairs such that:
             1. all dates at or before frozen_datetime must contain created_at values before or equal to frozen_datetime
@@ -176,11 +176,11 @@ class Exporter:
         frozen_date = frozen_datetime.date()
 
         df = export_details.read()
-        df['date'] = pd.to_datetime(df['date'])  # make sure the 'date' column is in datetime format
+        df['date'] = pandas.to_datetime(df['date'])  # make sure the 'date' column is in datetime format
 
         # Create new column for the end of the day
-        df['endOfDayDatetime'] = (df['date'] + pd.DateOffset(days=1) - pd.Timedelta(seconds=1))
-        # df['endOfDayDatetime'] = (df['date'] + pd.DateOffset(days=1) - pd.Timedelta(seconds=1)).apply(lambda x: x.timestamp())
+        df['endOfDayDatetime'] = (df['date'] + pandas.DateOffset(days=1) - pandas.Timedelta(seconds=1))
+        # df['endOfDayDatetime'] = (df['date'] + pandas.DateOffset(days=1) - pandas.Timedelta(seconds=1)).apply(lambda x: x.timestamp())
 
         # create conditions for the filter
         cond_before_frozen_date = (df['date'].dt.date <= frozen_date) & (df['created_at'] <= frozen_datetime)
@@ -205,7 +205,7 @@ class Exporter:
 # ChatGPT Snippet -- gets the most recent data
 # todo -- have a created at function that removes all
 '''# assuming df is your DataFrame and it has columns 'date', 'value', and 'created_at'
-df['date'] = pd.to_datetime(df['date'])  # make sure the 'date' column is in datetime format
+df['date'] = pandas.to_datetime(df['date'])  # make sure the 'date' column is in datetime format
 df = df.sort_values('created_at', ascending=False).drop_duplicates('date').sort_index()
 '''
 
@@ -216,10 +216,10 @@ import pandas as pd
 
 # assuming df is your DataFrame and it has columns 'date', 'value', 'created_at', 'endOfDayTimestamp'
 
-df['date'] = pd.to_datetime(df['date'])  # make sure the 'date' column is in datetime format
+df['date'] = pandas.to_datetime(df['date'])  # make sure the 'date' column is in datetime format
 
 # define your frozen_date and frozen_timestamp
-frozen_date = pd.to_datetime('yyyy-mm-dd')  # replace with actual frozen date
+frozen_date = pandas.to_datetime('yyyy-mm-dd')  # replace with actual frozen date
 frozen_timestamp = 123456789.123456  # replace with actual frozen timestamp
 
 # create conditions for the filter

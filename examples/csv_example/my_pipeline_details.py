@@ -11,10 +11,30 @@ pipeline_name = "Hello World"
 
 
 def pre_ingestion_function():
+    """
+    Function to perform operations before the data ingestion phase.
+    This function is called during the pipeline execution before data loading starts.
+
+    Currently, this function only prints out a simple message.
+
+    Returns
+    -------
+    None
+    """
     print(f'I do this before ingestion')
 
 
 def post_ingestion_function():
+    """
+    Function to perform operations after the data ingestion phase.
+    This function is called during the pipeline execution after all data loading is finished.
+
+    Currently, this function only prints out a simple message.
+
+    Returns
+    -------
+    None
+    """
     print(f'I do this after ingestion')
 
 
@@ -26,11 +46,10 @@ sources = [
 ]
 
 
-# Every day at 1 am
 cron_schedule = {
-    "second": "0",  # At the start of the minute
-    "minute": "0",  # At the start of the minute
-    "hour": "1",  # First hour
+    "second": "15, 30, 45, 0",  # At the start of the minute
+    "minute": "*",  # At the start of the minute
+    "hour": "*",  # First hour
     "day": "*",  # On the csv_example day of the month
     "month": "*",  # In January
     "year": "*",  # In January
@@ -39,6 +58,20 @@ cron_schedule = {
 
 
 def transformer(data_dict: dict):
+    """
+    Performs a specific transformation operation on the input dataframes.
+    The transformation is applied on 'csv_example' and 'second' dataframes.
+
+    Parameters
+    ----------
+    data_dict : dict
+        A dictionary where the key is the name of the dataframe, and the value is the dataframe itself.
+
+    Returns
+    -------
+    dict
+        A dictionary containing the transformed dataframes.
+    """
     df1 = data_dict['csv_example']
     df2 = data_dict['second']
     res_df = df1.copy()
@@ -49,6 +82,20 @@ def transformer(data_dict: dict):
 
 
 def get_details():
+    """
+    Retrieves the details of a pipeline and returns a `PipeLineDetails` object.
+
+    This function loads environment variables, defines sources and exports,
+    and creates a `PipeLineDetails` object to represent the pipeline.
+    The pipeline includes pre-ingestion and post-ingestion functions,
+    a transformer for data transformation, and a cron schedule for pipeline execution.
+
+    Returns
+    -------
+    PipeLineDetails
+        A `PipeLineDetails` object that contains all of the details for the pipeline.
+    """
+
     # todo -- Joseph, "CONNECTOR" name should be changed as it is different than our CONNECTOR class and will be confused
     CONNECTOR = os.getenv('CONNECTOR', None)
     if CONNECTOR is None:

@@ -10,6 +10,28 @@ from sqlalchemy.orm import declarative_base, Session
 # https://towardsdatascience.com/the-easiest-way-to-upsert-with-sqlalchemy-9dae87a75c35
 Base = declarative_base()
 class MetadataTable(Base):
+    """
+    A class used to interact with a metadata table in a SQL database.
+
+    This class handles writing to and reading from a table containing
+    metadata. The metadata table has the following columns: table, key, valuei,
+    valued, valuef, values, and created_at. Each 'value' column corresponds to a
+    particular data type (integer, datetime, float, string).
+
+    Attributes
+    ----------
+    connector : ConnectorSql
+        The SQL connector used to interface with the database
+
+    Methods
+    -------
+    write_all(table, data):
+        Writes a set of key-value pairs to the specified table in the metadata table.
+    read_all(table):
+        Reads all key-value pairs from the specified table in the metadata table.
+    read_by_key(key):
+        Reads all table-value pairs for a specified key from the metadata table.
+    """
     __tablename__ = '__metadata__'
     table = Column(
         String(256),
