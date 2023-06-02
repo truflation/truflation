@@ -234,12 +234,11 @@ class ConnectorRest(Connector):
                 response = page.goto(
                     url
                 )
-        else:
-            response = requests.get(
-                os.path.join(
-                    url
-                )
-            )
+                return self.process_json(response.json())
+
+        response = requests.get(os.path.join(
+            url
+        ))
         return self.process_json(response.json())
 
     @staticmethod
