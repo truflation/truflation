@@ -267,7 +267,7 @@ def connector_factory(url: str) -> Optional[Connector]:
     if url.startswith('playwright+http'):
         l = url.split('+', 1)
         return ConnectorRest(l[1], playwright=True)
-    if url.startswith('http'):
+    if url.startswith('rest+http'):
         return ConnectorRest(url)
     if url.startswith('sqlite') or \
        url.startswith('postgresql') or \
