@@ -223,8 +223,11 @@ class ConnectorRest(Connector):
     def read_all(
             self,
             *args, **kwargs) -> Any:
-        url = self.base.format(**kwargs)
-        if len(args) > 0:
+        if type(args[0]) is dict:
+            url = self.base.format(**args[0])
+        else:
+            url = self.base.format(**kwargs)
+        if len(args) > 0 and type(args[0]) is not dict:
             url = os.path.join(url, args[0])
         if self.playwright:
             with sync_playwright() as p:
@@ -261,6 +264,9 @@ def connector_factory(url: str) -> Optional[Connector]:
         if len(l) > 1:
             return ConnectorJson(path_root=l[1])
         return ConnectorJson()
+    if url.startswith('playwright+http'):
+        l = url.split('+', 1)
+        return ConnectorRest(l[1], playwright=True)
     if url.startswith('http'):
         return ConnectorRest(url)
     if url.startswith('sqlite') or \

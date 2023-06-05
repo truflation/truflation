@@ -54,6 +54,8 @@ class GeneralLoader:
         else:
             reader = source_details.connector
         df = reader.read_all(source) # todo -- is the parser working here?
+        if source_details.parser is not None:
+            df = source_details.parser(df)
         if 'date' in df:
             df['date'] = pd.to_datetime(df['date'])  # make sure the 'date' column is in datetime format
         if 'createdAt' in df:
