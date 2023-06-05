@@ -81,3 +81,5 @@ class GeneralLoader:
     @property
     def cache(self):
         return self.writer.cache.cache_data
+
+# todo -- create write function that we can write to anything
