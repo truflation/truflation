@@ -3,6 +3,7 @@ from typing import Callable
 import pandas
 from truflation.data.connector import Connector
 
+
 class SourceDetails:
     """
     SourceDetails is a class that encapsulates the details for a data source.
@@ -56,14 +57,15 @@ class SourceDetails:
         Parser function used to process the data from the source.
     """
 
-    def __init__(self, name: str, source_type: str, source: str, connector: Connector = None,
-                 parser: Callable[[pandas.DataFrame], pandas.DataFrame] = lambda x: x):
+    # We should be able to pass in unknown kwargs for connector
+    def __init__(self, name: str, source_type: str, source: str,  *args, connector: Connector = None,
+                 parser: Callable[[pandas.DataFrame], pandas.DataFrame] = None,  **kwargs):
         self.name = name
         # options: override, csv,
         self.source_type = source_type
         self.source = source
         self.connector = connector # instance of overriden class
-        # todo -- @joseph I think you will need connector_parameters
         self.parser = parser # parser is run on the dataframe that is returned
-
+        self.args = args
+        self.kwargs = kwargs
 

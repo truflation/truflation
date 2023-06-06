@@ -262,32 +262,29 @@ class ConnectorRest(Connector):
 cache_ = Cache()
 
 
-def connector_factory(url: str) -> Optional[Connector]:
-    if url.startswith('cache'):
+def connector_factory(connector_type: str, source_location: str = None) -> Optional[Connector]:
+    if connector_type.startswith('cache'):
         return cache_.connector()
-    if url.startswith('csv'):
-        l = url.split(':', 1)
-        if len(l) > 1:
-            return ConnectorCsv(path_root=l[1])
+    if connector_type.startswith('csv'):
+        if source_location:
+            return ConnectorCsv(path_root=source_location)
         return ConnectorCsv()
-    if url.startswith('json'):
-        l = url.split(':', 1)
-        if len(l) > 1:
-            return ConnectorJson(path_root=l[1])
+    if connector_type.startswith('json'):
+        if source_location:
+            return ConnectorJson(path_root=source_location)
         return ConnectorJson()
-    if url.startswith('playwright+http'):
-        l = url.split('+', 1)
-        return ConnectorRest(l[1], playwright=True)
-    if url.startswith('rest+http'):
-        return ConnectorRest(url)
-    if url.startswith('sqlite') or \
-       url.startswith('postgresql') or \
-       url.startswith('mysql') or \
-       url.startswith('mariadb') or \
-       url.startswith('oracle') or \
-       url.startswith('mssql') or \
-       url.startswith('sqlalchemy') or \
-       url.startswith('gsheets') or \
-       url.startswith('pybigquery'):
-        return ConnectorSql(url)
+    if connector_type.startswith('playwright+http'):
+        return ConnectorRest(source_location, playwright=True)
+    if connector_type.startswith('rest+http'):
+        return ConnectorRest(connector_type)
+    if connector_type.startswith('sqlite') or \
+       connector_type.startswith('postgresql') or \
+       connector_type.startswith('mysql') or \
+       connector_type.startswith('mariadb') or \
+       connector_type.startswith('oracle') or \
+       connector_type.startswith('mssql') or \
+       connector_type.startswith('sqlalchemy') or \
+       connector_type.startswith('gsheets') or \
+       connector_type.startswith('pybigquery'):
+        return ConnectorSql(connector_type)
     return None

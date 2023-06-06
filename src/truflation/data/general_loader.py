@@ -1,5 +1,5 @@
 from truflation.data.task import Task
-from truflation.data.connector import connector_factory
+from truflation.data.connector import connector_factory, cache_
 from truflation.data.source_details import SourceDetails
 from typing import Callable
 import pandas as pd
@@ -41,7 +41,8 @@ class GeneralLoader:
         Returns the data currently stored in the cache.
     """
     def __init__(self):
-        self.writer = connector_factory("cache")
+        # self.writer = ConnectorCache("cache") # this was replaced because of suggetsions that .cache didn't exist (none possibility)
+        self.writer = cache_.connector()
 
     def run(self, source_details: SourceDetails, key: str):
         s_type = source_details.source_type
@@ -53,7 +54,7 @@ class GeneralLoader:
                 else s_type
         else:
             reader = source_details.connector
-        df = reader.read_all(source) # todo -- is the parser working here?
+        df = reader.read_all(source, *source_details.args,  **source_details.kwargs)
         if source_details.parser is not None:
             df = source_details.parser(df)
         if 'date' in df:
