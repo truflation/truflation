@@ -141,9 +141,12 @@ class ConnectorJson(Connector):
         filename = kwargs.get('key', None)
         if filename is None and len(args) > 0:
             filename = args[0]
-        filename = os.path.join(self.path_root, filename)
-        with open(filename, 'w') as fileh:
-            fileh.write(json.dumps(data))
+        if isinstance(filename, str):
+            filename = os.path.join(self.path_root, filename)
+            with open(filename, 'w') as fileh:
+                fileh.write(json.dumps(data, default=str))
+        else:
+            filename.write(json.dumps(data, default=str))
 
 class ConnectorSql(Connector):
     def __init__(self, engine):

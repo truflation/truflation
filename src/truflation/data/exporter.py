@@ -43,6 +43,12 @@ class Exporter:
         # Works but throws 'mariadb.ProgrammingError: Cursor is closed' error
         # sql_alchemy_uri = f"mariadb+mariadbconnector://{export_details.username}:{export_details.password}@127.0.0.1:{export_details.port}/{export_details.db}"
 
+        if not isinstance(df_local, pandas.DataFrame):
+            export_details.write(
+                df_local
+            )
+            return
+
         # create created at for df if none exists (new data)
         if 'created_at' not in df_local:
             df_local['created_at'] = pandas.to_datetime(pandas.Timestamp.now(), unit='s')
