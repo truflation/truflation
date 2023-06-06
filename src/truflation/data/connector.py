@@ -69,6 +69,7 @@ class Connector:
     ) -> Iterator[Any]:
         raise NotImplementedError
 
+
 class ConnectorCache(Connector):
     def __init__(self, cache, default_key = None):
         super().__init__()
@@ -82,6 +83,7 @@ class ConnectorCache(Connector):
     def write_all(self, value, *args, **kwargs):
         key = kwargs.get('key', self.default_key)
         self.cache.set(key, value)
+
 
 class Cache:
     def __init__(self):
@@ -118,6 +120,7 @@ class ConnectorCsv(Connector):
         filename = os.path.join(self.path_root, filename)
         data.to_csv(filename)
 
+
 class ConnectorJson(Connector):
     def __init__(self, *args, **kwargs):
         super().__init__()
@@ -150,6 +153,7 @@ class ConnectorJson(Connector):
                 print(data, file=filename)
             else:
                 filename.write(json.dumps(data, default=str))
+
 
 class ConnectorSql(Connector):
     def __init__(self, engine):
@@ -219,6 +223,7 @@ class ConnectorSql(Connector):
         print(columns)
         Table(table_name, metadata, *columns)
         metadata.create_all(self.engine, **params)
+
 
 class ConnectorRest(Connector):
     def __init__(self, base_, **kwargs):

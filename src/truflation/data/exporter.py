@@ -69,9 +69,6 @@ class Exporter:
         # If remote exists, reconcile and receive the data needing to be added
         df_new_data = self.reconcile_dataframes(df_remote, df_local) if df_remote is not None else df_local
 
-        # print(f'df_remote\n{df_remote}')
-        # print(f'df_new_data\n{df_new_data}')
-
         if 'date' in df_local:
             df_local['date'] = pandas.to_datetime(df_local['date'])  # make sure the 'date' column is in datetime format
 
@@ -84,10 +81,8 @@ class Exporter:
             dtype={
                 # 'created_at': types.DateTime(precision=6),
                 'date': types.Date(),
-                # 'created_at': types.TIMESTAMP() # TIMESTAMP is limited to 2038
-                'created_at': types.DATETIME()  # TIMESTAMP is limited to 2038
+                'created_at': types.DATETIME()
             },
-            
         )
 
     @staticmethod
