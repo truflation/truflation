@@ -146,7 +146,10 @@ class ConnectorJson(Connector):
             with open(filename, 'w') as fileh:
                 fileh.write(json.dumps(data, default=str))
         else:
-            filename.write(json.dumps(data, default=str))
+            if isinstance(data, str):
+                print(data, file=filename)
+            else:
+                filename.write(json.dumps(data, default=str))
 
 class ConnectorSql(Connector):
     def __init__(self, engine):
