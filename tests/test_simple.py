@@ -9,8 +9,8 @@ import truflation.data.validator
 import truflation.data.metadata
 from truflation.data.pipeline import Pipeline
 import truflation.data.pipeline_coupler
-# import example.csv_example.my_pipeline_details
-from example.csv_example.my_pipeline_details import get_details
+# import examples.csv_example.my_pipeline_details
+from examples.csv_example.my_pipeline_details import get_details
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 cache = truflation.data.connector.Cache()

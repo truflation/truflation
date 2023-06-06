@@ -4,12 +4,12 @@
 services:
   ingestor_one:
       build: ../.
-      command: python3 src/truflation/data/pipeline_coupler.py example/csv_example/my_pipeline_details.py
+      command: python3 src/truflation/data/pipeline_coupler.py examples/csv_example/my_pipeline_details.py
       volumes:
         - pipeline_details:/data/todo
   ingestor_two:
       build: ../.
-      command: python3 src/truflation/data/pipeline_coupler.py example/csv_example/my_pipeline_details.py
+      command: python3 src/truflation/data/pipeline_coupler.py examples/csv_example/my_pipeline_details.py
       volumes:
         - pipeline_details:/data/todo
 volumes:

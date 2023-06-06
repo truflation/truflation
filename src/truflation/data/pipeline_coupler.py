@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# pip install. && ./example/example.py
+# pip install. && ./examples/example.py
 
 """
 Usage:
