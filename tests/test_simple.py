@@ -8,12 +8,14 @@ import truflation.data.task
 import truflation.data.validator
 import truflation.data.metadata
 from truflation.data.pipeline import Pipeline
-
-import examples.csv_example.my_pipeline_details
+import truflation.data.pipeline_coupler
+# import example.csv_example.my_pipeline_details
+from example.csv_example.my_pipeline_details import get_details
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 cache = truflation.data.connector.Cache()
 os.environ['CONNECTOR'] = f'sqlite:///{SCRIPT_DIR}/database.db'
+
 
 class ReadTask(truflation.data.task.Task):
     def __init__(self,
@@ -36,6 +38,7 @@ class ReadTask(truflation.data.task.Task):
         self.writer.drop_table(self.table, True)
         b = self.reader.read_all(self.filename)
         self.writer.write_all(b, table=self.table)
+
 
 class WriteTask(truflation.data.task.Task):
     def __init__(self,
@@ -124,10 +127,10 @@ class TestMetadataRead(unittest.TestCase):
 
 class TestExample(unittest.TestCase):
     def test_example(self):
-        pipeline_details = \
-            examples.csv_example.my_pipeline_details.get_details()
+        pipeline_details = get_details
         my_pipeline = Pipeline(pipeline_details)
         my_pipeline.ingest()
+        # truflation.data.pipeline_coupler(pipeline_details)
 
 if __name__ == '__main__':
     unittest.main()

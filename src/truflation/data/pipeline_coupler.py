@@ -1,11 +1,20 @@
 #!/usr/bin/env python3
-# pip install. && ./examples/example.py
+# pip install. && ./example/example.py
+
+"""
+Usage:
+  pipeline_coupler.py <details_path>
+
+Arguments:
+  details_path     the relative path to the pipeline details module
+"""
 
 import time
 from apscheduler.schedulers.background import BackgroundScheduler
 from truflation.data.pipeline import Pipeline
 from truflation.data.pipeline_details import PipeLineDetails
-from my_pipeline_details import get_details
+from docopt import docopt
+import importlib
 
 
 def ingest(pipeline_details: PipeLineDetails):
@@ -25,7 +34,7 @@ def ingest(pipeline_details: PipeLineDetails):
     my_pipeline.ingest()
 
 
-def main():
+def main(pipeline_details: PipeLineDetails):
     """
     Main driver function to set up the pipeline and start the scheduler.
 
@@ -36,8 +45,8 @@ def main():
     -------
     None
     """
-    # Get details for pipeline
-    pipeline_details = get_details()
+    # # Get details for pipeline
+    # pipeline_details = get_details()
 
     # Instantiate scheduler
     scheduler = BackgroundScheduler()
@@ -52,4 +61,20 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    # Get file_path from argument
+    args = docopt(__doc__)
+    file_path = args['<details_path>']  # convert path to module name
+
+    # Dynamically import and run module, pipeline_details
+    module_name = 'my_pipeline_details'
+    spec = importlib.util.spec_from_file_location(module_name, file_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    if hasattr(module, 'get_details'):
+        pipeline_details = module.get_details()
+        main(pipeline_details)
+    else:
+        raise Exception("get_details not found in supplied module,")
+
+

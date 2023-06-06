@@ -6,4 +6,3 @@ RUN mkdir /ingestor
 ADD . /ingestor
 WORKDIR /ingestor
 RUN pip install .
-# CMD ["python", "examples/csv_example/example.py"]

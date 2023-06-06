@@ -1,14 +1,14 @@
 #docker-compose up --build
+#docker-compose -f docker-compose-example.yml up --build
 
 services:
   ingestor_one:
-      build: .
-#      command: python3 example/csv_example/example.py
+      build: ../.
       command: python3 src/truflation/data/pipeline_coupler.py example/csv_example/my_pipeline_details.py
       volumes:
         - pipeline_details:/data/todo
   ingestor_two:
-      build: .
+      build: ../.
       command: python3 src/truflation/data/pipeline_coupler.py example/csv_example/my_pipeline_details.py
       volumes:
         - pipeline_details:/data/todo
