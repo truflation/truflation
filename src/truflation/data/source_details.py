@@ -57,7 +57,6 @@ class SourceDetails:
         Parser function used to process the data from the source.
     """
 
-    # We should be able to pass in unknown kwargs for connector
     def __init__(self, name: str, source_type: str, source: str,  *args, connector: Connector = None,
                  parser: Callable[[pandas.DataFrame], pandas.DataFrame] = None,  **kwargs):
         self.name = name
