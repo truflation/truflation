@@ -99,13 +99,14 @@ def get_details():
     # todo -- Joseph, "CONNECTOR" name should be changed as it is different than our CONNECTOR class and will be confused
     CONNECTOR = os.getenv('CONNECTOR', None)
     if CONNECTOR is None:
+        # @Joseph Todo -- this should exist in our PUBLIC example. Fill out .env_template to show format
         CONNECTOR = f'mariadb+pymysql://root:{DB_PASS}@api-test.truflation.io:3306/timeseries'
 
     exports = [
         ExportDetails(
             name='sum',
             connector = CONNECTOR,
-            key='work_details'
+            key='work_details' # this is the table read from # todo -- i would rather it be called table_name or table
         )
     ]
 

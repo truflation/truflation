@@ -1,6 +1,7 @@
 import logging
 from truflation.data.task import Task
 from truflation.data.connector import Connector
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -45,7 +46,7 @@ class ExportDetails(Task):
         logging.debug(f'key={self.key}')
         return self.reader.read_all(self.key)
 
-    def write(self, data, **kwargs):
+    def write(self, data: pd.DataFrame, **kwargs):
         kwargs['key'] = self.key
         return self.writer.write_all(data, **kwargs)
 

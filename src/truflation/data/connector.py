@@ -14,6 +14,7 @@ import sqlalchemy
 from sqlalchemy.sql import text
 from sqlalchemy import create_engine, Table, MetaData
 
+
 class Connector:
     """
     Base class for Import
