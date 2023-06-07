@@ -49,12 +49,12 @@ class GeneralLoader:
         source = source_details.source
         # source_url = f'{source_details.source_type}:{source_details.source}'
         if s_type != "override":
-            reader = connector_factory(s_type) \
+            reader = connector_factory(s_type, source) \
                 if isinstance(s_type, str) \
                 else s_type
         else:
             reader = source_details.connector
-        df = reader.read_all(source, *source_details.args,  **source_details.kwargs)
+        df = reader.read_all(*source_details.args,  **source_details.kwargs)
         if source_details.parser is not None:
             df = source_details.parser(df)
         if 'date' in df:
