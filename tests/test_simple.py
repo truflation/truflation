@@ -3,7 +3,7 @@ import unittest
 
 from overrides import override
 from truflation.data.connector import ConnectorCsv,\
-    ConnectorSql, ConnectorRest
+    ConnectorSql, ConnectorRest, connector_factory
 import truflation.data.task
 import truflation.data.validator
 import truflation.data.metadata
@@ -131,6 +131,12 @@ class TestExample(unittest.TestCase):
         my_pipeline = Pipeline(pipeline_details)
         my_pipeline.ingest()
         # truflation.data.pipeline_coupler(pipeline_details)
+
+class TestGoogleSheets(unittest.TestCase):
+    def test_sheets(self):
+        conn = connector_factory('gsheet')
+        df =conn.read_all('1vxyaK4dDdXzDJ5Axakrvik4CUxzGyHvgmmBQJ3Qo7dE:Courses')
+        print(df)
 
 if __name__ == '__main__':
     unittest.main()
