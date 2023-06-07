@@ -258,11 +258,13 @@ class ConnectorRest(Connector):
 class ConnectorGoogleSheets(Connector):
     def read_all(self, *args, **kwargs) -> Any:
         sheets = args[0].split(":", 1)
-        url = f'https://docs.google.com/spreadsheets/d/{sheets[0]}/gviz/tq?tqx=out:csv'
+        url = f'https://docs.google.com/spreadsheets/d/{sheets[0]}/export'
         if len(args) > 1:
-            url = url + f'&sheet={sheets[1]}'
-        return pandas.read_csv(url)
-
+            kwargs['sheet_name']=args[1]
+        df = pandas.read_excel(url, **kwargs)
+        df.columns.values[1] = "value"
+        df.rename(columns={'Date':'date'},inplace=True)
+        return df
 
 cache_ = Cache()
 
