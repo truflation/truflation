@@ -70,6 +70,7 @@ class Pipeline(Task):
         # Read, Parse,  and Validate from all sources
         self.header("Loading...")
         for source_name, source_details in self.sources.items():
+            self.header(f'   {source_name}')
             self.loader.run(source_details, source_name)
 
         # Transform x sources into y dataframes
