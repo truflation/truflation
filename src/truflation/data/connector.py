@@ -7,6 +7,7 @@ import json
 from typing import Optional, Iterator, Any, List
 from pathlib import Path
 import pandas
+import gspread as gs
 import requests
 from playwright.sync_api import sync_playwright
 
@@ -254,12 +255,18 @@ class ConnectorRest(Connector):
     def process_json(json_obj):
         return json_obj
 
-cache_ = Cache()
+class ConnectorGoogleSheets(Connector):
+    def read_all(self, *args, **kwargs) -> Any:
+        sheets = args[0].split(":", 1)
+        return pandas.read_csv(f'https://docs.google.com/spreadsheets/d/{sheets[0]}/gviz/tq?tqx=out:csv&sheet={sheets[1]}')
 
+cache_ = Cache()
 
 def connector_factory(url: str) -> Optional[Connector]:
     if url.startswith('cache'):
         return cache_.connector()
+    if url.startswith('gsheet'):
+        return ConnectorGoogleSheets()
     if url.startswith('csv'):
         l = url.split(':', 1)
         if len(l) > 1:
