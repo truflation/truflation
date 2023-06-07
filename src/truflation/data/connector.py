@@ -258,7 +258,11 @@ class ConnectorRest(Connector):
 class ConnectorGoogleSheets(Connector):
     def read_all(self, *args, **kwargs) -> Any:
         sheets = args[0].split(":", 1)
-        return pandas.read_csv(f'https://docs.google.com/spreadsheets/d/{sheets[0]}/gviz/tq?tqx=out:csv&sheet={sheets[1]}')
+        url = f'https://docs.google.com/spreadsheets/d/{sheets[0]}/gviz/tq?tqx=out:csv'
+        if len(args) > 1:
+            url = url + f'&sheet={sheets[1]}'
+        return pandas.read_csv(url)
+
 
 cache_ = Cache()
 
