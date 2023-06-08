@@ -274,21 +274,21 @@ class ConnectorGoogleSheets(Connector):
 
 cache_ = Cache()
 
-def connector_factory(connector_type: str, source_location: str = None) -> Optional[Connector]:
+
+def connector_factory(connector_type: str) -> Optional[Connector]:
     if connector_type.startswith('cache'):
         return cache_.connector()
     if connector_type.startswith('csv'):
-        if source_location:
-            return ConnectorCsv(path_root=source_location)
         return ConnectorCsv()
     if connector_type.startswith('gsheet'):
         return ConnectorGoogleSheets()
     if connector_type.startswith('json'):
-        if source_location:
-            return ConnectorJson(path_root=source_location)
+        # if source_location:
+        #     return ConnectorJson(path_root=source_location)
         return ConnectorJson()
     if connector_type.startswith('playwright+http'):
-        return ConnectorRest(source_location, playwright=True)
+        # return ConnectorRest(source_location, playwright=True)
+        return ConnectorRest(connector_type, playwright=True)
     if connector_type.startswith('rest+http'):
         return ConnectorRest(connector_type)
     if connector_type.startswith('sqlite') or \
