@@ -48,6 +48,11 @@ class GeneralLoader:
         s_type = source_details.source_type
         source = source_details.source
         # source_url = f'{source_details.source_type}:{source_details.source}'
+
+        # print(f'source_details.source: {source_details.source}')
+        # print(f'args: {source_details.args}')
+        # print(f'kwargs: {source_details.kwargs}')
+
         if s_type != "override":
             reader = connector_factory(s_type, source) \
                 if isinstance(s_type, str) \

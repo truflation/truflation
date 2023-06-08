@@ -105,6 +105,7 @@ class ConnectorCsv(Connector):
     def __init__(self, *args, **kwargs):
         super().__init__()
         self.path_root = kwargs.get('path_root', os.getcwd())
+        print(f'path_root: {self.path_root}')
         Path(self.path_root).mkdir(parents=True, exist_ok=True)
 
     def read_all(
