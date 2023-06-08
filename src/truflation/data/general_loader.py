@@ -43,7 +43,7 @@ class GeneralLoader:
     def __init__(self):
         # self.writer = ConnectorCache("cache") # this was replaced because of suggetsions that .cache didn't exist (none possibility)
         self.writer = cache_.connector()
-
+    # temp notes
     def run(self, source_details: SourceDetails, key: str):
         s_type = source_details.source_type
         source = source_details.source
