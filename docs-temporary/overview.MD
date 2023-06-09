@@ -60,6 +60,6 @@ An example implementation of the pipeline can be found here (https://github.com/
     example.csv -> simple data file with 3 columns: date,value,created_at 
     example.py -> couples and runs my_pipeline_details and pipeline class 
     example_2.csv	-> simple data file with 3 columns: date,value,created_at 
-    my_pipeline_details.py -> details for loading and exporting example.py into api-test 
+    my_pipeline_details.py -> details for loading and exporting example.py into a database
     .env_template -> template for creating .env files, which shouldn't be checked in
 
