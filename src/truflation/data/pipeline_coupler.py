@@ -78,19 +78,4 @@ if __name__ == '__main__':
     # Get file_path from argument
     args = docopt(__doc__)
     file_path = args['<details_path>']  # convert path to module name
-
     load_path(file_path)
-
-    # # Dynamically import and run module, pipeline_details
-    # module_name = 'my_pipeline_details'
-    # spec = importlib.util.spec_from_file_location(module_name, file_path)
-    # module = importlib.util.module_from_spec(spec)
-    # spec.loader.exec_module(module)
-    #
-    # if hasattr(module, 'get_details'):
-    #     pipeline_details = module.get_details()
-    #     main(pipeline_details)
-    # else:
-    #     raise Exception("get_details not found in supplied module,")
-
-

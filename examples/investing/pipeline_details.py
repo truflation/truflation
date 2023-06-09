@@ -82,10 +82,21 @@ def get_details():
         for name in datalist
     ]
 
+    cron_schedule = {
+        "second": "15, 30, 45, 0",  # At the start of the minute
+        "minute": "*",  # At the start of the minute
+        "hour": "*",  # First hour
+        "day": "*",  # On the csv_example day of the month
+        "month": "*",  # In January
+        "year": "*",  # In January
+        # "day_of_week": "mon",  # On Mondays
+    }
+
     my_pipeline = PipeLineDetails(
         name=PIPELINE_NAME,
         sources=sources,
         exports=exports,
+        cron_schedule=cron_schedule,
         pre_ingestion_function=pre_ingestion_function,
         post_ingestion_function=post_ingestion_function,
         transformer=transformer

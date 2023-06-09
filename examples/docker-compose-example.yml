@@ -12,6 +12,12 @@ services:
       command: python3 src/truflation/data/pipeline_coupler.py examples/csv_example/my_pipeline_details.py
       volumes:
         - pipeline_details:/data/todo
+  investing:
+      build: ../.
+      command: examples/investing/load_data.py
+      volumes:
+        - pipeline_details:/data/todo
+
 volumes:
   pipeline_details:
     driver: local

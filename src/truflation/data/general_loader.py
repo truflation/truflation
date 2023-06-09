@@ -55,13 +55,6 @@ class GeneralLoader:
         else:
             reader = source_details.connector
 
-        print(f'in general loader...')
-        print(f's_type: {s_type}')
-        print(f'source: {source}')
-        print(f'source_details.args: {source_details.args}')
-        print(f'source_details.kwargs: {source_details.kwargs}')
-
-
         df = reader.read_all(source, *source_details.args,  **source_details.kwargs)
         if source_details.parser is not None:
             df = source_details.parser(df)
