@@ -73,7 +73,7 @@ class Connector:
 
 
 class ConnectorCache(Connector):
-    def __init__(self, cache, default_key = None):
+    def __init__(self, cache, default_key=None):
         super().__init__()
         self.default_key = default_key
         self.cache = cache
@@ -97,7 +97,7 @@ class Cache:
     def get(self, key):
         return self.cache_data[key]
 
-    def connector(self, default_key = None):
+    def connector(self, default_key=None):
         return ConnectorCache(self, default_key)
 
 
@@ -253,16 +253,20 @@ class ConnectorRest(Connector):
     def process_json(json_obj):
         return json_obj
 
+
 class ConnectorGoogleSheets(Connector):
-    def read_all(self, *args, **kwargs) -> Any:
-        sheets = args[0].split(":", 1)
-        url = f'https://docs.google.com/spreadsheets/d/{sheets[0]}/export'
+    def read_all(self, sheet_id, *args, **kwargs) -> Any:
+        url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/export'
+
+        # todo -- @joseph please review this and add documentation, as I am not sure what this does and I likely broke it by adding in a new parameter
+        # generally speaking, there wont be any args or kwargs -- except if excel Google Sheets have non-standard format, which we can have the args and kwargs help with
         if len(args) > 1:
-            kwargs['sheet_name']=args[1]
+            kwargs['sheet_name'] = args[1]
         df = pandas.read_excel(url, **kwargs)
         df.columns.values[1] = "value"
-        df.rename(columns={'Date':'date'},inplace=True)
+        df.rename(columns={'Date': 'date'}, inplace=True)
         return df
+
 
 cache_ = Cache()
 
@@ -284,13 +288,13 @@ def connector_factory(connector_type: str) -> Optional[Connector]:
     if connector_type.startswith('rest+http'):
         return ConnectorRest(connector_type)
     if connector_type.startswith('sqlite') or \
-       connector_type.startswith('postgresql') or \
-       connector_type.startswith('mysql') or \
-       connector_type.startswith('mariadb') or \
-       connector_type.startswith('oracle') or \
-       connector_type.startswith('mssql') or \
-       connector_type.startswith('sqlalchemy') or \
-       connector_type.startswith('gsheets') or \
-       connector_type.startswith('pybigquery'):
+            connector_type.startswith('postgresql') or \
+            connector_type.startswith('mysql') or \
+            connector_type.startswith('mariadb') or \
+            connector_type.startswith('oracle') or \
+            connector_type.startswith('mssql') or \
+            connector_type.startswith('sqlalchemy') or \
+            connector_type.startswith('gsheets') or \
+            connector_type.startswith('pybigquery'):
         return ConnectorSql(connector_type)
     return None
