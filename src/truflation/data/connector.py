@@ -235,13 +235,7 @@ class ConnectorRest(Connector):
 
     def read_all(
             self,
-            *args, **kwargs) -> Any:
-        if type(args[0]) is dict:
-            url = self.base.format(**args[0])
-        else:
-            url = self.base.format(**kwargs)
-        if len(args) > 0 and type(args[0]) is not dict:
-            url = os.path.join(url, args[0])
+            url, *args, **kwargs) -> Any:
         if self.playwright:
             with sync_playwright() as p:
                 browser_type = p.firefox
@@ -252,9 +246,7 @@ class ConnectorRest(Connector):
                 )
                 return self.process_json(response.json())
 
-        response = requests.get(os.path.join(
-            url
-        ))
+        response = requests.get(os.path.join(url))
         return self.process_json(response.json())
 
     @staticmethod
