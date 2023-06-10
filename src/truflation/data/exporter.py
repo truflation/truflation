@@ -51,7 +51,7 @@ class Exporter:
 
         # create created at for df if none exists (new data)
         if 'created_at' not in df_local:
-            df_local['created_at'] = pandas.to_datetime(pandas.Timestamp.now(), unit='s')
+            df_local['created_at'] = pandas.to_datetime(datetime.datetime.utcnow())
         else:
             df_local['created_at'] = pandas.to_datetime(df_local['created_at'])
         logger.debug(df_local)
@@ -111,7 +111,8 @@ class Exporter:
         if df is None or 'created_at' not in df:
             return df
         # create mask for timestamps greater than now
-        date_time_now = datetime.datetime.now()
+        date_time_now = datetime.datetime.utcnow()
+        df['created_at'] = pandas.to_datetime(df['created_at'])
         mask = df['created_at'] > date_time_now
         # Update those rows
         df.loc[mask, 'created_at'] = date_time_now
@@ -173,7 +174,7 @@ class Exporter:
         """
 
         # define frozen_date and frozen_datetime
-        frozen_datetime = datetime.datetime.now() if frozen_datetime is None else frozen_datetime
+        frozen_datetime = datetime.datetime.utcnow() if frozen_datetime is None else frozen_datetime
         frozen_date = frozen_datetime.date()
 
         df = export_details.read()
