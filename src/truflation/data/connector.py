@@ -232,6 +232,8 @@ class ConnectorRest(Connector):
         super().__init__()
         self.base = base_
         self.playwright = kwargs.get('playwright', False)
+        self.json = kwargs.get('json', True)
+        self.page = None
 
     def read_all(
             self,
@@ -240,14 +242,24 @@ class ConnectorRest(Connector):
             with sync_playwright() as p:
                 browser_type = p.firefox
                 browser = browser_type.launch()
-                page = browser.new_page()
-                response = page.goto(
+                self.page = browser.new_page()
+                response = self.page.goto(
                     url
                 )
-                return self.process_json(response.json())
+                return self.process_response(response)
 
         response = requests.get(os.path.join(url))
-        return self.process_json(response.json())
+        return self.process_response(response)
+
+    def process_response(self, response):
+        if self.json:
+            return self.process_json(response.json())
+        else:
+            return self.process_content(response.content)
+
+    @staticmethod
+    def process_content(content):
+        return content
 
     @staticmethod
     def process_json(json_obj):
@@ -287,6 +299,8 @@ def connector_factory(connector_type: str) -> Optional[Connector]:
         return ConnectorRest(connector_type, playwright=True)
     if connector_type.startswith('rest+http'):
         return ConnectorRest(connector_type)
+    if connector_type.startswith('http'):
+        return ConnectorRest(connector_type, json=False)
     if connector_type.startswith('sqlite') or \
             connector_type.startswith('postgresql') or \
             connector_type.startswith('mysql') or \
