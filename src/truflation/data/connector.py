@@ -109,7 +109,11 @@ class ConnectorCsv(Connector):
     def read_all(
             self, *args, **kwargs
     ) -> Any:
-        return pandas.read_csv(os.path.join(self.path_root, args[0]))
+        filename = os.path.join(self.path_root, args[0])
+        if os.access(filename, os.R_OK):
+            return pandas.read_csv(filename)
+        else:
+            return None
 
     def write_all(
             self,
@@ -134,9 +138,12 @@ class ConnectorJson(Connector):
         filename = kwargs.get('key', None)
         if filename is None and len(args) > 0:
             filename = args[0]
-        with open(os.path.join(self.path_root, filename)) as fileh:
-            obj = json.load(fileh)
-        return obj
+        if isinstance(filename, str):
+            with open(os.path.join(self.path_root, filename)) as fileh:
+                obj = json.load(fileh)
+                return obj
+        else:
+            return json.load(fileh)
 
     def write_all(
             self,
