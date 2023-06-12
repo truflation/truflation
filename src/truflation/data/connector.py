@@ -164,9 +164,14 @@ class ConnectorJson(Connector):
 
 
 class ConnectorSql(Connector):
+    engines = {}
     def __init__(self, engine):
         super().__init__()
-        self.engine = create_engine(engine)
+        self.engine = self.engines.get(engine)
+        if self.engine is None:
+            self.engine = \
+                create_engine(engine)
+            self.engines[engine] = self.engine
 
     def read_all(
             self,
