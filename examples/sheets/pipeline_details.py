@@ -65,8 +65,8 @@ def get_details():
     ]
 
     cron_schedule = {
-        "second": "15, 30, 45, 0",  # At the start of the minute
-        "minute": "*",  # At the start of the minute
+        "second": "0",  # At the start of the minute
+        "minute": "0",  # At the start of the minute
         "hour": "*",  # First hour
         "day": "*",  # On the csv_example day of the month
         "month": "*",  # In January
