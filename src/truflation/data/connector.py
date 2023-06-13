@@ -272,14 +272,13 @@ class ConnectorRest(Connector):
         return json_obj
 
 
+
 class ConnectorGoogleSheets(Connector):
     def read_all(self, sheet_id, *args, **kwargs) -> Any:
         url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/export'
-
-        # todo -- @joseph please review this and add documentation, as I am not sure what this does and I likely broke it by adding in a new parameter
-        # generally speaking, there wont be any args or kwargs -- except if excel Google Sheets have non-standard format, which we can have the args and kwargs help with
-        if len(args) > 1:
-            kwargs['sheet_name'] = args[1]
+        # todo -- @joseph please change this to passing in a kwarg of 'sheet_name' and documenting the convention
+        # if len(args) > 1:
+        #     kwargs['sheet_name'] = args[1]
         df = pandas.read_excel(url, **kwargs)
         df.columns.values[1] = "value"
         df.rename(columns={'Date': 'date'}, inplace=True)
