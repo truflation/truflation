@@ -48,7 +48,6 @@ def main(pipeline_details: PipeLineDetails):
     # # Get details for pipeline
     # pipeline_details = get_details()
 
-    print("coupling...")
     # Instantiate scheduler
     scheduler = BackgroundScheduler()
 
