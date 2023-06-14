@@ -58,7 +58,7 @@ class SourceDetails:
     """
 
     def __init__(self, name: str, source_type: str, source: str,  *args, connector: Connector = None,
-                 parser: Callable[[Union[pandas.DataFrame, Dict, json]], pandas.DataFrame] = None,  **kwargs):
+                 parser: Callable[[Union[pandas.DataFrame, Dict]], pandas.DataFrame] = None,  **kwargs):
         self.name = name
         # options: override, csv,
         self.source_type = source_type
