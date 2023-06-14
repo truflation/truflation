@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Dict
 from truflation.data.source_details import SourceDetails
 from truflation.data.export_details import ExportDetails
 import pandas
@@ -38,9 +38,9 @@ class PipeLineDetails:
         A function to be run after the ingestion process. This is optional
         and by default, no function is run.
 
-    transformer: Callable[[pandas.DataFrame], pandas.DataFrame] (default = lambda x: x)
-        A function that takes a pandas DataFrame as input and returns a
-        pandas DataFrame as output. This is used to perform any necessary
+    transformer: Callable[[Dict], Dict] (default = lambda x: x)
+        A function that takes a dictionary as input and returns a
+        dictionary as output. This is used to perform any necessary
         transformations on the data after it has been ingested and before
         it is exported. By default, this is an identity function that
         returns the input as is.
@@ -65,7 +65,7 @@ class PipeLineDetails:
     post_ingestion_function: Callable
         Post-ingestion function for the pipeline.
 
-    transformer: Callable
+    transformer: Callable[[Dict], Dict]
         Data transformation function for the pipeline.
     """
 
@@ -76,7 +76,7 @@ class PipeLineDetails:
                  cron_schedule: dict = None,
                  pre_ingestion_function: Callable = None,
                  post_ingestion_function: Callable = None,
-                 transformer: Callable[[pandas.DataFrame], pandas.DataFrame]  = lambda x: x
+                 transformer: Callable[[Dict], Dict] = lambda x: x
                  ):
         self.name = name
         self.sources = sources
