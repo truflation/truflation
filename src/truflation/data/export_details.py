@@ -17,7 +17,7 @@ class ExportDetails(Task):
     ----------
     name : str
         The name of the export task
-    connector : Connector
+    connector : Connector | str
         The connector used for data operations
     key : str
         The key used for reading and writing data
@@ -29,7 +29,7 @@ class ExportDetails(Task):
     write(data):
         Writes the given data using the assigned key
     """
-    def __init__(self, name: str, connector: Connector, key: str):
+    def __init__(self, name: str, connector: Connector | str, key: str):
         super().__init__(connector, connector)
         self.name = name
         self.key = key
