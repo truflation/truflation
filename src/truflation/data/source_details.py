@@ -20,8 +20,24 @@ class SourceDetails:
         A string that represents the name of the data source.
 
     source_type: str
-        A string that indicates the type of the data source. For example, this
-        could be 'override', 'csv', etc.
+        A string that indicates the type of the data source. The following are valid:
+            cache
+            csv
+            gsheet
+            json
+            playwright+http
+            rest+http
+            http
+            sqlite
+            postgresql
+            mysql
+            mariadb
+            oracle
+            mssql
+            sqlalchemy
+            gsheets
+            pybigquery
+
 
     source: str
         A string that specifies the particular source of data. The interpretation
