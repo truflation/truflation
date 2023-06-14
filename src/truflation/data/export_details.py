@@ -5,6 +5,7 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
+
 class ExportDetails(Task):
     """
     A class used to represent export details for a data task.
