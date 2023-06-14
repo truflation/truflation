@@ -292,7 +292,11 @@ def connector_factory(connector_type: str) -> Optional[Connector]:
     if connector_type.startswith('cache'):
         return cache_.connector()
     if connector_type.startswith('csv'):
-        return ConnectorCsv()
+        if connector_type.startswith('csv:'):
+            path_root = connector_type.split(':', 1)[1]
+            return ConnectorCsv(path_root=path_root)
+        else:
+            return ConnectorCsv()
     if connector_type.startswith('gsheet'):
         return ConnectorGoogleSheets()
     if connector_type.startswith('json'):
