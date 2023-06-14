@@ -64,6 +64,8 @@ class GeneralLoader:
 
         if source_details.parser is not None:
             df = source_details.parser(df)
+        if df is None:
+            return
         if 'date' in df:
             df['date'] = pd.to_datetime(df['date'])  # make sure the 'date' column is in datetime format
         if 'createdAt' in df:
