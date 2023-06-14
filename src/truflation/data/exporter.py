@@ -127,10 +127,7 @@ class Exporter:
           df_base: Pandas.DataFrame: dataframe to add to
           df_incoming: Pandas.DataFrame: dataframe to add
         """
-        # step 2 -- filter db to most recent (created_at) date-value pairs
-        df_base['date'] = pandas.to_datetime(df_base['date'])  # make sure the 'date' column is in datetime format
-        df_base = df_base.sort_values(['date', 'value', 'created_at'], ascending=False).drop_duplicates(
-            ['date', 'value']).sort_index()
+
 
         # Merge
         # ensure date columns are in datetime format
@@ -139,24 +136,44 @@ class Exporter:
         df_base['date'] = pandas.to_datetime(df_base['date'])
         df_incoming['date'] = pandas.to_datetime(df_incoming['date'])
 
+        for date_column in [ x for x in df_base.columns if x.startswith('date') ]:
+            df_base[date_column] = pandas.to_datetime(df_base[date_column])
+            df_incoming[date_column] = pandas.to_datetime(df_incoming[date_column])
+
         identifiers = [x for x in df_base.columns if x not in ['created_at']]
 
-        # perform merge operation on 'date' and 'value'
-        # df_merge = pandas.merge(df_base, df_incoming, how='outer', on=['date', 'value'], indicator=True, suffixes=('', '_y'))
-        df_merge = pandas.merge(df_base, df_incoming, how='outer', on=identifiers, indicator=True, suffixes=('', '_y'))
+        print(df_base.dtypes)
+        print(df_incoming.dtypes)
+        print(df_base)
+        print(df_incoming)
 
-        # filter rows that are in df_incoming only
-        df_new_data = df_merge.loc[df_merge['_merge'] == 'right_only'].drop(columns=['_merge'])
-
-        # remove the unnecessary index and created_at_x column if exists
+        # keep old rows since this might be a data update
+        df_new_data = pandas.merge(
+            df_base, df_incoming, how='outer', on=identifiers,
+            suffixes=('', '_y')
+        )
+        print(df_new_data)
         if 'index' in df_new_data.columns:
-            df_new_data = df_new_data.drop(columns=['index'])
-        if 'created_at' in df_new_data.columns:
-            df_new_data = df_new_data.drop(columns=['created_at'])
+             df_new_data = df_new_data.drop(columns=['index'])
+        df_new_data = df_new_data.set_index(['date'])
+        df_new_data['created_at'] = \
+            df_new_data['created_at'].fillna(
+                df_new_data['created_at_y']
+            )
+        df_new_data = df_new_data.drop(columns=['created_at_y'])
 
-        # rename created_at_y to created_at
-        df_new_data = df_new_data.rename(columns={"created_at_y": "created_at"})
-
+        # drop duplicates
+        columns = list(df_new_data.columns.values)
+        columns_filtered = [
+            item for item in columns \
+            if item != 'created_at'
+        ]
+        logger.debug(columns)
+        logger.debug(columns_filtered)
+        df_new_data = df_new_data.sort_values(columns, ascending=False).drop_duplicates(
+            subset=columns_filtered
+        ).sort_index()
+        print(df_new_data)
         return df_new_data
 
     # todo -- consider making this take in only a dataframe
