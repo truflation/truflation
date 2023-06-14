@@ -1,7 +1,7 @@
 from truflation.data.task import Task
 from truflation.data.connector import connector_factory, cache_
 from truflation.data.source_details import SourceDetails
-from typing import Callable
+from typing import Callable, Dict
 import pandas as pd
 import logging
 
@@ -67,7 +67,7 @@ class GeneralLoader:
 
         self.writer.write_all(df, key=key)
 
-    def transform(self, transformer: Callable[[pd.DataFrame], pd.DataFrame] ):
+    def transform(self, transformer: Callable[[Dict], Dict]):
         """ transforms cache with transformer function   """
         self.writer.cache.cache_data.update(transformer(self.writer.cache.cache_data))
 
