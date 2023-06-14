@@ -59,9 +59,6 @@ class GeneralLoader:
         logger.debug(f'reading {source}')
         df = reader.read_all(source, *source_details.args,  **source_details.kwargs)
 
-        print(f'dataframe received from run in general loader: {df}')
-        print(type(df))
-
         if source_details.parser is not None:
             df = source_details.parser(df)
         if df is None:
