@@ -72,7 +72,7 @@ class Exporter:
         # Insert
         export_details.write(
             df_new_data,
-            if_exists='append',
+            if_exists='replace',
             chunksize=1000,
             index= (df_new_data.index.name == 'date'),
             dtype={
