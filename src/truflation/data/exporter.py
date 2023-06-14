@@ -12,7 +12,6 @@ import datetime
 import logging
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 '''
   Dev Notes
@@ -56,9 +55,7 @@ class Exporter:
             df_local['created_at'] = pandas.to_datetime(df_local['created_at'])
         logger.debug(df_local)
 
-
         # Read in remote database as dataframe
-        logger.debug(export_details)
         df_remote = export_details.read()
         logger.debug(df_remote)
 
@@ -142,11 +139,6 @@ class Exporter:
 
         identifiers = [x for x in df_base.columns if x not in ['created_at']]
 
-        print(df_base.dtypes)
-        print(df_incoming.dtypes)
-        print(df_base)
-        print(df_incoming)
-
         # keep old rows since this might be a data update
         df_new_data = pandas.merge(
             df_base, df_incoming, how='outer', on=identifiers,
@@ -168,8 +160,6 @@ class Exporter:
             item for item in columns \
             if item != 'created_at'
         ]
-        logger.debug(columns)
-        logger.debug(columns_filtered)
         df_new_data = df_new_data.sort_values(columns, ascending=False).drop_duplicates(
             subset=columns_filtered
         ).sort_index()

@@ -3,7 +3,9 @@ from truflation.data.connector import connector_factory, cache_
 from truflation.data.source_details import SourceDetails
 from typing import Callable
 import pandas as pd
+import logging
 
+logger = logging.getLogger(__name__)
 
 class GeneralLoader:
     """
@@ -54,7 +56,7 @@ class GeneralLoader:
                 else s_type
         else:
             reader = source_details.connector
-
+        logger.debug(f'reading {source}')
         df = reader.read_all(source, *source_details.args,  **source_details.kwargs)
         if source_details.parser is not None:
             df = source_details.parser(df)

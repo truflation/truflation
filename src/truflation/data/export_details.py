@@ -4,8 +4,6 @@ from truflation.data.connector import Connector
 import pandas as pd
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
 
 class ExportDetails(Task):
     """
