@@ -272,7 +272,6 @@ class ConnectorRest(Connector):
         return json_obj
 
 
-
 class ConnectorGoogleSheets(Connector):
     def read_all(self, sheet_id, *args, **kwargs) -> Any:
         url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/export'
