@@ -60,13 +60,10 @@ class GeneralLoader:
         df = reader.read_all(source, *source_details.args,  **source_details.kwargs)
 
         print(f'dataframe received from run in general loader: {df}')
+        print(type(df))
 
         if source_details.parser is not None:
-            print(f'parsing...')
             df = source_details.parser(df)
-            print(f'dataframe after parsing: {df}')
-        else:
-            print(f'no parser...')
         if 'date' in df:
             df['date'] = pd.to_datetime(df['date'])  # make sure the 'date' column is in datetime format
         if 'createdAt' in df:

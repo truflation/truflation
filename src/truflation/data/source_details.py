@@ -1,7 +1,7 @@
-from typing import Callable
-
+from typing import Callable, Union, Dict
 import pandas
 from truflation.data.connector import Connector
+import json
 
 
 class SourceDetails:
@@ -33,7 +33,7 @@ class SourceDetails:
         connection with the data source. This is optional and if not provided,
         a default connector may be used.
 
-    parser: Callable[[pandas.DataFrame], pandas.DataFrame] (default = lambda x: x)
+    parser: Callable[[Union[pandas.DataFrame, Dict, json]], pandas.DataFrame] (default = lambda x: x)
         A function that takes a pandas DataFrame as input and returns a
         pandas DataFrame as output. This is used to perform any necessary
         transformations or preprocessing on the data read from the source.
@@ -53,12 +53,12 @@ class SourceDetails:
     connector: Connector
         Connector instance used to connect to the data source.
 
-    parser: Callable
+    parser: Callable[[Union[pandas.DataFrame, Dict, json]]
         Parser function used to process the data from the source.
     """
 
     def __init__(self, name: str, source_type: str, source: str,  *args, connector: Connector = None,
-                 parser: Callable[[pandas.DataFrame], pandas.DataFrame] = None,  **kwargs):
+                 parser: Callable[[Union[pandas.DataFrame, Dict, json]], pandas.DataFrame] = None,  **kwargs):
         self.name = name
         # options: override, csv,
         self.source_type = source_type
