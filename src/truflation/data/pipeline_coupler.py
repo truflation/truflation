@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 # pip install. && ./examples/example.py
-from pytz import utc
-
 """
 Usage:
   pipeline_coupler.py <details_path>
@@ -16,6 +14,7 @@ from truflation.data.pipeline import Pipeline
 from truflation.data.pipeline_details import PipeLineDetails
 from docopt import docopt
 import importlib
+from pytz import utc
 
 
 def ingest(pipeline_details: PipeLineDetails):
@@ -46,15 +45,16 @@ def main(pipeline_details: PipeLineDetails):
     -------
     None
     """
-    # # Get details for pipeline
-    # pipeline_details = get_details()
-
     # Instantiate scheduler with UTC timezone
     scheduler = BackgroundScheduler(timezone=utc)
 
     # Add job based off of cron_schedule in pipeline_details
-    scheduler.add_job(ingest,  'cron', **pipeline_details.cron_schedule, args=[pipeline_details])
+    job = scheduler.add_job(ingest,  'cron', **pipeline_details.cron_schedule, args=[pipeline_details])
     scheduler.start()
+
+    # Print job and pipeline details so we know it is functioning
+    print(f'Scheduling ingestor pipeline {pipeline_details}')
+    print(f' --> {job}')
 
     # Runs an infinite loop
     while True:
@@ -65,6 +65,9 @@ def load_path(file_path: str):
     # Dynamically import and run module, pipeline_details
     module_name = 'my_pipeline_details'
     spec = importlib.util.spec_from_file_location(module_name, file_path)
+    if spec is None:
+        raise Exception(f"{file_path} does not exist as a module.")
+
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
@@ -79,5 +82,4 @@ if __name__ == '__main__':
     # Get file_path from argument
     args = docopt(__doc__)
     file_path = args['<details_path>']  # convert path to module name
-    print(f'coupler has been called. args: {args}')
     load_path(file_path)

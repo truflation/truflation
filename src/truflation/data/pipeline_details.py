@@ -85,4 +85,9 @@ class PipeLineDetails:
         self.pre_ingestion_function = pre_ingestion_function
         self.post_ingestion_function = post_ingestion_function
         self.transformer = transformer
-        self.first = 123
+
+    def __str__(self):
+        return f"PipeLineDetails({self.name}, cron_schedule: {self.cron_schedule})"
+
+    def __repr__(self):
+        return str(self)  # Return the same string representation for both str() and repr()
