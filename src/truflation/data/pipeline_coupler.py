@@ -79,4 +79,5 @@ if __name__ == '__main__':
     # Get file_path from argument
     args = docopt(__doc__)
     file_path = args['<details_path>']  # convert path to module name
+    print(f'coupler has been called. args: {args}')
     load_path(file_path)
