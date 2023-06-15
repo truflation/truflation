@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # pip install. && ./examples/example.py
+from pytz import utc
 
 """
 Usage:
@@ -48,8 +49,8 @@ def main(pipeline_details: PipeLineDetails):
     # # Get details for pipeline
     # pipeline_details = get_details()
 
-    # Instantiate scheduler
-    scheduler = BackgroundScheduler()
+    # Instantiate scheduler with UTC timezone
+    scheduler = BackgroundScheduler(timezone=utc)
 
     # Add job based off of cron_schedule in pipeline_details
     scheduler.add_job(ingest,  'cron', **pipeline_details.cron_schedule, args=[pipeline_details])
