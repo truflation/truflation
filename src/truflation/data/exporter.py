@@ -147,13 +147,12 @@ class Exporter:
         print(df_new_data)
         if 'index' in df_new_data.columns:
              df_new_data = df_new_data.drop(columns=['index'])
-        df_new_data = df_new_data.set_index(['date'])
+
         df_new_data['created_at'] = \
             df_new_data['created_at'].fillna(
                 df_new_data['created_at_y']
             )
         df_new_data = df_new_data.drop(columns=['created_at_y'])
-
         # drop duplicates
         columns = list(df_new_data.columns.values)
         columns_filtered = [
@@ -163,6 +162,7 @@ class Exporter:
         df_new_data = df_new_data.sort_values(columns, ascending=False).drop_duplicates(
             subset=columns_filtered
         ).sort_index()
+        df_new_data = df_new_data.set_index(['date'])
         print(df_new_data)
         return df_new_data
 
