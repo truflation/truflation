@@ -76,11 +76,14 @@ class Pipeline(Task):
 
         # Get cache
         my_cache = self.loader.cache
-        exports = dict()
+        exports = dict() if not dry_run else \
+            dict({export_details.name: my_cache.get(export_details.name, None) for export_details in self.exports})
+
         #  Export y dataframes into z tables on servers
         self.header("Exporting...")
         for export_details in self.exports:
-            exports[export_details.name] = self.exporter.export(export_details, my_cache.get(export_details.name, None), dry_run)
+            exports[export_details.name + 'reconciled_export'], exports[export_details.name + 'reconciled_export'] = \
+                self.exporter.export(export_details, my_cache.get(export_details.name, None), dry_run)
 
         #  Post ingestion function
         self.header("Post Ingestion Function...")
