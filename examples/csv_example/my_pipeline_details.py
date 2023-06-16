@@ -9,9 +9,6 @@ DB_PASS = os.getenv('DB_PASS')
 # Name
 pipeline_name = "Hello World"
 
-print(f'These are the env variables:')
-for name, value in os.environ.items():
-    print("{0}: {1}".format(name, value))
 
 def pre_ingestion_function():
     """
