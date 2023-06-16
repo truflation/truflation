@@ -8,13 +8,17 @@ Arguments:
   details_path     the relative path to the pipeline details module
 """
 
+import sys
 import time
+import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 from truflation.data.pipeline import Pipeline
 from truflation.data.pipeline_details import PipeLineDetails
 from docopt import docopt
 import importlib
 from pytz import utc
+
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 
 def ingest(pipeline_details: PipeLineDetails):
