@@ -30,7 +30,7 @@ def load_path(file_path: str, debug: bool, dry_run):
     if hasattr(module, 'get_details'):
         pipeline_details = module.get_details()
         my_pipeline = Pipeline(pipeline_details)
-        my_pipeline.ingest(dry_run)
+        return my_pipeline.ingest(dry_run)
     else:
         raise Exception("get_details not found in supplied module,")
 
