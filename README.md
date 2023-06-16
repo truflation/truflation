@@ -4,7 +4,7 @@ This repository is the home for `tfi-data`, a robust and versatile Python data p
 
 ## Structure
 
-The code is structured into a `Pipeline` and `PipelineDetails` to separate the high-level execution of tasks in the pipeline from the specifics of those tasks. The `Pipeline` class is initialized with an instance of `PipeLineDetails`, which provides the details for a specific pipeline configuration. More about these components can be found in the [overview](overview.md) document.
+The modularized ingestor is structured into two components --  `Pipeline` and `PipelineDetails` -- to separate the high-level execution of tasks in the pipeline from the specifics of those tasks. The `Pipeline` class is initialized with an instance of `PipeLineDetails`, which provides the details for a specific pipeline configuration. More about these components can be found in the [overview](overview.md) document.
 
 ## Usage
 
@@ -28,7 +28,9 @@ You can use this module by either cloning the repository or downloading the Dock
 * **Transformer**: Transforms the loaded data according to specified rules or functions.
 * **Exporter**: Exports a dataframe into a database according to the export details parameter.
 * **PipelineDetails**: Contains details for a specific pipeline configuration.
-* **PipelineCoupler.py**: Combines `Pipeline.py` and `PipelineDetails` and schedules the running of the pipeline through APScheduler.
+* **pipeline_coupler.py**: Combines `Pipeline.py` and `PipelineDetails` and schedules the running of the pipeline through APScheduler.
+* **multi_pipeline_coupler.py**: A pipeline coupler that runs multiple pipelines asynchronously. Pipelines are already meant to be asynchronous to other pipelines. In this script, the pipeline itself becomes asynchronous and thus could have speed advantages even with singular pipelines. 
+* **pipeline_run_direct.py**: Combines `Pipeline.py` and `PipelineDetails` and immediately runs pipeline without scheduling.
 More details on these components are in the [overview](overview.md).
 
 ## Deployment
@@ -37,7 +39,7 @@ This pipeline is designed to be deployed as a Docker image for consistent deploy
 
 ## Repository Structure
 
-This repository (`tfi-data`) contains the `Pipeline` class and its associated components necessary for data ingestion, transformation, and export. It does not include the module that calls and runs the `Pipeline` class or the details that get fed to the class. 
+This repository (`tfi-data`) contains the `Pipeline` class and its associated components necessary for data ingestion, transformation, and export. It does not include the module that calls and runs the `Pipeline` class or the details that get fed to the class. However, there are examples in the repo of implimenting and calling PipelineDetails.
 
 The details specific to the data processing, including `PipelineDetails`, are stored in a separate private repository named `dataloaders`.
 
