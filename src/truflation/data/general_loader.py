@@ -67,7 +67,7 @@ class GeneralLoader:
             df['date'] = pd.to_datetime(df['date'])  # make sure the 'date' column is in datetime format
         if 'createdAt' in df:
             df['createdAt'] = pd.to_datetime(df['createdAt'])
-
+        df.sort_values('date', inplace=True)
         self.writer.write_all(df, key=key)
 
     def transform(self, transformer: Callable[[Dict], Dict]):

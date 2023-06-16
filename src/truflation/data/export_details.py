@@ -47,5 +47,8 @@ class ExportDetails(Task):
 
     def write(self, data: pd.DataFrame, **kwargs):
         kwargs['key'] = self.key
-        return self.writer.write_all(data, **kwargs)
+        if data is not None:
+            return self.writer.write_all(data, **kwargs)
+        return None
+
 

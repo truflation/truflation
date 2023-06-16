@@ -159,9 +159,9 @@ class Exporter:
             item for item in columns \
             if item != 'created_at'
         ]
-        df_new_data = df_new_data.sort_values(columns, ascending=False).drop_duplicates(
+        df_new_data = df_new_data.sort_values(columns, ascending=True).drop_duplicates(
             subset=columns_filtered
-        ).sort_index()
+        )
         df_new_data = df_new_data.set_index(['date'])
         print(df_new_data)
         return df_new_data
