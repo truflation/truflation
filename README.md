@@ -43,6 +43,76 @@ This repository (`tfi-data`) contains the `Pipeline` class and its associated co
 
 The details specific to the data processing, including `PipelineDetails`, are stored in a separate private repository named `dataloaders`.
 
+
+
+
+# Pipeline Class
+
+The `Pipeline` class orchestrates the ingestion, transformation, and exporting of data. This class inherits from the `Task` base class.
+
+## Attributes
+
+- `name`: The unique identifier of the pipeline.
+- `pre_ingestion_function`: A callable function executed before the ingestion process starts.
+- `post_ingestion_function`: A callable function that runs after the completion of the ingestion process.
+- `sources`: A dictionary of data sources where the pipeline should ingest data from.
+- `loader`: An instance of `GeneralLoader` to handle the ingestion and parsing of data.
+- `transformer`: An instance of `Transformer` to handle the transformation of the ingested data.
+- `exports`: A list of exports where the pipeline should send the data.
+- `exporter`: An instance of `Exporter` to handle the exporting of data.
+
+## Methods
+
+- `ingest()`: Executes the entire pipeline process, which includes data ingestion, transformation, and exporting.
+- `header(s: str)`: Prints a header for a section of the pipeline process.
+
+The `ingest()` function is the core function, orchestrating the process from start to finish. It begins by executing the `pre_ingestion_function`, then it reads, parses, and validates data from all sources. After that, it performs the necessary transformations and stores the result in a cache. Finally, it exports the transformed data to the specified destinations and runs the `post_ingestion_function`.
+
+
+# PipeLineDetails Class
+
+This class provides a detailed configuration for a data pipeline.
+
+## Components
+
+- `name`: The unique identifier for the pipeline.
+- `sources`: List of `SourceDetails` objects, each outlining the setup for a specific data source.
+- `exports`: List of `ExportDetails` objects, each describing how to handle data exports for the pipeline.
+- `cron_schedule`: A dictionary defining the pipeline's schedule based on the cron format.
+- `pre_ingestion_function`: This optional callable function runs before the data ingestion process begins.
+- `post_ingestion_function`: Another optional callable function that is executed after the ingestion process.
+- `transformer`: A function that manipulates the ingested data as needed before it is exported.
+
+# SourceDetails Class
+
+This class encapsulates the details of a data source that is part of the pipeline.
+
+## Components
+
+- `name`: Unique identifier for the data source.
+- `source_type`: Specifies the type of the data source, such as 'csv', 'rest+http', 'sqlite', etc.
+- `source`: Specifies the particular source of data. This could be a URL, a file path, etc. depending on `source_type`.
+- `connector`: An instance of `Connector` class used to establish a connection with the data source.
+- `parser`: A function to process the data from the source and transform it into a pandas DataFrame.
+
+# ExportDetails Class
+
+This class outlines the details for exporting data processed by the pipeline.
+
+## Components
+
+- `name`: Unique identifier for the export task.
+- `connector`: Specifies the `Connector` instance used for data operations.
+- `key`: Used for reading and writing data.
+
+## Methods
+
+- `read()`: Reads data using the assigned key.
+- `write(data)`: Writes the provided pandas DataFrame to the assigned key.
+
+
+
+
 ## Contributing
 
 Please read our [Contributing Guide](CONTRIBUTING.md) before submitting a Pull Request to the project.
