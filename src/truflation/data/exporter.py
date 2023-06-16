@@ -31,7 +31,7 @@ class Exporter:
     def __init__(self):
         pass
 
-    def export(self, export_details: ExportDetails, df_local: pandas.DataFrame) -> None:
+    def export(self, export_details: ExportDetails, df_local: pandas.DataFrame, dry_run=False) -> pandas.DataFrame:
         """
         Export dataframe to database.
 
@@ -69,18 +69,21 @@ class Exporter:
         if 'date' in df_local:
             df_local['date'] = pandas.to_datetime(df_local['date'])  # make sure the 'date' column is in datetime format
 
-        # Insert
-        export_details.write(
-            df_new_data,
-            if_exists='replace',
-            chunksize=1000,
-            index= (df_new_data.index.name == 'date'),
-            dtype={
-                # 'created_at': types.DateTime(precision=6),
-                'date': types.Date(),
-                'created_at': types.DATETIME()
-            },
-        )
+        if not dry_run:
+            # Insert
+            export_details.write(
+                df_new_data,
+                if_exists='replace',
+                chunksize=1000,
+                index= (df_new_data.index.name == 'date'),
+                dtype={
+                    # 'created_at': types.DateTime(precision=6),
+                    'date': types.Date(),
+                    'created_at': types.DATETIME()
+                },
+            )
+
+        return df_new_data
 
     @staticmethod
     def export_dump(export_details: ExportDetails, df: pandas.DataFrame) -> None:
@@ -144,7 +147,6 @@ class Exporter:
             df_base, df_incoming, how='outer', on=identifiers,
             suffixes=('', '_y')
         )
-        print(df_new_data)
         if 'index' in df_new_data.columns:
              df_new_data = df_new_data.drop(columns=['index'])
 
@@ -163,8 +165,8 @@ class Exporter:
             subset=columns_filtered
         )
         df_new_data = df_new_data.set_index(['date'])
-        print(df_new_data)
         return df_new_data
+
 
     # todo -- consider making this take in only a dataframe
     # todo -- review, as this was ChatGPT originated

@@ -7,9 +7,7 @@ from truflation.data.general_loader import GeneralLoader
 # from truflation.data.data import DataPandas, DataFormat
 from truflation.data.pipeline_details import PipeLineDetails
 from truflation.data.exporter import Exporter
-
-
-# todo -- later, create a new pipeline to process al data in parallel -- new class
+from typing import Dict
 
 
 class Pipeline(Task):
@@ -59,7 +57,7 @@ class Pipeline(Task):
         self.exports = pipeline_details.exports
         self.exporter = Exporter()
 
-    def ingest(self) -> None:
+    def ingest(self, dry_run=False) -> None | Dict:
         # todo -- create try except after functionality works
         self.header("Ingesting...")
 
@@ -78,15 +76,21 @@ class Pipeline(Task):
 
         # Get cache
         my_cache = self.loader.cache
-
+        exports = dict()
         #  Export y dataframes into z tables on servers
         self.header("Exporting...")
         for export_details in self.exports:
-            self.exporter.export(export_details, my_cache.get(export_details.name, None))
+            exports[export_details.name] = self.exporter.export(export_details, my_cache.get(export_details.name, None), dry_run)
 
         #  Post ingestion function
         self.header("Post Ingestion Function...")
         self.post_ingestion_function[0]()
+
+        if dry_run:
+            return {
+                "my_cache": my_cache,
+                "exports": exports
+            }
 
         """
         self.header("TESTING FROZEN DATA...")

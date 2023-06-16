@@ -3,7 +3,7 @@
 
 """
 Usage:
-  pipeline_coupler.py <details_path> [--debug]
+  pipeline_coupler.py <details_path> [--debug] [--dry_run]
 
 Arguments:
   details_path     the relative path to the pipeline details module
@@ -15,11 +15,11 @@ from truflation.data.pipeline import Pipeline
 from docopt import docopt
 
 
-def load_path(file_path: str, debug: bool):
+def load_path(file_path: str, debug: bool, dry_run):
     """
-Dynamically import and run module, pipeline_details
-"""
-    if (debug):
+    Dynamically import and run module, pipeline_details
+    """
+    if debug:
         print('debugging')
         logging.basicConfig(level=logging.DEBUG)
     module_name = 'my_pipeline_details'
@@ -30,7 +30,7 @@ Dynamically import and run module, pipeline_details
     if hasattr(module, 'get_details'):
         pipeline_details = module.get_details()
         my_pipeline = Pipeline(pipeline_details)
-        my_pipeline.ingest()
+        my_pipeline.ingest(dry_run)
     else:
         raise Exception("get_details not found in supplied module,")
 
@@ -38,4 +38,5 @@ Dynamically import and run module, pipeline_details
 if __name__ == '__main__':
     # Get file_path from argument
     args = docopt(__doc__)
-    load_path(args['<details_path>'], args['--debug'])
+
+    load_path(args['<details_path>'], args['--debug'], args['--dry_run'])
