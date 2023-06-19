@@ -304,9 +304,11 @@ def connector_factory(connector_type: str) -> Optional[Connector]:
     if connector_type.startswith('gsheet'):
         return ConnectorGoogleSheets()
     if connector_type.startswith('json'):
-        # if source_location:
-        #     return ConnectorJson(path_root=source_location)
-        return ConnectorJson()
+        if connector_type.startswith('json:'):
+            path_root = connector_type.split(':', 1)[1]
+            return ConnectorJson(path_root=path_root)
+        else:
+            return ConnectorJson()
     if connector_type.startswith('playwright+http'):
         # return ConnectorRest(source_location, playwright=True)
         return ConnectorRest(connector_type, playwright=True)
