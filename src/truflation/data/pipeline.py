@@ -82,7 +82,7 @@ class Pipeline(Task):
         #  Export y dataframes into z tables on servers
         self.header("Exporting...")
         for export_details in self.exports:
-            exports[export_details.name + 'reconciled_export'], exports[export_details.name + 'reconciled_export'] = \
+            exports[export_details.name + 'reconciled_export'] = \
                 self.exporter.export(export_details, my_cache.get(export_details.name, None), dry_run)
 
         #  Post ingestion function
