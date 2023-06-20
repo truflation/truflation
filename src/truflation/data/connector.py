@@ -308,7 +308,8 @@ class ConnectorGoogleSheets(Connector):
             for column in df.columns:
                 if column.startswith('date'):
                     df[column] =  pandas.to_datetime(df[column])
-                if column.startswith('index'):
+                if column.startswith('index') or \
+                   column.startswith('yoy'):
                     df[column] = pandas.to_numeric(df[column])
             return df
         except gspread.exceptions.SpreadsheetNotFound:
