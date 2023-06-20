@@ -43,7 +43,10 @@ class ExportDetails(Task):
 
     def read(self):
         logging.debug(f'key={self.key}')
-        return self.reader.read_all(self.key)
+        try:
+            return self.reader.read_all(self.key)
+        except FileNotFoundError as e:
+            return None
 
     def write(self, data: pd.DataFrame, **kwargs):
         kwargs['key'] = self.key
