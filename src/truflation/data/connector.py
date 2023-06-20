@@ -279,12 +279,13 @@ class ConnectorRest(Connector):
 
 
 class ConnectorGoogleSheets(Connector):
+    my_client = Client()
     def __init__(self, *args, **kwargs):
         super().__init__()
         self.default_key = None
         self.path_root = kwargs.get('path_root', None)
         if self.path_root is not None:
-            self.client = Client()
+            self.client = self.my_client
         else:
             self.client = None
 
@@ -301,7 +302,14 @@ class ConnectorGoogleSheets(Connector):
         try:
             spread = Spread(sheet_id)
             df = spread.sheet_to_df()
-            print(df.info())
+            if df.index.name == 'date':
+                df.reset_index(inplace=True)
+#TODO: pass types from outside
+            for column in df.columns:
+                if column.startswith('date'):
+                    df[column] =  pandas.to_datetime(df[column])
+                if column.startswith('index'):
+                    df[column] = pandas.to_numeric(df[column])
             return df
         except gspread.exceptions.SpreadsheetNotFound:
             return None
