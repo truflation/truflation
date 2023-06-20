@@ -143,7 +143,7 @@ class ConnectorJson(Connector):
                 obj = json.load(fileh)
                 return obj
         else:
-            return json.load(fileh)
+            return json.load(filename)
 
     def write_all(
             self,
