@@ -7,7 +7,8 @@ import json
 from typing import Optional, Iterator, Any, List
 from pathlib import Path
 import pandas
-import gspread as gs
+import gspread
+from gspread_pandas import Spread, Client
 import requests
 from playwright.sync_api import sync_playwright
 
@@ -278,17 +279,38 @@ class ConnectorRest(Connector):
 
 
 class ConnectorGoogleSheets(Connector):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.default_key = None
+        self.path_root = kwargs.get('path_root', None)
+        if self.path_root is not None:
+            self.client = Client()
+        else:
+            self.client = None
+
     def read_all(self, sheet_id, *args, **kwargs) -> Any:
-        url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/export'
-        # todo -- @joseph please change this to passing in a kwarg of 'sheet_name' and documenting the convention
-        # if len(args) > 1:
-        #     kwargs['sheet_name'] = args[1]
-        df = pandas.read_excel(url, **kwargs)
-        df.columns.values[1] = "value"
-        df.rename(columns={'Date': 'date'}, inplace=True)
-        return df
+        if self.client is None:
+            url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/export'
+            # todo -- @joseph please change this to passing in a kwarg of 'sheet_name' and documenting the convention
+            # if len(args) > 1:
+            #     kwargs['sheet_name'] = args[1]
+            df = pandas.read_excel(url, **kwargs)
+            df.columns.values[1] = "value"
+            df.rename(columns={'Date': 'date'}, inplace=True)
+            return df
+        try:
+            spread = Spread(sheet_id)
+            df = spread.sheet_to_df()
+            print(df.info())
+            return df
+        except gspread.exceptions.SpreadsheetNotFound:
+            return None
 
-
+    def write_all(self, df, *args, **kwargs):
+        key = kwargs.get('key', self.default_key)
+        spread = Spread(key, create_spread=True)
+        spread.move(self.path_root, create=True)
+        spread.df_to_sheet(df, replace=True)
 cache_ = Cache()
 
 
@@ -302,6 +324,9 @@ def connector_factory(connector_type: str) -> Optional[Connector]:
         else:
             return ConnectorCsv()
     if connector_type.startswith('gsheet'):
+        if connector_type.startswith('gsheet:'):
+            path_root = connector_type.split(':', 1)[1]
+            return ConnectorGoogleSheets(path_root=path_root)
         return ConnectorGoogleSheets()
     if connector_type.startswith('json'):
         if connector_type.startswith('json:'):
