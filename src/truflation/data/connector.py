@@ -290,11 +290,11 @@ class ConnectorGoogleSheets(Connector):
             self.client = None
 
     def read_all(self, sheet_id, *args, **kwargs) -> Any:
+        """
+ sheet can be entered in kwargs
+"""
         if self.client is None:
             url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/export'
-            # todo -- @joseph please change this to passing in a kwarg of 'sheet_name' and documenting the convention
-            # if len(args) > 1:
-            #     kwargs['sheet_name'] = args[1]
             df = pandas.read_excel(url, **kwargs)
             df.columns.values[1] = "value"
             df.rename(columns={'Date': 'date'}, inplace=True)
@@ -306,10 +306,12 @@ class ConnectorGoogleSheets(Connector):
                 df.reset_index(inplace=True)
 #TODO: pass types from outside
             for column in df.columns:
-                if column.startswith('date'):
+                if column.startswith('date') or \
+                   column in kwargs.get('columns_date', []):
                     df[column] =  pandas.to_datetime(df[column])
                 if column.startswith('index') or \
-                   column.startswith('yoy'):
+                   column.startswith('yoy') or \
+                   column in kwargs.get('columns_numeric', []):
                     df[column] = pandas.to_numeric(df[column])
             return df
         except gspread.exceptions.SpreadsheetNotFound:
