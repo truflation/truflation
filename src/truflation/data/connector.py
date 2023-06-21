@@ -240,9 +240,8 @@ class ConnectorSql(Connector):
 
 
 class ConnectorRest(Connector):
-    def __init__(self, base_, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__()
-        self.base = base_
         self.playwright = kwargs.get('playwright', False)
         self.json = kwargs.get('json', True)
         self.page = None
@@ -347,11 +346,11 @@ def connector_factory(connector_type: str) -> Optional[Connector]:
             return ConnectorJson()
     if connector_type.startswith('playwright+http'):
         # return ConnectorRest(source_location, playwright=True)
-        return ConnectorRest(connector_type, playwright=True)
+        return ConnectorRest(playwright=True)
     if connector_type.startswith('rest+http'):
-        return ConnectorRest(connector_type)
+        return ConnectorRest()
     if connector_type.startswith('http'):
-        return ConnectorRest(connector_type, json=False)
+        return ConnectorRest(json=False)
     if connector_type.startswith('sqlite') or \
             connector_type.startswith('postgresql') or \
             connector_type.startswith('mysql') or \
