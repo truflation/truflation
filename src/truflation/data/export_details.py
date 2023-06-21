@@ -30,10 +30,12 @@ class ExportDetails(Task):
     write(data):
         Writes the given data using the assigned key
     """
-    def __init__(self, name: str, connector: Connector | str, key: str):
+    def __init__(self, name: str, connector: Connector | str, key: str,
+                 **kwargs):
         super().__init__(connector, connector)
         self.name = name
         self.key = key
+        self.kwargs = kwargs
 
     def __repr__(self):
         return "ExportDetails()"
@@ -44,7 +46,7 @@ class ExportDetails(Task):
     def read(self):
         logging.debug(f'key={self.key}')
         try:
-            return self.reader.read_all(self.key)
+            return self.reader.read_all(self.key, **self.kwargs)
         except FileNotFoundError as e:
             return None
 
