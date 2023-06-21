@@ -87,10 +87,9 @@ class TestSimple(unittest.TestCase):
 
     def test_playwrite(self):
         r = ConnectorRest(
-            'http://ergast.com/api',
             playwrite=True
         )
-        b = r.read_all('f1/2004/1/results.json')
+        b = r.read_all('http://ergast.com/api/f1/2004/1/results.json')
 
 class TestMetadataWrite(unittest.TestCase):
     def test_metadata_write(self):
@@ -127,7 +126,7 @@ class TestMetadataRead(unittest.TestCase):
 
 class TestExample(unittest.TestCase):
     def test_example(self):
-        pipeline_details = get_details
+        pipeline_details = get_details()
         my_pipeline = Pipeline(pipeline_details)
         my_pipeline.ingest()
         # truflation.data.pipeline_coupler(pipeline_details)
@@ -135,7 +134,7 @@ class TestExample(unittest.TestCase):
 class TestGoogleSheets(unittest.TestCase):
     def test_sheets(self):
         conn = connector_factory('gsheet')
-        df =conn.read_all('1vxyaK4dDdXzDJ5Axakrvik4CUxzGyHvgmmBQJ3Qo7dE:Courses')
+        df =conn.read_all('1vxyaK4dDdXzDJ5Axakrvik4CUxzGyHvgmmBQJ3Qo7dE', sheet_name='Courses')
         print(df)
 
 if __name__ == '__main__':
