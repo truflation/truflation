@@ -22,6 +22,8 @@ class ExportDetails(Task):
         The connector used for data operations
     key : str
         The key used for reading and writing data
+    replace: (default = False)
+        replace the table
 
     Methods
     -------
@@ -32,12 +34,14 @@ class ExportDetails(Task):
     """
     def __init__(self, name: str, connector: Connector | str, key: str,
                  *args,
+                 replace: bool = False,
                  **kwargs):
         super().__init__(connector, connector)
         self.name = name
         self.key = key
         self.args = args
         self.kwargs = kwargs
+        self.replace = replace
 
     def __repr__(self):
         return "ExportDetails()"
@@ -46,6 +50,8 @@ class ExportDetails(Task):
         return f"ExportDetails({self.name},{self.key})"
 
     def read(self):
+        if self.replace:
+            return None
         logging.debug(f'key={self.key}')
         try:
             return self.reader.read_all(
