@@ -57,10 +57,17 @@ class GeneralLoader:
         else:
             reader = source_details.connector
         logger.debug(f'reading {source}')
+
+        # todo -- parser should go here, sending it into reading
         df = reader.read_all(source, *source_details.args,  **source_details.kwargs)
 
+        # Parse # todo -- adjust and consider moving to connector.read_all
         if source_details.parser is not None:
             df = source_details.parser(df)
+        #     Transform
+        if source_details.transformer:
+            df = source_details.transformer(df, **source_details.transformer_kwargs)
+
         if df is None:
             return
         if 'date' in df:

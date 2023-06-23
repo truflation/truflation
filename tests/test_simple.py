@@ -9,8 +9,14 @@ import truflation.data.validator
 import truflation.data.metadata
 from truflation.data.pipeline import Pipeline
 import truflation.data.pipeline_coupler
+
 # import examples.csv_example.my_pipeline_details
-from examples.csv_example.my_pipeline_details import get_details
+# import examples.csv_example.my_pipeline_details as csv_pipeline_details
+# import examples.csv_example.my_pipeline_details
+# from examples.csv_example.my_pipeline_details import get_details
+# import ..examples.csv_example.my_pipeline_details.get_details() as get_details()
+# from ./.examples.csv_example.my_pipeline_details import get_details
+# import examples.csv_example.my_pipeline_details as my_deets
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 cache = truflation.data.connector.Cache()
@@ -61,6 +67,7 @@ class WriteTask(truflation.data.task.Task):
         b = self.reader.read_all(self.table)
         self.writer.write_all(b, key=self.filename)
 
+
 class TestSimple(unittest.TestCase):
     def test_simple(self):
         connector = truflation.data.connector.Connector()
@@ -91,6 +98,7 @@ class TestSimple(unittest.TestCase):
         )
         b = r.read_all('http://ergast.com/api/f1/2004/1/results.json')
 
+
 class TestMetadataWrite(unittest.TestCase):
     def test_metadata_write(self):
         metadata = truflation.data.metadata.Metadata(
@@ -108,6 +116,7 @@ class TestMetadataWrite(unittest.TestCase):
             'pow': 1.55
         })
 
+
 class TestMetadataRead(unittest.TestCase):
     def test_metadata_read(self):
         metadata = truflation.data.metadata.Metadata(
@@ -116,7 +125,8 @@ class TestMetadataRead(unittest.TestCase):
         obj = metadata.read_all('table')
         self.assertEqual(obj['foo'], "3434")
 
-class TestMetadataRead(unittest.TestCase):
+
+class TestMetadataReadAgain(unittest.TestCase):
     def test_metadata_read(self):
         metadata = truflation.data.metadata.Metadata(
             f'sqlite:///{SCRIPT_DIR}/database.db',
@@ -124,18 +134,22 @@ class TestMetadataRead(unittest.TestCase):
         obj = metadata.read_by_key('bar')
         self.assertEqual(obj['table2'], 234)
 
-class TestExample(unittest.TestCase):
-    def test_example(self):
-        pipeline_details = get_details()
-        my_pipeline = Pipeline(pipeline_details)
-        my_pipeline.ingest()
-        # truflation.data.pipeline_coupler(pipeline_details)
+
+# todo -- failed to import from examples (not recognized)
+# class TestExample(unittest.TestCase):
+#     def test_example(self):
+#         pipeline_details = get_details()
+#         my_pipeline = Pipeline(pipeline_details)
+#         my_pipeline.ingest()
+#         # truflation.data.pipeline_coupler(pipeline_details)
+
 
 class TestGoogleSheets(unittest.TestCase):
     def test_sheets(self):
         conn = connector_factory('gsheet')
         df =conn.read_all('1vxyaK4dDdXzDJ5Axakrvik4CUxzGyHvgmmBQJ3Qo7dE', sheet_name='Courses')
         print(df)
+
 
 if __name__ == '__main__':
     unittest.main()

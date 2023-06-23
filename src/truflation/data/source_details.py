@@ -66,21 +66,32 @@ class SourceDetails:
     source: str
         Specific source of data.
 
-    connector: Connector
+    connector: Connector | None
         Connector instance used to connect to the data source.
 
-    parser: Callable[[Union[pandas.DataFrame, Dict, json]]
+    parser: Callable[[Union[pandas.DataFrame, Dict, json]] | None
         Parser function used to process the data from the source.
+
+    transformer: Callable[pandas.DataFrame] | None
+        Process dataframe after parsing
+
+    transformer_kwargs: Dict | None
+        Used to pass in kwargs to transformer
+
+    kwargs: Dict
+        key-ward arguments
     """
 
-    def __init__(self, name: str, source_type: str, source: str,  *args, connector: Connector = None,
-                 parser: Callable[[Union[pandas.DataFrame, Dict]], pandas.DataFrame] = None,  **kwargs):
+    def __init__(self, name: str, source_type: str, source: str, *args, connector: Connector = None,
+                 parser: Callable[[Union[pandas.DataFrame, Dict]], pandas.DataFrame] = None,
+                 transformer=None, transformer_kwargs=None, **kwargs):
         self.name = name
         # options: override, csv,
         self.source_type = source_type
         self.source = source
-        self.connector = connector # instance of overriden class
-        self.parser = parser # parser is run on the dataframe that is returned
+        self.connector = connector  # instance of overriden class
+        self.parser = parser  # parser is run on the dataframe that is returned
         self.args = args
+        self.transformer = transformer
+        self.transformer_kwargs = transformer_kwargs
         self.kwargs = kwargs
-
