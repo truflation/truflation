@@ -366,6 +366,7 @@ def connector_factory(connector_type: str) -> Optional[Connector]:
         return ConnectorSql(connector_type)
     return None
 
+
 def get_database_handle(db_type='mariadb+pymysql'):
     DB_USER = os.environ.get('DB_USER', None)
     DB_PASSWORD = os.environ.get('DB_PASSWORD', None)
