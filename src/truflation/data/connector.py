@@ -278,7 +278,10 @@ class ConnectorRest(Connector):
 
 
 class ConnectorGoogleSheets(Connector):
-    my_client = Client()
+    try:
+        my_client = Client()
+    except OSError as e:
+        my_client = None
     def __init__(self, *args, **kwargs):
         super().__init__()
         self.default_key = None
