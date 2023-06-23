@@ -6,7 +6,7 @@ import os
 import json
 from typing import Optional, Iterator, Any, List
 from pathlib import Path
-import pandas
+import pandas as pd
 import gspread
 from gspread_pandas import Spread, Client
 import requests
@@ -107,19 +107,35 @@ class ConnectorCsv(Connector):
         self.path_root = kwargs.get('path_root', os.getcwd())
         Path(self.path_root).mkdir(parents=True, exist_ok=True)
 
-    def read_all(
-            self, *args, **kwargs
-    ) -> Any:
+    def read_all(self, *args, **kwargs) -> Optional[pd.DataFrame]:
+        """
+        Read data from a CSV file.
+
+        Args:
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            Optional[pd.DataFrame]: The data read from the CSV file as a pandas DataFrame, or None if the file is not accessible.
+        """
         filename = os.path.join(self.path_root, args[0])
         if os.access(filename, os.R_OK):
-            return pandas.read_csv(filename)
+            return pd.read_csv(filename)
         else:
             return None
 
-    def write_all(
-            self,
-            data,
-            *args, **kwargs) -> None:
+    def write_all(self, data, *args, **kwargs) -> None:
+        """
+        Write data to a CSV file.
+
+        Args:
+            data: The data to be written.
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            None
+        """
         filename = kwargs.get('key', None)
         if filename is None and len(args) > 0:
             filename = args[0]
@@ -174,12 +190,9 @@ class ConnectorSql(Connector):
                 create_engine(engine)
             self.engines[engine] = self.engine
 
-    def read_all(
-            self,
-            *args, **kwargs) -> Any:
+    def read_all(self, *args, **kwargs) -> Optional[pd.DataFrame]:
         try:
-            df = pandas.read_sql(args[0], self.engine)
-            return df
+            return pd.read_sql(args[0], self.engine)
         except Exception as e:
             return None
 
@@ -278,6 +291,20 @@ class ConnectorRest(Connector):
 
 
 class ConnectorGoogleSheets(Connector):
+    """
+    A class for connecting and reading data from Google Sheets.
+
+    Attributes:
+        my_client: An instance of the Client class for Google Sheets API.
+        default_key: The default key for the Google Sheets document.
+        path_root: The root path for the Google Sheets document.
+        client: The client instance for Google Sheets API.
+
+    Methods:
+        __init__: Initializes the ConnectorGoogleSheets instance.
+        read_all: Reads all data from a Google Sheets document.
+
+    """
     try:
         my_client = Client()
     except OSError as e:
@@ -285,19 +312,23 @@ class ConnectorGoogleSheets(Connector):
     def __init__(self, *args, **kwargs):
         super().__init__()
         self.default_key = None
-        self.path_root = kwargs.get('path_root', None)
-        if self.path_root is not None:
-            self.client = self.my_client
-        else:
-            self.client = None
+        self.path_root = kwargs.get('path_root')
+        self.client = self.my_client if self.path_root is not None \
+            else None
 
-    def read_all(self, sheet_id, *args, **kwargs) -> Any:
+    def read_all(self, sheet_id: str, *args, **kwargs) -> Optional[pd.DataFrame]:
         """
- sheet can be entered in kwargs
-"""
+        Read all data from a Google Sheets document.
+
+        Args:
+            sheet_id (str): The ID of the Google Sheets document.
+
+        Returns:
+            pd.DataFrame or None: The data read from the Google Sheets document, or None if the document is not found.
+        """
         if self.client is None:
             url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/export'
-            df = pandas.read_excel(url, **kwargs)
+            df = pd.read_excel(url, **kwargs)
             df.columns.values[1] = "value"
             df.rename(columns={'Date': 'date'}, inplace=True)
             return df
@@ -310,11 +341,11 @@ class ConnectorGoogleSheets(Connector):
             for column in df.columns:
                 if column.startswith('date') or \
                    column in kwargs.get('columns_date', []):
-                    df[column] =  pandas.to_datetime(df[column])
+                    df[column] =  pd.to_datetime(df[column])
                 if column.startswith('index') or \
                    column.startswith('yoy') or \
                    column in kwargs.get('columns_numeric', []):
-                    df[column] = pandas.to_numeric(df[column])
+                    df[column] = pd.to_numeric(df[column])
             return df
         except gspread.exceptions.SpreadsheetNotFound:
             return None
@@ -324,6 +355,7 @@ class ConnectorGoogleSheets(Connector):
         spread = Spread(key, create_spread=True)
         spread.move(self.path_root, create=True)
         spread.df_to_sheet(df, replace=True)
+
 cache_ = Cache()
 
 
