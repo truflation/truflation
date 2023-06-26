@@ -136,10 +136,6 @@ class Exporter:
         df_base['date'] = pandas.to_datetime(df_base['date'])
         df_incoming['date'] = pandas.to_datetime(df_incoming['date'])
 
-        for date_column in [ x for x in df_base.columns if x.startswith('date') ]:
-            df_base[date_column] = pandas.to_datetime(df_base[date_column])
-            df_incoming[date_column] = pandas.to_datetime(df_incoming[date_column])
-
         identifiers = [x for x in df_base.columns if x not in ['created_at']]
 
         # keep old rows since this might be a data update
