@@ -339,12 +339,9 @@ class ConnectorGoogleSheets(Connector):
                 df.reset_index(inplace=True)
 #TODO: pass types from outside
             for column in df.columns:
-                if column.startswith('date') or \
-                   column in kwargs.get('columns_date', []):
+                if column in kwargs.get('columns_date', []):
                     df[column] =  pd.to_datetime(df[column])
-                if column.startswith('index') or \
-                   column.startswith('yoy') or \
-                   column in kwargs.get('columns_numeric', []):
+                if column in kwargs.get('columns_numeric', []):
                     df[column] = pd.to_numeric(df[column])
             return df
         except gspread.exceptions.SpreadsheetNotFound:
