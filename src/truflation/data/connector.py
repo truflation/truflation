@@ -350,6 +350,8 @@ class ConnectorGoogleSheets(Connector):
 
         Args:
             sheet_id (str): The ID of the Google Sheets document.
+            columns_date: array of columns to convert to datetime
+            columns_numeric: array of columns to convert to numeric
 
         Returns:
             pd.DataFrame or None: The data read from the Google Sheets document, or None if the document is not found.
