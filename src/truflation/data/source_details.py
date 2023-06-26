@@ -93,5 +93,5 @@ class SourceDetails:
         self.parser = parser  # parser is run on the dataframe that is returned
         self.args = args
         self.transformer = transformer
-        self.transformer_kwargs = transformer_kwargs
+        self.transformer_kwargs = transformer_kwargs if transformer_kwargs is not None else dict()
         self.kwargs = kwargs if kwargs is not None else dict()
