@@ -180,8 +180,35 @@ class ConnectorJson(Connector):
                 filename.write(json.dumps(data, default=str))
 
 
+class ConnectorDirect(Connector):
+    """ used for reading in DataFrames, dictionaries, json files directly as objects. Can not be written to???
+    kwargs:
+      data_type: str: the type of object that is passed in
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+    def read_all(
+            self, *args, **kwargs
+    ) -> Any:
+        data_type = kwargs.get('data_type', None)
+        data = kwargs.get('data', None)
+        assert data_type is not None, "no data type specified"
+        assert data is not None, "no data provided"
+        assert type(data) is data_type, "data does not match data_type"
+
+        return data
+
+    def write_all(
+            self,
+            data,
+            *args, **kwargs) -> None:
+        raise NotImplementedError
+
+
 class ConnectorSql(Connector):
     engines = {}
+
     def __init__(self, engine):
         super().__init__()
         self.engine = self.engines.get(engine)
@@ -309,6 +336,7 @@ class ConnectorGoogleSheets(Connector):
         my_client = Client()
     except OSError as e:
         my_client = None
+
     def __init__(self, *args, **kwargs):
         super().__init__()
         self.default_key = None
@@ -362,31 +390,33 @@ cache_ = Cache()
 def connector_factory(connector_type: str) -> Optional[Connector]:
     if connector_type.startswith('cache'):
         return cache_.connector()
-    if connector_type.startswith('csv'):
+    elif connector_type.startswith('object'):
+        return ConnectorDirect()
+    elif connector_type.startswith('csv'):
         if connector_type.startswith('csv:'):
             path_root = connector_type.split(':', 1)[1]
             return ConnectorCsv(path_root=path_root)
         else:
             return ConnectorCsv()
-    if connector_type.startswith('gsheet'):
+    elif connector_type.startswith('gsheet'):
         if connector_type.startswith('gsheet:'):
             path_root = connector_type.split(':', 1)[1]
             return ConnectorGoogleSheets(path_root=path_root)
         return ConnectorGoogleSheets()
-    if connector_type.startswith('json'):
+    elif connector_type.startswith('json'):
         if connector_type.startswith('json:'):
             path_root = connector_type.split(':', 1)[1]
             return ConnectorJson(path_root=path_root)
         else:
             return ConnectorJson()
-    if connector_type.startswith('playwright+http'):
+    elif connector_type.startswith('playwright+http'):
         # return ConnectorRest(source_location, playwright=True)
         return ConnectorRest(playwright=True)
-    if connector_type.startswith('rest+http'):
+    elif connector_type.startswith('rest+http'):
         return ConnectorRest()
-    if connector_type.startswith('http'):
+    elif connector_type.startswith('http'):
         return ConnectorRest(json=False)
-    if connector_type.startswith('sqlite') or \
+    elif connector_type.startswith('sqlite') or \
             connector_type.startswith('postgresql') or \
             connector_type.startswith('mysql') or \
             connector_type.startswith('mariadb') or \
@@ -396,7 +426,8 @@ def connector_factory(connector_type: str) -> Optional[Connector]:
             connector_type.startswith('gsheets') or \
             connector_type.startswith('pybigquery'):
         return ConnectorSql(connector_type)
-    return None
+    else:
+        return None
 
 
 def get_database_handle(db_type='mariadb+pymysql'):

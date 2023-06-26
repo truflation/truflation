@@ -58,6 +58,9 @@ class GeneralLoader:
             reader = source_details.connector
         logger.debug(f'reading {source}')
 
+
+        print(f'reading all...')
+        print(f'source: {source}')
         # todo -- parser should go here, sending it into reading
         df = reader.read_all(source, *source_details.args,  **source_details.kwargs)
 
