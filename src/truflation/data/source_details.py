@@ -90,8 +90,8 @@ class SourceDetails:
         self.source_type = source_type
         self.source = source
         self.connector = connector  # instance of overriden class
-        self.parser = parser  # parser is run on the dataframe that is returned
+        self.parser = parser # parser is run on the dataframe that is returned
         self.args = args
-        self.transformer = transformer
+        self.transformer = transformer # if transformer else lambda x: x
         self.transformer_kwargs = transformer_kwargs if transformer_kwargs is not None else dict()
         self.kwargs = kwargs if kwargs is not None else dict()
