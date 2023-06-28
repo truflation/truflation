@@ -219,7 +219,8 @@ class ConnectorSql(Connector):
 
     def read_all(self, *args, **kwargs) -> Optional[pd.DataFrame]:
         try:
-            return pd.read_sql(args[0], self.engine)
+            with self.engine.connect() as conn:
+                return pd.read_sql(args[0], conn)
         except Exception as e:
             return None
 
