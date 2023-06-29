@@ -2,7 +2,7 @@
 # pip install. && ./examples/example.py
 """
 Usage:
-  pipeline_coupler.py <details_path>
+  pipeline_coupler.py <details_path> ...
 
 Arguments:
   details_path     the relative path to the pipeline details module
@@ -72,25 +72,25 @@ def main(pipeline_details: PipeLineDetails):
         time.sleep(1)
 
 
-def load_path(file_path: str):
+def load_path(file_path_list: str):
     # Dynamically import and run module, pipeline_details
-    module_name = 'my_pipeline_details'
-    spec = importlib.util.spec_from_file_location(module_name, file_path)
-    if spec is None:
-        raise Exception(f"{file_path} does not exist as a module.")
+    pipeline_details_list = []
+    for file_path in file_path_list:
+        module_name = 'my_pipeline_details'
+        spec = importlib.util.spec_from_file_location(module_name, file_path)
+        if spec is None:
+            raise Exception(f"{file_path} does not exist as a module.")
 
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
 
-    if hasattr(module, 'get_details_list'):
-        pipeline_details_list = module.get_details_list()
-        main(pipeline_details_list)
-    elif hasattr(module, 'get_details'):
-        pipeline_details = module.get_details()
-        main(pipeline_details)
-    else:
-        raise Exception("get_details not found in supplied module,")
-
+        if hasattr(module, 'get_details_list'):
+            pipeline_details_list.extend(module.get_details_list())
+        elif hasattr(module, 'get_details'):
+            pipeline_details_list.append(module.get_details())
+        else:
+            raise Exception("get_details not found in supplied module,")
+    main(pipeline_details_list)
 
 if __name__ == '__main__':
     # Get file_path from argument
