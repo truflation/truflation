@@ -34,8 +34,10 @@ def ingest(pipeline_details: PipeLineDetails):
        -------
        None
        """
-    my_pipeline = Pipeline(pipeline_details)
-    my_pipeline.ingest()
+    if hasattr(pipeline_details, '__iter__'):
+        [ Pipeline(detail).ingest for detail in pipeline_details ]
+    else:
+        Pipeline(pipeline_details).ingest()
 
 
 def main(pipeline_details: PipeLineDetails):
@@ -52,8 +54,13 @@ def main(pipeline_details: PipeLineDetails):
     # Instantiate scheduler with UTC timezone
     scheduler = BackgroundScheduler(timezone=utc)
 
+    if hasattr(pipeline_details, '__iter__'):
+        cron_schedule = pipeline_details[0].cron_schedule
+    else:
+        cron_schedule = pipeline_details.cron_schedule
+
     # Add job based off of cron_schedule in pipeline_details
-    job = scheduler.add_job(ingest,  'cron', **pipeline_details.cron_schedule, args=[pipeline_details])
+    job = scheduler.add_job(ingest,  'cron', **cron_schedule, args=[pipeline_details])
     scheduler.start()
 
     # Print job and pipeline details so we know it is functioning
@@ -75,7 +82,10 @@ def load_path(file_path: str):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
-    if hasattr(module, 'get_details'):
+    if hasattr(module, 'get_details_list'):
+        pipeline_details = module.get_details_list()
+        main(pipeline_details_list)
+    elif hasattr(module, 'get_details'):
         pipeline_details = module.get_details()
         main(pipeline_details)
     else:

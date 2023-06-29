@@ -27,7 +27,12 @@ def load_path(file_path: str, debug: bool, dry_run):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
-    if hasattr(module, 'get_details'):
+    if hasattr(module, 'get_details_list'):
+        return [
+            Pipeline(detail).ingest(dry_run)
+            for detail in module.get_details_list()
+        ]
+    elif hasattr(module, 'get_details'):
         pipeline_details = module.get_details()
         my_pipeline = Pipeline(pipeline_details)
         return my_pipeline.ingest(dry_run)
