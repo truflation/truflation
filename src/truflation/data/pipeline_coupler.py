@@ -83,7 +83,7 @@ def load_path(file_path: str):
     spec.loader.exec_module(module)
 
     if hasattr(module, 'get_details_list'):
-        pipeline_details = module.get_details_list()
+        pipeline_details_list = module.get_details_list()
         main(pipeline_details_list)
     elif hasattr(module, 'get_details'):
         pipeline_details = module.get_details()
