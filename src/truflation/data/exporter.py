@@ -139,10 +139,16 @@ class Exporter:
         identifiers = [x for x in df_base.columns if x not in ['created_at']]
 
         # keep old rows since this might be a data update
-        df_new_data = pandas.merge(
-            df_base, df_incoming, how='outer', on=identifiers,
-            suffixes=('', '_y')
-        )
+        try:
+            df_new_data = pandas.merge(
+                df_base, df_incoming, how='outer', on=identifiers,
+                suffixes=('', '_y')
+            )
+        except ValueError as e:
+            logger.exception(df_base.info())
+            logger.exception(df_incoming.info())
+            raise e
+
         if 'index' in df_new_data.columns:
              df_new_data = df_new_data.drop(columns=['index'])
 
