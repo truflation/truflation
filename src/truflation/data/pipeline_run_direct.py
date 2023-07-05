@@ -23,6 +23,7 @@ def load_path(file_path_list: List[str] | str, debug: bool, dry_run: bool):
     return_value = []
     print(f'in pipeline_run_direct...')
     for file_path in file_path_list:
+        print(f'file_path: {file_path}')
         if debug:
             print('debugging')
             logging.basicConfig(level=logging.DEBUG)
