@@ -25,7 +25,10 @@ def load_path(file_path_list: List[str] | str, debug: bool, dry_run: bool):
     if type(file_path_list) is str:
         file_path_list = file_path_list.split(" ")
 
+    print(f'file_path_list: {file_path_list}')
+
     for file_path in file_path_list:
+        print(f'processing file path {file_path}')
         if debug:
             print('debugging')
             logging.basicConfig(level=logging.DEBUG)
@@ -33,7 +36,6 @@ def load_path(file_path_list: List[str] | str, debug: bool, dry_run: bool):
         spec = importlib.util.spec_from_file_location(module_name, file_path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        print(f'processing file path {file_path}')
 
         if hasattr(module, 'get_details_list'):
             return_value.extend([
@@ -46,6 +48,7 @@ def load_path(file_path_list: List[str] | str, debug: bool, dry_run: bool):
             return_value.append(my_pipeline.ingest(dry_run))
         else:
             raise Exception("get_details not found in supplied module,")
+    print(f'pipeline run direct has the following return values: \n {return_value}')
     return return_value
 
 if __name__ == '__main__':
