@@ -21,14 +21,12 @@ def load_path(file_path_list: List[str] | str, debug: bool, dry_run: bool):
     Dynamically import and run module, pipeline_details
     """
     return_value = []
+
     # convert strings to lists
     if type(file_path_list) is str:
         file_path_list = file_path_list.split(" ")
 
-    print(f'file_path_list: {file_path_list}')
-
     for file_path in file_path_list:
-        print(f'processing file path {file_path}')
         if debug:
             print('debugging')
             logging.basicConfig(level=logging.DEBUG)
@@ -48,7 +46,7 @@ def load_path(file_path_list: List[str] | str, debug: bool, dry_run: bool):
             return_value.append(my_pipeline.ingest(dry_run))
         else:
             raise Exception("get_details not found in supplied module,")
-    print(f'pipeline run direct has the following return values: \n {return_value}')
+
     return return_value
 
 if __name__ == '__main__':
