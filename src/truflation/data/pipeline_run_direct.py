@@ -13,13 +13,15 @@ import importlib
 import logging
 from truflation.data.pipeline import Pipeline
 from docopt import docopt
+from typing import List
 
 
-def load_path(file_path_list, debug: bool, dry_run):
+def load_path(file_path_list: List[str] | str, debug: bool, dry_run: bool):
     """
     Dynamically import and run module, pipeline_details
     """
     return_value = []
+    print(f'in pipeline_run_direct...')
     for file_path in file_path_list:
         if debug:
             print('debugging')
@@ -28,6 +30,7 @@ def load_path(file_path_list, debug: bool, dry_run):
         spec = importlib.util.spec_from_file_location(module_name, file_path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
+        print(f'processing file path {file_path}')
 
         if hasattr(module, 'get_details_list'):
             return_value.extend([
@@ -35,9 +38,11 @@ def load_path(file_path_list, debug: bool, dry_run):
                 for detail in module.get_details_list()
             ])
         elif hasattr(module, 'get_details'):
+            print(f'found get details...')
             pipeline_details = module.get_details()
             my_pipeline = Pipeline(pipeline_details)
             return_value.append(my_pipeline.ingest(dry_run))
+            print(f'pipeline returned: {return_value}')
         else:
             raise Exception("get_details not found in supplied module,")
     return return_value
