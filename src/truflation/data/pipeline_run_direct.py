@@ -22,6 +22,12 @@ def load_path(file_path_list: List[str] | str, debug: bool, dry_run: bool):
     """
     return_value = []
     print(f'in pipeline_run_direct...')
+
+    # convert strings to lists
+    if type(file_path_list) is str:
+        file_path_list = file_path_list.split(" ")
+        print(f'new file path list: {file_path_list}')
+
     for file_path in file_path_list:
         print(f'file_path: {file_path}')
         if debug:
