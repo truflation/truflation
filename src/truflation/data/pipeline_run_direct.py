@@ -21,12 +21,14 @@ def load_path(file_path_list: List[str] | str, debug: bool, dry_run: bool):
     Dynamically import and run module, pipeline_details
     """
     return_value = []
-    print(f'in pipeline_run_direct...')
-
-    # convert strings to lists
-    if type(file_path_list) is str:
-        file_path_list = file_path_list.split(" ")
-        print(f'new file path list: {file_path_list}')
+    # print(f'in pipeline_run_direct...')
+    # print(f'file_path_list initial: {file_path_list}')
+    # # convert strings to lists
+    # if type(file_path_list) is str:
+    #     file_path_list = file_path_list.split(" ")
+    #     print(f'new file path list: {file_path_list}')
+    # else:
+    #     print(f'not string.... {type(file_path_list)}')
 
     for file_path in file_path_list:
         print(f'file_path: {file_path}')
@@ -37,7 +39,6 @@ def load_path(file_path_list: List[str] | str, debug: bool, dry_run: bool):
         spec = importlib.util.spec_from_file_location(module_name, file_path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        print(f'processing file path {file_path}')
 
         if hasattr(module, 'get_details_list'):
             return_value.extend([
@@ -45,14 +46,11 @@ def load_path(file_path_list: List[str] | str, debug: bool, dry_run: bool):
                 for detail in module.get_details_list()
             ])
         elif hasattr(module, 'get_details'):
-            print(f'found get details...')
             pipeline_details = module.get_details()
             my_pipeline = Pipeline(pipeline_details)
             return_value.append(my_pipeline.ingest(dry_run))
-            print(f'pipeline returned: {return_value}')
         else:
             raise Exception("get_details not found in supplied module,")
-    print(f'final return value: {return_value}')
     return return_value
 
 if __name__ == '__main__':
