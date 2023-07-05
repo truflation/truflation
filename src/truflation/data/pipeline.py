@@ -82,8 +82,10 @@ class Pipeline(Task):
         #  Export y dataframes into z tables on servers
         self.header("Exporting...")
         for export_details in self.exports:
+            print(f'we are exporting {export_details.name}')
             exports[export_details.name + 'reconciled_export'] = \
                 self.exporter.export(export_details, my_cache.get(export_details.name, None), dry_run)
+            print(f'exports now looks like this: \n{exports}')
 
         #  Post ingestion function
         self.header("Post Ingestion Function...")
