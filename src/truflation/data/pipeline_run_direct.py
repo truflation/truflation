@@ -46,6 +46,7 @@ def load_path(file_path_list: List[str] | str, debug: bool, dry_run: bool):
             print(f'pipeline returned: {return_value}')
         else:
             raise Exception("get_details not found in supplied module,")
+    print(f'final return value: {return_value}')
     return return_value
 
 if __name__ == '__main__':
