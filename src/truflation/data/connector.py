@@ -11,10 +11,13 @@ import gspread
 from gspread_pandas import Spread, Client
 import requests
 from playwright.sync_api import sync_playwright
+import logging
 
 import sqlalchemy
 from sqlalchemy.sql import text
 from sqlalchemy import create_engine, Table, MetaData
+
+logger = logging.getLogger(__name__)
 
 class Connector:
     """
@@ -218,11 +221,12 @@ class ConnectorSql(Connector):
             self.engines[engine] = self.engine
 
     def read_all(self, *args, **kwargs) -> Optional[pd.DataFrame]:
-        try:
-            with self.engine.connect() as conn:
+        with self.engine.connect() as conn:
+            try:
                 return pd.read_sql(args[0], conn)
-        except Exception as e:
-            return None
+            except Exception as e:
+                logger.debug(e)
+                return None
 
     def write_all(
             self,
