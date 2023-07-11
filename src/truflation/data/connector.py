@@ -226,6 +226,7 @@ class ConnectorSql(Connector):
                 return pd.read_sql(args[0], conn)
             except Exception as e:
                 logger.debug(e)
+                conn.rollback()
                 return None
 
     def write_all(
@@ -238,11 +239,15 @@ class ConnectorSql(Connector):
         if table is None and len(args) > 0:
             table = args[0]
         with self.engine.connect() as conn:
-            data.to_sql(
-                table,
-                conn,
-                **kwargs
-            )
+            try:
+                data.to_sql(
+                    table,
+                    conn,
+                    **kwargs
+                )
+            except:
+                conn.rollback()
+                raise
 
     def write_chunk(
             self,
