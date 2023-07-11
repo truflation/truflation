@@ -11,10 +11,13 @@ import gspread
 from gspread_pandas import Spread, Client
 import requests
 from playwright.sync_api import sync_playwright
+import logging
 
 import sqlalchemy
 from sqlalchemy.sql import text
 from sqlalchemy import create_engine, Table, MetaData
+
+logger = logging.getLogger(__name__)
 
 class Connector:
     """
@@ -216,13 +219,17 @@ class ConnectorSql(Connector):
             self.engine = \
                 create_engine(engine)
             self.engines[engine] = self.engine
-
+    # rollbacks are necessary to prevent timeouts
+    # see https://stackoverflow.com/questions/58378708/sqlalchemy-cant-reconnect-until-invalid-transaction-is-rolled-back
+    # with error Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b)
     def read_all(self, *args, **kwargs) -> Optional[pd.DataFrame]:
-        try:
-            with self.engine.connect() as conn:
+        with self.engine.connect() as conn:
+            try:
                 return pd.read_sql(args[0], conn)
-        except Exception as e:
-            return None
+            except Exception as e:
+                logger.debug(e)
+                conn.rollback()
+                return None
 
     def write_all(
             self,
@@ -234,11 +241,15 @@ class ConnectorSql(Connector):
         if table is None and len(args) > 0:
             table = args[0]
         with self.engine.connect() as conn:
-            data.to_sql(
-                table,
-                conn,
-                **kwargs
-            )
+            try:
+                data.to_sql(
+                    table,
+                    conn,
+                    **kwargs
+                )
+            except:
+                conn.rollback()
+                raise
 
     def write_chunk(
             self,

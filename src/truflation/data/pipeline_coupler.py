@@ -1,16 +1,18 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 # pip install. && ./examples/example.py
 """
 Usage:
-  pipeline_coupler.py <details_path> ...
+  pipeline_coupler.py <details_path> ... [--cron=<cron_schedule>]
 
 Arguments:
   details_path     the relative path to the pipeline details module
+  cron_schedule    file with cron_schedule
 """
 
 import sys
 import time
 import logging
+import json
 from apscheduler.schedulers.background import BackgroundScheduler
 from truflation.data.pipeline import Pipeline
 from truflation.data.pipeline_details import PipeLineDetails
@@ -34,13 +36,14 @@ def ingest(pipeline_details: PipeLineDetails):
        -------
        None
        """
+    logging.debug(pipeline_details)
     if hasattr(pipeline_details, '__iter__'):
-        [ Pipeline(detail).ingest for detail in pipeline_details ]
+        [ Pipeline(detail).ingest() for detail in pipeline_details ]
     else:
         Pipeline(pipeline_details).ingest()
 
 
-def main(pipeline_details: PipeLineDetails):
+def main(pipeline_details: PipeLineDetails, cron_schedule=None):
     """
     Main driver function to set up the pipeline and start the scheduler.
 
@@ -54,10 +57,11 @@ def main(pipeline_details: PipeLineDetails):
     # Instantiate scheduler with UTC timezone
     scheduler = BackgroundScheduler(timezone=utc)
 
-    if hasattr(pipeline_details, '__iter__'):
-        cron_schedule = pipeline_details[0].cron_schedule
-    else:
-        cron_schedule = pipeline_details.cron_schedule
+    if cron_schedule is None:
+        if hasattr(pipeline_details, '__iter__'):
+            cron_schedule = pipeline_details[0].cron_schedule
+        else:
+            cron_schedule = pipeline_details.cron_schedule
 
     # Add job based off of cron_schedule in pipeline_details
     job = scheduler.add_job(ingest,  'cron', **cron_schedule, args=[pipeline_details])
@@ -72,7 +76,7 @@ def main(pipeline_details: PipeLineDetails):
         time.sleep(1)
 
 
-def load_path(file_path_list: str):
+def load_path(file_path_list: str, cron_schedule=None):
     # Dynamically import and run module, pipeline_details
     pipeline_details_list = []
     for file_path in file_path_list:
@@ -90,10 +94,16 @@ def load_path(file_path_list: str):
             pipeline_details_list.append(module.get_details())
         else:
             raise Exception("get_details not found in supplied module,")
-    main(pipeline_details_list)
+    main(pipeline_details_list, cron_schedule)
 
 if __name__ == '__main__':
     # Get file_path from argument
     args = docopt(__doc__)
+    logging.debug(args)
     file_path = args['<details_path>']  # convert path to module name
-    load_path(file_path)
+    if args.get('--cron') is None:
+        load_path(file_path)
+    else:
+        with open(args['--cron']) as cronh:
+            cron_schedule = json.load(cronh)
+            load_path(file_path, cron_schedule)

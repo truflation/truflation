@@ -59,67 +59,70 @@ class Metadata:
         )
 
     def write_all(self, table, data):
-        with Session(self.connector.engine) as session:
-            now = datetime.utcnow()
-            for k, v in data.items():
-                l = None
-                if isinstance(v, int):
-                    l = MetadataTable(
-                        table=table, key=k, valuei=v,
-                        created_at= now
-                    )
-                elif isinstance(v, datetime):
-                    l = MetadataTable(
-                        table=table, key=k, valued=v,
-                        created_at= now
-                    )
-                elif isinstance(v, float):
-                    l = MetadataTable(
-                        table=table, key=k, valuef=v,
-                        created_at= now
-                    )
-                elif isinstance(v, str):
-                    l = MetadataTable(
-                        table=table, key=k, values=v,
-                        created_at= now
-                    )
-                if l is not None:
-                    session.merge(l)
-            session.commit()
+        with self.connector.engine.connect() as conn:
+            with Session(conn) as session:
+                now = datetime.utcnow()
+                for k, v in data.items():
+                    l = None
+                    if isinstance(v, int):
+                        l = MetadataTable(
+                            table=table, key=k, valuei=v,
+                            created_at= now
+                        )
+                    elif isinstance(v, datetime):
+                        l = MetadataTable(
+                            table=table, key=k, valued=v,
+                            created_at= now
+                        )
+                    elif isinstance(v, float):
+                        l = MetadataTable(
+                            table=table, key=k, valuef=v,
+                            created_at= now
+                        )
+                    elif isinstance(v, str):
+                        l = MetadataTable(
+                            table=table, key=k, values=v,
+                            created_at= now
+                        )
+                        if l is not None:
+                            session.merge(l)
+                session.commit()
 
     def read_all(self, table):
         l = {}
-        with Session(self.connector.engine) as session:
-            stmt = select(MetadataTable).where(
-                MetadataTable.table == table
-            )
-            result = session.execute(stmt)
-            for obj in result.scalars().all():
-                if obj.valuei is not None:
-                    l[obj.key] = obj.valuei
-                elif obj.valuef is not None:
-                    l[obj.key] = obj.valuef
-                elif obj.valued is not None:
-                    l[obj.key] = obj.valued
-                elif obj.values is not None:
-                    l[obj.key] = obj.values
+        with self.connector.engine.connect() as conn:
+            with Session(conn) as session:
+                stmt = select(MetadataTable).where(
+                    MetadataTable.table == table
+                )
+                result = session.execute(stmt)
+                for obj in result.scalars().all():
+                    if obj.valuei is not None:
+                        l[obj.key] = obj.valuei
+                    elif obj.valuef is not None:
+                        l[obj.key] = obj.valuef
+                    elif obj.valued is not None:
+                        l[obj.key] = obj.valued
+                    elif obj.values is not None:
+                        l[obj.key] = obj.values
         return l
 
     def read_by_key(self, key):
         l = {}
-        with Session(self.connector.engine) as session:
-            stmt = select(MetadataTable).where(
-                MetadataTable.key == key
-            )
-            result = session.execute(stmt)
-            for obj in result.scalars().all():
-                if obj.valuei is not None:
-                    l[obj.table] = obj.valuei
-                elif obj.valuef is not None:
-                    l[obj.table] = obj.valuef
-                elif obj.valued is not None:
-                    l[obj.table] = obj.valued
-                elif obj.values is not None:
-                    l[obj.table] = obj.values
+        with self.connector.engine.connect() as conn:
+            with Session(conn) as session:
+                stmt = select(MetadataTable).where(
+                    MetadataTable.key == key
+                )
+                result = session.execute(stmt)
+                for obj in result.scalars().all():
+                    if obj.valuei is not None:
+                        l[obj.table] = obj.valuei
+                    elif obj.valuef is not None:
+                        l[obj.table] = obj.valuef
+                    elif obj.valued is not None:
+                        l[obj.table] = obj.valued
+                    elif obj.values is not None:
+                        l[obj.table] = obj.values
         return l
 
