@@ -47,6 +47,8 @@ class GeneralLoader:
         self.writer = cache_.connector()
 
     def run(self, source_details: SourceDetails, key: str):
+        import time
+        print(f'1 time: {time.time()}')
         s_type = source_details.source_type
         source = source_details.source
         # source_url = f'{source_details.source_type}:{source_details.source}'
@@ -57,23 +59,33 @@ class GeneralLoader:
         else:
             reader = source_details.connector
         logger.debug(f'reading {source}')
+        print(f'2 time: {time.time()}')
 
         # todo -- parser should go here, sending it into reading
         df = reader.read_all(source, *source_details.args,  **source_details.kwargs)
+        print(f'3 time: {time.time()}')
+
 
         # Parse # todo -- adjust and consider moving to connector.read_all
         if source_details.parser is not None:
             df = source_details.parser(df)
         #     Transform
+        print(f'4 time: {time.time()}')
+
         if source_details.transformer:
             df = source_details.transformer(df, **source_details.transformer_kwargs)
+        print(f'5 time: {time.time()}')
 
         if df is None:
             return
         if 'date' in df:
             df['date'] = pd.to_datetime(df['date'])  # make sure the 'date' column is in datetime format
+        print(f'6 time: {time.time()}')
+
         if 'createdAt' in df:
             df['createdAt'] = pd.to_datetime(df['createdAt'])
+        print(f'7 time: {time.time()}')
+
         self.writer.write_all(df, key=key)
 
     def transform(self, transformer: Callable[[Dict], Dict]):

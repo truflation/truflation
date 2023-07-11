@@ -105,4 +105,5 @@ class Pipeline(Task):
     @staticmethod
     def header(s: str):
         print('\n' + f'#'*20 + f'   {s}   ' + '#'*(40 - len(s)))
-        print(f'time: {time.time()}')
+        # print(f'time: {time.time()}')
+
