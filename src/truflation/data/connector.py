@@ -219,7 +219,9 @@ class ConnectorSql(Connector):
             self.engine = \
                 create_engine(engine)
             self.engines[engine] = self.engine
-
+    # rollbacks are necessary to prevent timeouts
+    # see https://stackoverflow.com/questions/58378708/sqlalchemy-cant-reconnect-until-invalid-transaction-is-rolled-back
+    # with error Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b)
     def read_all(self, *args, **kwargs) -> Optional[pd.DataFrame]:
         with self.engine.connect() as conn:
             try:
