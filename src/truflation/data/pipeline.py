@@ -8,8 +8,9 @@ from truflation.data.general_loader import GeneralLoader
 # from truflation.data.data import DataPandas, DataFormat
 from truflation.data.pipeline_details import PipeLineDetails
 from truflation.data.exporter import Exporter
+from truflation.data.logging_handler import get_handler
 from typing import Dict
-
+import logging
 
 class Pipeline(Task):
     """
@@ -58,50 +59,56 @@ class Pipeline(Task):
         self.exports = pipeline_details.exports
         self.exporter = Exporter()
 
+        # set up logging
+        handler = get_handler()
+        logging.getLogger('').addHandler(handler)
+
     def ingest(self, dry_run=False) -> None | Dict:
-        # todo -- create try except after functionality works
-        self.header("Ingesting...")
+        try:
+            self.header("Ingesting...")
 
-        # Pre-Ingestion Function
-        self.header("Pre Ingestion Function...")
-        self.pre_ingestion_function[0]()  # The class saves the function as a tuple
+            # Pre-Ingestion Function
+            self.header("Pre Ingestion Function...")
+            self.pre_ingestion_function[0]()  # The class saves the function as a tuple
 
-        # Read, Parse,  and Validate from all sources
-        self.header("Loading...")
-        for source_name, source_details in self.sources.items():
-            self.loader.run(source_details, source_name)
+            # Read, Parse,  and Validate from all sources
+            self.header("Loading...")
+            for source_name, source_details in self.sources.items():
+                self.loader.run(source_details, source_name)
 
-        # Transform x sources into y dataframes
-        self.header("Transforming...")
-        self.loader.transform(self.transformer)
+            # Transform x sources into y dataframes
+            self.header("Transforming...")
+            self.loader.transform(self.transformer)
 
-        # Get cache
-        my_cache = self.loader.cache
-        exports = dict() if not dry_run else \
-            dict({export_details.name: my_cache.get(export_details.name, None) for export_details in self.exports})
+            # Get cache
+            my_cache = self.loader.cache
+            exports = dict() if not dry_run else \
+                dict({export_details.name: my_cache.get(export_details.name, None) for export_details in self.exports})
 
-        #  Export y dataframes into z tables on servers
-        self.header("Exporting...")
-        for export_details in self.exports:
-            exports[export_details.name + 'reconciled_export'] = \
-                self.exporter.export(export_details, my_cache.get(export_details.name, None), dry_run)
+            #  Export y dataframes into z tables on servers
+            self.header("Exporting...")
+            for export_details in self.exports:
+                exports[export_details.name + 'reconciled_export'] = \
+                    self.exporter.export(export_details, my_cache.get(export_details.name, None), dry_run)
 
-        #  Post ingestion function
-        self.header("Post Ingestion Function...")
-        self.post_ingestion_function[0]()
+            #  Post ingestion function
+            self.header("Post Ingestion Function...")
+            self.post_ingestion_function[0]()
 
-        if dry_run:
-            return {
-                "my_cache": my_cache,
-                "exports": exports
-            }
+            # log success
+            print(f'ingestor {self.name} run successfully')
 
-        """
-        self.header("TESTING FROZEN DATA...")
-        df_frozen = self.exporter.get_frozen_data(self.exports[0], frozen_datetime=datetime.datetime.now() - datetime.timedelta(days=5)) # Timestamp for may 19 2023
-        print(f'df_frozen: \n{df_frozen}')
-        """
-        
+            # return results if debug_mod/dry_run
+            if dry_run:
+                return {
+                    "my_cache": my_cache,
+                    "exports": exports
+                }
+
+        except Exception as e:
+            e_msg = f'Ingestor {self.name} erred.'
+            logging.exception(e_msg)
+
     @staticmethod
     def header(s: str):
         print('\n' + f'#'*20 + f'   {s}   ' + '#'*(40 - len(s)))
