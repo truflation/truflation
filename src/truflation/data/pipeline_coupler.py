@@ -9,6 +9,7 @@ Arguments:
   cron_schedule    file with cron_schedule
 """
 
+import asyncio
 import sys
 import time
 import logging
@@ -102,8 +103,9 @@ if __name__ == '__main__':
     logging.debug(args)
     file_path = args['<details_path>']  # convert path to module name
     if args.get('--cron') is None:
-        load_path(file_path)
+        asyncio.run(load_path(file_path))
     else:
         with open(args['--cron']) as cronh:
             cron_schedule = json.load(cronh)
-            load_path(file_path, cron_schedule)
+            asyncio.run(load_path(file_path, cron_schedule))
+

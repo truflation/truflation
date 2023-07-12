@@ -9,6 +9,7 @@ Arguments:
   details_path     the relative path to the pipeline details module
 """
 
+import asyncio
 import importlib
 import logging
 from truflation.data.pipeline import Pipeline
@@ -53,4 +54,6 @@ if __name__ == '__main__':
     # Get file_path from argument
     args = docopt(__doc__)
 
-    load_path(args['<details_path>'], args['--debug'], args['--dry_run'])
+    asyncio.run(
+        load_path(args['<details_path>'], args['--debug'], args['--dry_run'])
+    )
