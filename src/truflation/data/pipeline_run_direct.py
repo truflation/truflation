@@ -17,7 +17,7 @@ from docopt import docopt
 from typing import List
 
 
-def load_path(file_path_list: List[str] | str, debug: bool, dry_run: bool):
+async def load_path(file_path_list: List[str] | str, debug: bool, dry_run: bool):
     """
     Dynamically import and run module, pipeline_details
     """

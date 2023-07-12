@@ -77,7 +77,7 @@ def main(pipeline_details: PipeLineDetails, cron_schedule=None):
         time.sleep(1)
 
 
-def load_path(file_path_list: str, cron_schedule=None):
+async def load_path(file_path_list: str, cron_schedule=None):
     # Dynamically import and run module, pipeline_details
     pipeline_details_list = []
     for file_path in file_path_list:
