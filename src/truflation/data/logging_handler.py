@@ -7,6 +7,9 @@ def my_logger(msg):
     print(f"My Logger: {msg}")
     # todo -- send to Telegram logger
 
+#  todo - think how to incorporate unique/personal logging (not in the main code)
+# todo -- default to printing
+# todo -- clean Telegram bot code, make a library
 
 # Define a handler that calls your custom function
 class CustomHandler(logging.Handler):
