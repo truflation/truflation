@@ -13,6 +13,8 @@ from typing import Dict
 import logging
 
 class Pipeline(Task):
+    # set up logging
+    logger_added = False
     """
     A class that defines a data pipeline, used for ingesting, transforming, and exporting data.
 
@@ -58,10 +60,10 @@ class Pipeline(Task):
         self.transformer = pipeline_details.transformer
         self.exports = pipeline_details.exports
         self.exporter = Exporter()
-
-        # set up logging
-        handler = get_handler()
-        logging.getLogger('').addHandler(handler)
+        if not self.logger_added:
+            handler = get_handler()
+            logging.getLogger('').addHandler(handler)
+            self.logger_added = True
 
     def ingest(self, dry_run=False) -> None | Dict:
         try:
