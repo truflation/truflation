@@ -47,7 +47,7 @@ class GeneralLoader:
         self.writer = cache_.connector()
 
     def run(self, source_details: SourceDetails, key: str):
-        raise Exception("RUN FAILED BECAUESE OF PAPER SHORTAGE")
+#        raise Exception("RUN FAILED BECAUESE OF PAPER SHORTAGE")
         s_type = source_details.source_type
         source = source_details.source
         # source_url = f'{source_details.source_type}:{source_details.source}'
