@@ -140,11 +140,24 @@ class ConnectorCsv(Connector):
             None
         """
         filename = kwargs.get('key', None)
+        if_exists = kwargs.get('if_exists', False)
         if filename is None and len(args) > 0:
             filename = args[0]
         filename = os.path.join(self.path_root, filename)
-        data.to_csv(filename)
-
+        if not os.path.exists(filename):
+            return data.to_csv(
+                filename
+            )
+        if if_exists == 'append':
+            return data.to_csv(
+                filename, mode='a', header=False
+            )
+        elif if_exists == 'replace':
+            return data.to_csv(
+                filename
+            )
+        else:
+            raise ValueError
 
 class ConnectorJson(Connector):
     def __init__(self, *args, **kwargs):
@@ -393,7 +406,7 @@ class ConnectorGoogleSheets(Connector):
         key = kwargs.get('key', self.default_key)
         spread = Spread(key, create_spread=True)
         spread.move(self.path_root, create=True)
-        spread.df_to_sheet(df, replace=True)
+        spread.df_to_sheet(df, replace=(kwargs.get('if_exists', 'replace') == 'replace'))
 
 cache_ = Cache()
 

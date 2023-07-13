@@ -53,10 +53,12 @@ class Exporter:
             df_local['created_at'] = pandas.to_datetime(datetime.datetime.utcnow())
         else:
             df_local['created_at'] = pandas.to_datetime(df_local['created_at'])
+        logger.debug('LOCAL')
         logger.debug(df_local)
 
         # Read in remote database as dataframe
         df_remote = export_details.read()
+        logger.debug('REMOTE')
         logger.debug(df_remote)
 
         # Reduce future created at to current time
@@ -65,15 +67,17 @@ class Exporter:
 
         # If remote exists, reconcile and receive the data needing to be added
         df_new_data = self.reconcile_dataframes(df_remote, df_local) if df_remote is not None else df_local
+        logger.debug('exporting....')
+        logger.debug(df_new_data)
 
         if 'date' in df_local:
             df_local['date'] = pandas.to_datetime(df_local['date'])  # make sure the 'date' column is in datetime format
 
-        if not dry_run:
+        if not dry_run and not df_new_data.empty:
             # Insert
             export_details.write(
                 df_new_data,
-                if_exists='replace',
+                if_exists='append',
                 chunksize=1000,
                 index= (df_new_data.index.name == 'date'),
                 dtype={
@@ -128,7 +132,7 @@ class Exporter:
           df_incoming: Pandas.DataFrame: dataframe to add
         """
 
-
+        logger.debug('MERGE')
         # Merge
         # ensure date columns are in datetime format
         if df_incoming.index.name == 'date':
@@ -138,12 +142,16 @@ class Exporter:
 
         identifiers = [x for x in df_base.columns if x not in ['created_at']]
 
-        # keep old rows since this might be a data update
         try:
-            df_new_data = pandas.merge(
-                df_base, df_incoming, how='outer', on=identifiers,
-                suffixes=('', '_y')
+            df_new_data = df_incoming.merge(
+                df_base[identifiers],
+                on=identifiers,
+                how='left',
+                indicator=True
             )
+            df_new_data = df_new_data[
+                df_new_data['_merge']=='left_only'
+            ].drop('_merge', axis=1)
         except ValueError as e:
             logger.exception(df_base.info())
             logger.exception(df_incoming.info())
@@ -151,12 +159,6 @@ class Exporter:
 
         if 'index' in df_new_data.columns:
              df_new_data = df_new_data.drop(columns=['index'])
-
-        df_new_data['created_at'] = \
-            df_new_data['created_at'].fillna(
-                df_new_data['created_at_y']
-            )
-        df_new_data = df_new_data.drop(columns=['created_at_y'])
         # drop duplicates
         columns = list(df_new_data.columns.values)
         columns_filtered = [
