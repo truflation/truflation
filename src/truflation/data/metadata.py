@@ -84,8 +84,8 @@ class Metadata:
                             table=table, key=k, values=v,
                             created_at= now
                         )
-                        if l is not None:
-                            session.merge(l)
+                    if l is not None:
+                        session.merge(l)
                 session.commit()
 
     def read_all(self, table):
