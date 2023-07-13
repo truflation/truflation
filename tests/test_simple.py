@@ -65,7 +65,7 @@ class WriteTask(truflation.data.task.Task):
     @override
     def run(self, *args, **kwargs):
         b = self.reader.read_all(self.table)
-        self.writer.write_all(b, key=self.filename)
+        self.writer.write_all(b, key=self.filename, if_exists='replace')
 
 
 class TestSimple(unittest.TestCase):
