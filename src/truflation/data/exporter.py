@@ -66,7 +66,7 @@ class Exporter:
         df_remote = self.reduce_future_created_at(df_remote)
 
         # If remote exists, reconcile and receive the data needing to be added
-        df_new_data = self.reconcile_dataframes(df_remote, df_local) if df_remote is not None else df_local
+        df_new_data = self.reconcile_dataframes(df_remote, df_local) if df_remote is not None and not df_remote.empty else df_local
         logger.debug('exporting....')
         logger.debug(df_new_data)
 
@@ -77,7 +77,6 @@ class Exporter:
             # Insert
             export_details.write(
                 df_new_data,
-                if_exists='append',
                 chunksize=1000,
                 index= (df_new_data.index.name == 'date'),
                 dtype={
@@ -123,7 +122,7 @@ class Exporter:
         return df
 
     @staticmethod
-    def reconcile_dataframes(df_base: pandas.DataFrame, df_incoming: pandas.DataFrame) -> pandas.DataFrame :
+    def reconcile_dataframes(df_base: pandas.DataFrame, df_incoming: pandas.DataFrame, rounding:int = 6) -> pandas.DataFrame :
         """
         Retrieve a dataframe that contains the rows needed to update df_base with the values from df_incoming
 
@@ -143,12 +142,13 @@ class Exporter:
         identifiers = [x for x in df_base.columns if x not in ['created_at']]
 
         try:
-            df_new_data = df_incoming.merge(
-                df_base[identifiers],
+            df_new_data = df_incoming.round(rounding).merge(
+                df_base[identifiers].round(rounding),
                 on=identifiers,
                 how='left',
                 indicator=True
             )
+            logger.debug(df_new_data)
             df_new_data = df_new_data[
                 df_new_data['_merge']=='left_only'
             ].drop('_merge', axis=1)
