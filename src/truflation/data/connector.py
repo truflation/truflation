@@ -140,7 +140,7 @@ class ConnectorCsv(Connector):
             None
         """
         filename = kwargs.get('key', None)
-        if_exists = kwargs.get('if_exists', False)
+        if_exists = kwargs.get('if_exists', 'none')
         if filename is None and len(args) > 0:
             filename = args[0]
         filename = os.path.join(self.path_root, filename)
@@ -389,15 +389,22 @@ class ConnectorGoogleSheets(Connector):
             return df
         try:
             spread = Spread(sheet_id)
-            df = spread.sheet_to_df()
+            columns_numeric = kwargs.get('columns_numeric', [])
+            columns_float = kwargs.get('columns_float', [])
+            columns_int = kwargs.get('columns_int', [])
+            df = spread.sheet_to_df(unformatted_columns=columns_numeric+columns_float+columns_int)
             if df.index.name == 'date':
                 df.reset_index(inplace=True)
 #TODO: pass types from outside
             for column in df.columns:
                 if column in kwargs.get('columns_date', []):
                     df[column] =  pd.to_datetime(df[column])
-                if column in kwargs.get('columns_numeric', []):
+                if column in columns_numeric:
                     df[column] = pd.to_numeric(df[column])
+                if column in columns_float:
+                    df[column] = df[column].astype(float)
+                if column in columns_int:
+                    df[column] = df[column].astype(int)
             return df
         except gspread.exceptions.SpreadsheetNotFound:
             return None
@@ -406,7 +413,13 @@ class ConnectorGoogleSheets(Connector):
         key = kwargs.get('key', self.default_key)
         spread = Spread(key, create_spread=True)
         spread.move(self.path_root, create=True)
-        spread.df_to_sheet(df, replace=(kwargs.get('if_exists', 'replace') == 'replace'))
+        replace = kwargs.get('if_exists', 'replace') == 'replace'
+        if replace:
+            spread.df_to_sheet(df.astype(str), replace=replace)
+        else:
+            dims = spread.get_sheet_dims()
+            logger.debug(dims)
+            spread.df_to_sheet(df.astype(str), start=(dims[0]+1 if dims[0]>1 else 1,1), headers=dims[0]<2)
 
 cache_ = Cache()
 

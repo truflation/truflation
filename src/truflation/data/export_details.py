@@ -64,6 +64,7 @@ class ExportDetails(Task):
 
     def write(self, data: pd.DataFrame, **kwargs):
         kwargs['key'] = self.key
+        kwargs['if_exists'] = 'replace' if self.replace else 'append'
         if data is not None:
             return self.writer.write_all(data, **kwargs)
         return None
