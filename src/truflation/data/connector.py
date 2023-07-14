@@ -392,7 +392,10 @@ class ConnectorGoogleSheets(Connector):
             columns_numeric = kwargs.get('columns_numeric', [])
             columns_float = kwargs.get('columns_float', [])
             columns_int = kwargs.get('columns_int', [])
-            df = spread.sheet_to_df(unformatted_columns=columns_numeric+columns_float+columns_int)
+            try:
+                df = spread.sheet_to_df(unformatted_columns=columns_numeric+columns_float+columns_int)
+            except AttributeError:
+                df = spread.sheet_to_df()
             if df.index.name == 'date':
                 df.reset_index(inplace=True)
 #TODO: pass types from outside
@@ -406,6 +409,7 @@ class ConnectorGoogleSheets(Connector):
                 if column in columns_int:
                     df[column] = df[column].astype(int)
             return df
+
         except gspread.exceptions.SpreadsheetNotFound:
             return None
 
