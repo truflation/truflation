@@ -19,7 +19,7 @@ from typing import List
 
 async def load_path(file_path_list: List[str] | str,
                     debug: bool, dry_run: bool,
-                    config=None: dict | None):
+                    config: dict | None = None):
     """
     Dynamically import and run module, pipeline_details
     """
