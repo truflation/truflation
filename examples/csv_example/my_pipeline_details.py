@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import os
 
 load_dotenv()
+
 DB_PASS = os.getenv('DB_PASS')
 # Name
 pipeline_name = "Hello World"
@@ -109,13 +110,16 @@ def get_details():
         )
     ]
 
+    def fake_transformer():
+        raise Exception("FAKE ERROR")
+
     my_pipeline = PipeLineDetails(name=pipeline_name,
                                   sources=sources,
                                   exports=exports,
                                   cron_schedule=cron_schedule,
                                   pre_ingestion_function=pre_ingestion_function,
                                   post_ingestion_function=post_ingestion_function,
-                                  transformer=transformer
+                                  transformer=fake_transformer
                                   )
     return my_pipeline
 
