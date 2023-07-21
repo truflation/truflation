@@ -17,11 +17,16 @@ from docopt import docopt
 from typing import List
 
 
-async def load_path(file_path_list: List[str] | str, debug: bool, dry_run: bool):
+async def load_path(file_path_list: List[str] | str,
+                    debug: bool, dry_run: bool,
+                    config: dict | None = None):
     """
     Dynamically import and run module, pipeline_details
     """
     return_value = []
+
+    if config is None:
+        config = {}
 
     # convert strings to lists
     if type(file_path_list) is str:
@@ -39,10 +44,10 @@ async def load_path(file_path_list: List[str] | str, debug: bool, dry_run: bool)
         if hasattr(module, 'get_details_list'):
             return_value.extend([
                 Pipeline(detail).ingest(dry_run)
-                for detail in module.get_details_list()
+                for detail in module.get_details_list(**config)
             ])
         elif hasattr(module, 'get_details'):
-            pipeline_details = module.get_details()
+            pipeline_details = module.get_details(**config)
             my_pipeline = Pipeline(pipeline_details)
             return_value.append(my_pipeline.ingest(dry_run))
         else:
@@ -53,7 +58,11 @@ async def load_path(file_path_list: List[str] | str, debug: bool, dry_run: bool)
 if __name__ == '__main__':
     # Get file_path from argument
     args = docopt(__doc__)
+    filelist = [ item for item in args['<details_path>'] if '=' not in item ]
+    config = { item.split('=')[0]: item.split('=')[1] \
+               for item in args['<details_path>'] if '=' in item }
 
     asyncio.run(
-        load_path(args['<details_path>'], args['--debug'], args['--dry_run'])
+        load_path(filelist,
+                  args['--debug'], args['--dry_run'], config)
     )

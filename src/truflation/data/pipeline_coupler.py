@@ -77,7 +77,13 @@ def main(pipeline_details: PipeLineDetails, cron_schedule=None):
         time.sleep(1)
 
 
-async def load_path(file_path_list: str, cron_schedule=None):
+async def load_path(
+        file_path_list: str, cron_schedule=None,
+        config=None
+):
+    if config is None:
+        config = {}
+
     # Dynamically import and run module, pipeline_details
     pipeline_details_list = []
     for file_path in file_path_list:
@@ -90,9 +96,9 @@ async def load_path(file_path_list: str, cron_schedule=None):
         spec.loader.exec_module(module)
 
         if hasattr(module, 'get_details_list'):
-            pipeline_details_list.extend(module.get_details_list())
+            pipeline_details_list.extend(module.get_details_list(**config))
         elif hasattr(module, 'get_details'):
-            pipeline_details_list.append(module.get_details())
+            pipeline_details_list.append(module.get_details(**config))
         else:
             raise Exception("get_details not found in supplied module,")
     main(pipeline_details_list, cron_schedule)
@@ -101,11 +107,14 @@ if __name__ == '__main__':
     # Get file_path from argument
     args = docopt(__doc__)
     logging.debug(args)
-    file_path = args['<details_path>']  # convert path to module name
+    file_path = [ item for item in args['<details_path>'] if '=' not in item ]
+    config = { item.split('=')[0]: item.split('=')[1] \
+               for item in args['<details_path>'] if '=' in item }
+
     if args.get('--cron') is None:
-        asyncio.run(load_path(file_path))
+        asyncio.run(load_path(file_path, None, config))
     else:
         with open(args['--cron']) as cronh:
             cron_schedule = json.load(cronh)
-            asyncio.run(load_path(file_path, cron_schedule))
+            asyncio.run(load_path(file_path, cron_schedule, config))
 

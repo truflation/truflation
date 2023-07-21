@@ -168,7 +168,9 @@ class Exporter:
         df_new_data = df_new_data.sort_values(columns, ascending=True).drop_duplicates(
             subset=columns_filtered
         )
-        df_new_data = df_new_data.set_index(['date'])
+        logger.debug(df_base.columns)
+        logger.debug(df_new_data.columns)
+        df_new_data = df_new_data[df_base.columns].set_index(['date'])
         return df_new_data
 
 
