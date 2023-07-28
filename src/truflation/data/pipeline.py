@@ -8,6 +8,7 @@ from truflation.data.general_loader import GeneralLoader
 # from truflation.data.data import DataPandas, DataFormat
 from truflation.data.pipeline_details import PipeLineDetails
 from truflation.data.exporter import Exporter
+from truflation.data.util import format_duration
 from truflation.data.logging_handler import get_handler
 from telegram_bot.push_logs_for_bot import push_general_logs
 from telegram_bot.utilities import log_to_bot
@@ -67,6 +68,9 @@ class Pipeline(Task):
 
     def ingest(self, dry_run=False) -> None | Dict:
         try:
+            # get start time
+            start_time = time.time()
+
             self.header("Ingesting...")
 
             # Pre-Ingestion Function
@@ -106,7 +110,8 @@ class Pipeline(Task):
                     "my_cache": my_cache,
                     "exports": exports
                 }
-            log_to_bot(f'{self.name} has successfully run. Time? ')
+            run_time = time.time() - start_time
+            log_to_bot(f'{self.name} has successfully run. Duration: {format_duration(run_time)}')
         except Exception as e:
             e_msg = f'Ingestor {self.name} erred.'
             logging.exception(e_msg)
