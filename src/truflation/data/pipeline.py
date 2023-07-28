@@ -102,7 +102,7 @@ class Pipeline(Task):
             self.post_ingestion_function[0]()
 
             # log success
-            print(f'ingestor {self.name} run successfully')
+            print(f'ingestor {self.name} ran successfully')
 
             # return results if debug_mod/dry_run
             if dry_run:

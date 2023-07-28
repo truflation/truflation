@@ -110,8 +110,8 @@ def get_details():
         )
     ]
 
-    def fake_transformer():
-        raise Exception("FAKE ERROR")
+    # def fake_transformer():
+    #     raise Exception("FAKE ERROR")
 
     my_pipeline = PipeLineDetails(name=pipeline_name,
                                   sources=sources,
@@ -119,7 +119,7 @@ def get_details():
                                   cron_schedule=cron_schedule,
                                   pre_ingestion_function=pre_ingestion_function,
                                   post_ingestion_function=post_ingestion_function,
-                                  transformer=fake_transformer
+                                  transformer=transformer
                                   )
     return my_pipeline
 
