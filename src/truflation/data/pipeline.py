@@ -9,7 +9,7 @@ from truflation.data.general_loader import GeneralLoader
 from truflation.data.pipeline_details import PipeLineDetails
 from truflation.data.exporter import Exporter
 from truflation.data.logging_handler import get_handler
-from telegram_bot.push_logs_for_bot import push_logs
+from telegram_bot.push_logs_for_bot import push_general_logs
 from telegram_bot.utilities import log_to_bot
 from typing import Dict
 import logging
@@ -111,7 +111,7 @@ class Pipeline(Task):
             e_msg = f'Ingestor {self.name} erred.'
             logging.exception(e_msg)
         finally:
-            push_logs()
+            push_general_logs()
 
     @staticmethod
     def header(s: str):
