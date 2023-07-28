@@ -80,7 +80,12 @@ class GeneralLoader:
     def transform(self, transformer: Callable[[Dict], Dict]):
         """ transforms cache with transformer function   """
         if transformer:
-            self.writer.cache.cache_data.update(transformer(self.writer.cache.cache_data))
+            for item in transformer \
+                if type(transformer) in [list, tuple] \
+                   else [ transformer ]:
+                self.writer.cache.cache_data.update(item(
+                    self.writer.cache.cache_data
+                ))
 
     def clear(self):
         """ Clears the cache"""
