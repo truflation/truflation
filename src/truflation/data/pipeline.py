@@ -106,7 +106,7 @@ class Pipeline(Task):
                     "my_cache": my_cache,
                     "exports": exports
                 }
-            log_to_bot(f'{self.name} has successfully run. Time? ', "logs")
+            log_to_bot(f'{self.name} has successfully run. Time? ')
         except Exception as e:
             e_msg = f'Ingestor {self.name} erred.'
             logging.exception(e_msg)

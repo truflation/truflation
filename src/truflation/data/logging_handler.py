@@ -1,13 +1,15 @@
 import logging
-from telegram_bot.utilities import log_to_bot
-
+import os
+# from telegram_bot.utilities import log_to_bot
+from telegram_bot.general_logger import log_to_bot
 
 # Define your logger function
 def my_logger(msg):
     # Put your logging code here
-    print(f"My Logger: {msg}")
+    # log_path = os.getenv('GENERAL_LOGFILE', "temporary_pipeline_logging_location")
+    # print(f"My Logger: {msg}")
     my_dic_msg = {"error": msg}
-    log_to_bot(my_dic_msg, "temporary_pipeline_logging_location")
+    log_to_bot(my_dic_msg)
     # todo -- send to Telegram logger
 
 #  todo - think how to incorporate unique/personal logging (not in the main code)
