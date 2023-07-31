@@ -11,7 +11,7 @@ from truflation.data.exporter import Exporter
 from truflation.data.util import format_duration
 from truflation.data.logging_handler import get_handler
 from telegram_bot.push_logs_for_bot import push_general_logs
-from telegram_bot.utilities import log_to_bot
+from telegram_bot.general_logger import log_to_bot
 from typing import Dict
 import logging
 
