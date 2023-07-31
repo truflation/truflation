@@ -8,18 +8,21 @@ services:
       env_file: .env
       volumes:
         - pipeline_details:/data/todo
+      hostname: csv-example-2
   ingestor_two:
       build: ../.
       command: python3 src/truflation/data/pipeline_coupler.py examples/csv_example/my_pipeline_details.py
       env_file: .env
       volumes:
         - pipeline_details:/data/todo
+      hostname: csv-example-2
   investing:
       build: ../.
       command: examples/investing/load_data.py
       env_file: .env
       volumes:
         - pipeline_details:/data/todo
+      hostname: investing-example
 
 volumes:
   pipeline_details:
