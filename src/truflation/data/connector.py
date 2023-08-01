@@ -123,7 +123,7 @@ class ConnectorCsv(Connector):
         """
         filename = os.path.join(self.path_root, args[0])
         if os.access(filename, os.R_OK):
-            return pd.read_csv(filename)
+            return pd.read_csv(filename, **kwargs)
         else:
             return None
 
