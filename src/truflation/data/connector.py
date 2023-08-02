@@ -4,6 +4,7 @@ Connector
 
 import os
 import json
+import io
 from typing import Optional, Iterator, Any, List
 from pathlib import Path
 import pandas as pd
@@ -309,6 +310,7 @@ class ConnectorRest(Connector):
         super().__init__()
         self.playwright = kwargs.get('playwright', False)
         self.json = kwargs.get('json', True)
+        self.csv = kwargs.get('csv', False)
         self.page = None
 
     def read_all(
@@ -328,7 +330,9 @@ class ConnectorRest(Connector):
         return self.process_response(response)
 
     def process_response(self, response):
-        if self.json:
+        if self.csv:
+            return pd.read_csv(io.StringIO(response.content.decode('utf-8')))
+        elif self.json:
             return self.process_json(response.json())
         else:
             return self.process_content(response.content)
@@ -433,12 +437,11 @@ def connector_factory(connector_type: str) -> Optional[Connector]:
         return cache_.connector()
     elif connector_type.startswith('object'):
         return ConnectorDirect()
-    elif connector_type.startswith('csv'):
-        if connector_type.startswith('csv:'):
-            path_root = connector_type.split(':', 1)[1]
-            return ConnectorCsv(path_root=path_root)
-        else:
-            return ConnectorCsv()
+    elif connector_type == 'csv':
+        return ConnectorCsv()
+    elif connector_type.startswith('csv:'):
+        path_root = connector_type.split(':', 1)[1]
+        return ConnectorCsv(path_root=path_root)
     elif connector_type.startswith('gsheet'):
         if connector_type.startswith('gsheet:'):
             path_root = connector_type.split(':', 1)[1]
@@ -457,6 +460,8 @@ def connector_factory(connector_type: str) -> Optional[Connector]:
         return ConnectorRest()
     elif connector_type.startswith('http'):
         return ConnectorRest(json=False)
+    elif connector_type.startswith('csv+http'):
+        return ConnectorRest(csv=True)
     elif connector_type.startswith('sqlite') or \
             connector_type.startswith('postgresql') or \
             connector_type.startswith('mysql') or \
