@@ -193,6 +193,8 @@ class ConnectorJson(Connector):
         else:
             if isinstance(data, str):
                 print(data, file=filename)
+            elif isinstance(data, pd.DataFrame):
+                filename.write(data.to_json(**kwargs))
             else:
                 filename.write(json.dumps(data, default=str))
 
@@ -330,10 +332,18 @@ class ConnectorRest(Connector):
         return self.process_response(response)
 
     def process_response(self, response):
-        if self.csv:
-            return pd.read_csv(io.StringIO(response.content.decode('utf-8')))
-        elif self.json:
+        content_type = response.headers.get('content-type')
+        if self.csv or content_type == 'text/csv':
+            return pd.read_csv(
+                io.StringIO(response.content.decode('utf-8'))
+            )
+        elif self.json or content_type == 'application/json':
             return self.process_json(response.json())
+        elif content_type == 'application/vnd.ms-excel' or \
+             content_type == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+            return pd.read_excel(
+                io.StringIO(response.content.decode('utf-8'))
+            )
         else:
             return self.process_content(response.content)
 
