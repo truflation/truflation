@@ -20,6 +20,7 @@ from sqlalchemy import create_engine, Table, MetaData
 
 logger = logging.getLogger(__name__)
 
+
 class Connector:
     """
     Base class for Import
@@ -160,6 +161,7 @@ class ConnectorCsv(Connector):
         else:
             raise ValueError
 
+
 class ConnectorJson(Connector):
     def __init__(self, *args, **kwargs):
         super().__init__()
@@ -204,6 +206,7 @@ class ConnectorDirect(Connector):
     kwargs:
       data_type: str: the type of object that is passed in
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__()
 
@@ -235,6 +238,7 @@ class ConnectorSql(Connector):
             self.engine = \
                 create_engine(engine)
             self.engines[engine] = self.engine
+
     # rollbacks are necessary to prevent timeouts
     # see https://stackoverflow.com/questions/58378708/sqlalchemy-cant-reconnect-until-invalid-transaction-is-rolled-back
     # with error Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b)
@@ -340,7 +344,7 @@ class ConnectorRest(Connector):
         elif self.json or content_type == 'application/json':
             return self.process_json(response.json())
         elif content_type == 'application/vnd.ms-excel' or \
-             content_type == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+                content_type == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
             return pd.read_excel(
                 io.StringIO(response.content.decode('utf-8'))
             )
@@ -407,15 +411,15 @@ class ConnectorGoogleSheets(Connector):
             columns_float = kwargs.get('columns_float', [])
             columns_int = kwargs.get('columns_int', [])
             try:
-                df = spread.sheet_to_df(unformatted_columns=columns_numeric+columns_float+columns_int)
+                df = spread.sheet_to_df(unformatted_columns=columns_numeric + columns_float + columns_int)
             except AttributeError:
                 df = spread.sheet_to_df()
             if df.index.name == 'date':
                 df.reset_index(inplace=True)
-#TODO: pass types from outside
+            # TODO: pass types from outside
             for column in df.columns:
                 if column in kwargs.get('columns_date', []):
-                    df[column] =  pd.to_datetime(df[column])
+                    df[column] = pd.to_datetime(df[column])
                 if column in columns_numeric:
                     df[column] = pd.to_numeric(df[column])
                 if column in columns_float:
@@ -437,7 +441,113 @@ class ConnectorGoogleSheets(Connector):
         else:
             dims = spread.get_sheet_dims()
             logger.debug(dims)
-            spread.df_to_sheet(df.astype(str), start=(dims[0]+1 if dims[0]>1 else 1,1), headers=dims[0]<2)
+            spread.df_to_sheet(df.astype(str), start=(dims[0] + 1 if dims[0] > 1 else 1, 1), headers=dims[0] < 2)
+
+
+class ConnectorExcel(Connector):
+    """
+    A class for connecting and reading data from Excel Sheets.
+
+    Attributes:
+        path_root: The root path for the Google Sheets document.
+
+    Methods:
+        __init__: Initializes the ConnectorGoogleSheets instance.
+        read_all: Reads all data from a Google Sheets document.
+
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.default_key = None
+        self.path_root = kwargs.get('path_root')
+        # self.client = self.my_client if self.path_root is not None \
+        #     else None
+
+    def read_all(self, source: str, *args, **kwargs) -> Optional[pd.DataFrame]:
+        """
+        Read all data from Excel.
+
+        Args:
+            source (str): The URL or absolute path to the excel file
+
+        Returns:
+            pd.DataFrame or None: The data read from the Google Sheets document, or None if the document is not found.
+        """
+        # todo -- this seems to work already regardless of being a link or path
+        sheet_name = kwargs.get('sheet_name', None)  # specify which sheet to read in. Defaults to first
+
+        # if "http" == source[:4]:
+        # df = pd.read_excel(source, **kwargs) # **kwargs may include values not intended for this function
+
+        if source.endswith(".xls"):
+            df = pd.read_excel(source, engine='xlrd', **kwargs) # needed for .xls files -- not xlsx
+            # df = pd.read_excel(source, engine='openpyxl', **kwargs) # use for xlsx files (default?)
+        else:
+            df = pd.read_excel(source, **kwargs)
+        print(f'df received: \n{df}')
+        print(f'\n\ncolumns: \n: {df.columns}')
+        df.columns.values[1] = "value"
+        df.rename(columns={'Date': 'date'}, inplace=True)
+        return df
+
+        # try:
+        #     spread = Spread(sheet_id)
+        #     columns_numeric = kwargs.get('columns_numeric', [])
+        #     columns_float = kwargs.get('columns_float', [])
+        #     columns_int = kwargs.get('columns_int', [])
+        #
+        #     if df.index.name == 'date':
+        #         df.reset_index(inplace=True)
+        #
+        #     for column in df.columns:
+        #         if column in kwargs.get('columns_date', []):
+        #             df[column] =  pd.to_datetime(df[column])
+        #         if column in columns_numeric:
+        #             df[column] = pd.to_numeric(df[column])
+        #         if column in columns_float:
+        #             df[column] = df[column].astype(float)
+        #         if column in columns_int:
+        #             df[column] = df[column].astype(int)
+        #     return df
+        #
+        # except gspread.exceptions.SpreadsheetNotFound:
+        #     return None
+
+    def write_all(self, df, *args, **kwargs):
+        raise Exception("write_all not implimented for Excel connector")
+        # key = kwargs.get('key', self.default_key)
+        # spread = Spread(key, create_spread=True)
+        # spread.move(self.path_root, create=True)
+        # replace = kwargs.get('if_exists', 'replace') == 'replace'
+        # if replace:
+        #     spread.df_to_sheet(df.astype(str), replace=replace)
+        # else:
+        #     dims = spread.get_sheet_dims()
+        #     logger.debug(dims)
+        #     spread.df_to_sheet(df.astype(str), start=(dims[0]+1 if dims[0]>1 else 1,1), headers=dims[0]<2)
+
+        # todo -- adapt csv write_all to Excel
+        # filename = kwargs.get('key', None)
+        # if_exists = kwargs.get('if_exists', 'none')
+        # if filename is None and len(args) > 0:
+        #     filename = args[0]
+        # filename = os.path.join(self.path_root, filename)
+        # if not os.path.exists(filename):
+        #     return data.to_csv(
+        #         filename
+        #     )
+        # if if_exists == 'append':
+        #     return data.to_csv(
+        #         filename, mode='a', header=False
+        #     )
+        # elif if_exists == 'replace':
+        #     return data.to_csv(
+        #         filename
+        #     )
+        # else:
+        #     raise ValueError
+
 
 cache_ = Cache()
 
@@ -449,6 +559,8 @@ def connector_factory(connector_type: str) -> Optional[Connector]:
         return cache_.connector()
     elif connector_type.startswith('object'):
         return ConnectorDirect()
+    elif connector_type == 'excel':
+        return ConnectorExcel()
     elif connector_type == 'csv':
         return ConnectorCsv()
     elif connector_type.startswith('csv:'):
@@ -496,4 +608,3 @@ def get_database_handle(db_type='mariadb+pymysql'):
     DB_NAME = os.environ.get('DB_NAME', None)
 
     return f'{db_type}://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
-
