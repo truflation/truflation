@@ -442,6 +442,8 @@ class ConnectorGoogleSheets(Connector):
 cache_ = Cache()
 
 
+# todo -- I think we should have a dedicated Connector for Excel, just as we do for csv
+# I like have abstraction for http links, but I find it troublesome for its potential misinterpretation
 def connector_factory(connector_type: str) -> Optional[Connector]:
     if connector_type.startswith('cache'):
         return cache_.connector()
