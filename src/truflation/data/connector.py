@@ -485,9 +485,12 @@ class ConnectorExcel(Connector):
             # df = pd.read_excel(source, engine='openpyxl', **kwargs) # use for xlsx files (default?)
         else:
             df = pd.read_excel(source, **kwargs)
-        print(f'df received: \n{df}')
-        print(f'\n\ncolumns: \n: {df.columns}')
-        df.columns.values[1] = "value"
+
+        # print(f'df received: \n{df}')
+        # print(f'\n\ncolumns: \n: {df.columns}')
+
+        # i don't think we should automatically set 'value' to the first column. Pass in a flag to do this.
+        # df.columns.values[1] = "value"
         df.rename(columns={'Date': 'date'}, inplace=True)
         return df
 
