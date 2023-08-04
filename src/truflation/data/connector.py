@@ -337,11 +337,11 @@ class ConnectorRest(Connector):
 
     def process_response(self, response):
         content_type = response.headers.get('content-type')
-        if self.csv or content_type == 'text/csv':
+        if self.csv or content_type.startswith('text/csv'):
             return pd.read_csv(
                 io.StringIO(response.content.decode('utf-8'))
             )
-        elif self.json or content_type == 'application/json':
+        elif self.json or content_type.startswith('application/json'):
             return self.process_json(response.json())
         elif content_type == 'application/vnd.ms-excel' or \
                 content_type == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
