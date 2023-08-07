@@ -16,6 +16,7 @@ import logging
 import json
 import importlib
 
+from typing import List
 from apscheduler.schedulers.background import BackgroundScheduler
 from docopt import docopt
 from pytz import utc
@@ -97,7 +98,7 @@ def main(module_list: list, cron_schedule=None):
 
 
 async def load_path(
-        file_path_list: str, cron_schedule=None,
+        file_path_list: List[str], cron_schedule=None,
         config=None
 ):
     if config is None:
@@ -108,9 +109,8 @@ async def load_path(
     for file_path in file_path_list:
         module_name = 'my_pipeline_details'
         spec = importlib.util.spec_from_file_location(module_name, file_path)
-        if spec is None:
+        if spec is None or spec.loader is None:
             raise Exception(f"{file_path} does not exist as a module.")
-
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         module_list.append(module)

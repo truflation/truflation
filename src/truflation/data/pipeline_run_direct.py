@@ -38,6 +38,8 @@ async def load_path(file_path_list: List[str] | str,
             logging.basicConfig(level=logging.DEBUG)
         module_name = 'my_pipeline_details'
         spec = importlib.util.spec_from_file_location(module_name, file_path)
+        if spec is None or spec.loader is None:
+            raise Exception(f"{file_path} does not exist as a module.")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
 
