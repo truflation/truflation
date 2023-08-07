@@ -73,7 +73,7 @@ async def test(request, output):
                for item in args['<details_path>'] if '=' in item }
     await load_path(
         filelist,
-        args['--debug'], args['--dry_run'], config)
+        args['--debug'], args['--dry_run'], {**config, **query_params})
     print(cache_.cache_data.keys())
     return json(cache_.get(output))
 
