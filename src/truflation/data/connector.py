@@ -27,7 +27,7 @@ class Connector:
     Base class for Import
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *_args, **_kwargs):
         pass
 
     def authenticate(self, token: str):
@@ -206,7 +206,7 @@ class ConnectorDirect(Connector):
       data_type: str: the type of object that is passed in
     """
 
-    def __init__(self, *_, **_):
+    def __init__(self, *args, **kwargs):
         super().__init__()
 
     def read_all(
@@ -223,7 +223,7 @@ class ConnectorDirect(Connector):
     def write_all(
             self,
             _,
-            *_, **_) -> None:
+            *_args, **_kwargs) -> None:
         raise NotImplementedError
 
 
