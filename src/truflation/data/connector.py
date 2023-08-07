@@ -7,12 +7,13 @@ import json
 import io
 from typing import Optional, Iterator, Any, List
 from pathlib import Path
+import logging
 import pandas as pd
 import gspread
 from gspread_pandas import Spread, Client
 import requests
 from playwright.sync_api import sync_playwright
-import logging
+
 
 import sqlalchemy
 from sqlalchemy.sql import text
@@ -126,8 +127,7 @@ class ConnectorCsv(Connector):
         filename = os.path.join(self.path_root, args[0])
         if os.access(filename, os.R_OK):
             return pd.read_csv(filename, **kwargs)
-        else:
-            return None
+        return None
 
     def write_all(self, data, *args, **kwargs) -> None:
         """
@@ -154,12 +154,11 @@ class ConnectorCsv(Connector):
             return data.to_csv(
                 filename, mode='a', header=False
             )
-        elif if_exists == 'replace':
+        if if_exists == 'replace':
             return data.to_csv(
                 filename
             )
-        else:
-            raise ValueError
+        raise ValueError
 
 
 class ConnectorJson(Connector):
@@ -207,7 +206,7 @@ class ConnectorDirect(Connector):
       data_type: str: the type of object that is passed in
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *_, **_):
         super().__init__()
 
     def read_all(
@@ -217,14 +216,14 @@ class ConnectorDirect(Connector):
         data = kwargs.get('data', None)
         assert data_type is not None, "no data type specified"
         assert data is not None, "no data provided"
-        assert type(data) is data_type, "data does not match data_type"
+        assert isinstance(data, data_type), "data does not match data_type"
 
         return data
 
     def write_all(
             self,
-            data,
-            *args, **kwargs) -> None:
+            _,
+            *_, **_) -> None:
         raise NotImplementedError
 
 
@@ -341,15 +340,14 @@ class ConnectorRest(Connector):
             return pd.read_csv(
                 io.StringIO(response.content.decode('utf-8'))
             )
-        elif self.json or content_type.startswith('application/json'):
+        if self.json or content_type.startswith('application/json'):
             return self.process_json(response.json())
-        elif content_type == 'application/vnd.ms-excel' or \
+        if content_type == 'application/vnd.ms-excel' or \
                 content_type == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
             return pd.read_excel(
                 io.StringIO(response.content.decode('utf-8'))
             )
-        else:
-            return self.process_content(response.content)
+        return self.process_content(response.content)
 
     @staticmethod
     def process_content(content):
@@ -560,36 +558,35 @@ cache_ = Cache()
 def connector_factory(connector_type: str) -> Optional[Connector]:
     if connector_type.startswith('cache'):
         return cache_.connector()
-    elif connector_type.startswith('object'):
+    if connector_type.startswith('object'):
         return ConnectorDirect()
-    elif connector_type == 'excel':
+    if connector_type == 'excel':
         return ConnectorExcel()
-    elif connector_type == 'csv':
+    if connector_type == 'csv':
         return ConnectorCsv()
-    elif connector_type.startswith('csv:'):
+    if connector_type.startswith('csv:'):
         path_root = connector_type.split(':', 1)[1]
         return ConnectorCsv(path_root=path_root)
-    elif connector_type.startswith('gsheet'):
+    if connector_type.startswith('gsheet'):
         if connector_type.startswith('gsheet:'):
             path_root = connector_type.split(':', 1)[1]
             return ConnectorGoogleSheets(path_root=path_root)
         return ConnectorGoogleSheets()
-    elif connector_type.startswith('json'):
+    if connector_type.startswith('json'):
         if connector_type.startswith('json:'):
             path_root = connector_type.split(':', 1)[1]
             return ConnectorJson(path_root=path_root)
-        else:
-            return ConnectorJson()
-    elif connector_type.startswith('playwright+http'):
+        return ConnectorJson()
+    if connector_type.startswith('playwright+http'):
         # return ConnectorRest(source_location, playwright=True)
         return ConnectorRest(playwright=True)
-    elif connector_type.startswith('rest+http'):
+    if connector_type.startswith('rest+http'):
         return ConnectorRest()
-    elif connector_type.startswith('http'):
+    if connector_type.startswith('http'):
         return ConnectorRest(json=False)
-    elif connector_type.startswith('csv+http'):
+    if connector_type.startswith('csv+http'):
         return ConnectorRest(csv=True)
-    elif connector_type.startswith('sqlite') or \
+    if connector_type.startswith('sqlite') or \
             connector_type.startswith('postgresql') or \
             connector_type.startswith('mysql') or \
             connector_type.startswith('mariadb') or \
@@ -599,8 +596,7 @@ def connector_factory(connector_type: str) -> Optional[Connector]:
             connector_type.startswith('gsheets') or \
             connector_type.startswith('pybigquery'):
         return ConnectorSql(connector_type)
-    else:
-        return None
+    return None
 
 
 def get_database_handle(db_type='mariadb+pymysql'):
