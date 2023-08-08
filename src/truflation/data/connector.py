@@ -126,7 +126,9 @@ class ConnectorCsv(Connector):
         """
         filename = os.path.join(self.path_root, args[0])
         if os.access(filename, os.R_OK):
-            return pd.read_csv(filename, **kwargs)
+            return pd.read_csv(
+                filename, dtype_backend='pyarrow',
+                **kwargs)
         return None
 
     def write_all(self, data, *args, **kwargs) -> None:
@@ -244,7 +246,8 @@ class ConnectorSql(Connector):
     def read_all(self, *args, **kwargs) -> Optional[pd.DataFrame]:
         with self.engine.connect() as conn:
             try:
-                return pd.read_sql(args[0], conn)
+                return pd.read_sql(args[0], conn,
+                                   dtype_backend='pyarrow')
             except Exception as e:
                 logger.debug(e)
                 conn.rollback()
@@ -338,14 +341,16 @@ class ConnectorRest(Connector):
         content_type = response.headers.get('content-type')
         if self.csv or content_type.startswith('text/csv'):
             return pd.read_csv(
-                io.StringIO(response.content.decode('utf-8'))
+                io.StringIO(response.content.decode('utf-8')),
+                dtype_backend='pyarrow'
             )
         if self.json or content_type.startswith('application/json'):
             return self.process_json(response.json())
         if content_type == 'application/vnd.ms-excel' or \
                 content_type == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
             return pd.read_excel(
-                io.StringIO(response.content.decode('utf-8'))
+                io.StringIO(response.content.decode('utf-8')),
+                dtype_backend='pyarrow'
             )
         return self.process_content(response.content)
 
@@ -399,7 +404,7 @@ class ConnectorGoogleSheets(Connector):
         """
         if self.client is None:
             url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/export'
-            df = pd.read_excel(url, **kwargs)
+            df = pd.read_excel(url, dtype_backend='pyarrow', **kwargs)
             df.columns.values[1] = "value"
             df.rename(columns={'Date': 'date'}, inplace=True)
             return df
@@ -479,10 +484,13 @@ class ConnectorExcel(Connector):
         # df = pd.read_excel(source, **kwargs) # **kwargs may include values not intended for this function
 
         if source.endswith(".xls"):
-            df = pd.read_excel(source, engine='xlrd', **kwargs) # needed for .xls files -- not xlsx
+            df = pd.read_excel(
+                source, engine='xlrd',
+                dtype_backend='pyarrow',
+                **kwargs) # needed for .xls files -- not xlsx
             # df = pd.read_excel(source, engine='openpyxl', **kwargs) # use for xlsx files (default?)
         else:
-            df = pd.read_excel(source, **kwargs)
+            df = pd.read_excel(source, dtype_backend='pyarrow', **kwargs)
 
         # print(f'df received: \n{df}')
         # print(f'\n\ncolumns: \n: {df.columns}')
