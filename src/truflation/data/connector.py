@@ -124,7 +124,21 @@ class ConnectorCsv(Connector):
         Returns:
             Optional[pd.DataFrame]: The data read from the CSV file as a pandas DataFrame, or None if the file is not accessible.
         """
+
+        if not len(args):
+            raise Exception("need to specify source")
+        source = args[0]
+        if not source:
+            raise Exception("sourc can not be falsey")
+
+        if 'http:' in source or 'https:' in source[:6]:
+            # Read the CSV data from the URL
+            df = pd.read_csv(source, **kwargs)
+            return df
+
         filename = os.path.join(self.path_root, args[0])
+        print(f'args[0]: {args[0]}')
+        print(f'filename: {filename}')
         if os.access(filename, os.R_OK):
             return pd.read_csv(
                 filename, dtype_backend='pyarrow',

@@ -1,5 +1,5 @@
 from datetime import datetime
-
+import pandas as pd
 
 def get_today_string():
     """ Returns todays' date in format year-month-day; Example:2023-06-23 """
@@ -66,3 +66,48 @@ def format_duration(seconds):
         duration_str = duration_str[:-1]
 
     return duration_str
+
+
+def clean_date_value_dfs(df: pd.DataFrame, value_dtype: str = 'number') -> pd.DataFrame:
+    """
+    Removes all rows that have invalid dates or non-numeric values. Sets index to 'date'.
+
+    :param df: Input DataFrame.
+    :param value_dtype: Data type of the 'value' column. Default is 'number'.
+    :return: Cleaned DataFrame.
+    """
+
+    # Convert 'date' column to datetime, and set errors='coerce' to handle invalid dates
+    df['date'] = pd.to_datetime(df['date'], errors='coerce')
+
+    # Process 'value' column based on its data type
+    if value_dtype == 'number':
+        # Convert 'value' to numeric and replace non-numeric values with pd.NA
+        df['value'] = pd.to_numeric(df['value'], errors='coerce')
+    elif value_dtype == 'string':
+        # Convert 'value' to string and replace empty strings with pd.NA
+        df['value'] = df['value'].astype(str).replace('', pd.NA)
+    elif value_dtype == 'boolean':
+        # Convert 'value' to boolean; invalid entries will default to False
+        df['value'] = df['value'].astype('bool')
+    elif value_dtype == 'datetime':
+        # Convert 'value' to datetime and replace invalid dates with pd.NaT
+        df['value'] = pd.to_datetime(df['value'], errors='coerce')
+    elif value_dtype == 'category':
+        # Convert 'value' to category; invalid entries will be treated as pd.NA
+        df['value'] = df['value'].astype('category')
+    elif value_dtype == 'integer':
+        # Convert 'value' to integer and replace non-integer values with pd.NA
+        df['value'] = pd.to_numeric(df['value'], errors='coerce', downcast='integer')
+    elif value_dtype == 'float':
+        # Convert 'value' to float and replace non-float values with pd.NA
+        df['value'] = pd.to_numeric(df['value'], errors='coerce', downcast='float')
+    # Add more conditions for other data types if needed
+
+    # Remove rows where 'date' column has pd.NaT (due to invalid dates) and 'value' is pd.NA
+    df = df.dropna(subset=['date', 'value'])
+
+    # Set 'date' column as the index
+    df = df.set_index('date')
+
+    return df
