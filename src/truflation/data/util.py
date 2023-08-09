@@ -68,6 +68,7 @@ def format_duration(seconds):
     return duration_str
 
 
+# todo -- add in ability to create custom restriction, like a number x: 0<=x<=100
 def clean_date_value_dfs(df: pd.DataFrame, value_dtype: str = 'number') -> pd.DataFrame:
     """
     Removes all rows that have invalid dates or non-numeric values. Sets index to 'date'.
