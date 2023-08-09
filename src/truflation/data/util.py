@@ -1,6 +1,7 @@
 from datetime import datetime
 import pandas as pd
 
+
 def get_today_string():
     """ Returns todays' date in format year-month-day; Example:2023-06-23 """
     return datetime.utcnow().date().strftime('%Y-%m-%d')
@@ -82,7 +83,43 @@ def safe_apply(func: callable, value) -> bool:
         return False
 
 
-def clean_date_value_dfs(df: pd.DataFrame, value_dtype: str = 'number', restriction_fn: callable = None, column_name: str = 'value') -> pd.DataFrame:
+def clean_column(df: pd.DataFrame, column_name: str, dtype: str, restriction_fn: callable = None) -> pd.DataFrame:
+    """
+    Cleans a specific column in the DataFrame based on its data type and an optional restriction function.
+
+    :param df: Input DataFrame.
+    :param column_name: Name of the column to be cleaned.
+    :param dtype: Data type of the column.
+    :param restriction_fn: A function that checks the validity of each data point in the column.
+                           It should return True if the value is valid and False otherwise.
+    :return: DataFrame with the cleaned column.
+    """
+
+    if dtype == 'number':
+        df[column_name] = pd.to_numeric(df[column_name], errors='coerce')
+    elif dtype == 'string':
+        df[column_name] = df[column_name].astype(str).replace('', pd.NA)
+    elif dtype == 'boolean':
+        df[column_name] = df[column_name].astype('bool')
+    elif dtype == 'datetime':
+        df[column_name] = pd.to_datetime(df[column_name], errors='coerce')
+    elif dtype == 'category':
+        df[column_name] = df[column_name].astype('category')
+    elif dtype == 'integer':
+        df[column_name] = pd.to_numeric(df[column_name], errors='coerce', downcast='integer')
+    elif dtype == 'float':
+        df[column_name] = pd.to_numeric(df[column_name], errors='coerce', downcast='float')
+    # Add more conditions for other data types if needed
+
+    # Apply the custom restriction function to the column if provided
+    if restriction_fn:
+        df = df[df[column_name].apply(lambda x: safe_apply(restriction_fn, x))]
+
+    return df
+
+
+def clean_date_value_dfs(df: pd.DataFrame, value_dtype: str = 'number', restriction_fn: callable = None,
+                         column_name: str = 'value') -> pd.DataFrame:
     """
     Removes all rows that have invalid dates or non-numeric values. Sets index to 'date'.
 
@@ -94,32 +131,14 @@ def clean_date_value_dfs(df: pd.DataFrame, value_dtype: str = 'number', restrict
     :return: Cleaned DataFrame.
     """
 
-    # Convert 'date' column to datetime, and set errors='coerce' to handle invalid dates
-    df['date'] = pd.to_datetime(df['date'], errors='coerce')
+    # Clean 'date' column
+    df = clean_column(df, 'date', 'datetime')
 
-    # Process 'value' column based on its data type
-    if value_dtype == 'number':
-        df[column_name] = pd.to_numeric(df[column_name], errors='coerce')
-    elif value_dtype == 'string':
-        df[column_name] = df[column_name].astype(str).replace('', pd.NA)
-    elif value_dtype == 'boolean':
-        df[column_name] = df[column_name].astype('bool')
-    elif value_dtype == 'datetime':
-        df[column_name] = pd.to_datetime(df[column_name], errors='coerce')
-    elif value_dtype == 'category':
-        df[column_name] = df[column_name].astype('category')
-    elif value_dtype == 'integer':
-        df[column_name] = pd.to_numeric(df[column_name], errors='coerce', downcast='integer')
-    elif value_dtype == 'float':
-        df[column_name] = pd.to_numeric(df[column_name], errors='coerce', downcast='float')
-    # Add more conditions for other data types if needed
+    # Clean the specified column_name
+    df = clean_column(df, column_name, value_dtype, restriction_fn)
 
-    # Apply the custom restriction function to the 'value' column if provided
-    if restriction_fn:
-        df = df[df[column_name].apply(lambda x: safe_apply(restriction_fn, x))]
-
-    # Remove rows where 'date' column has pd.NaT (due to invalid dates) and 'value' is pd.NA
-    df = df.dropna(subset=['date', 'value'])
+    # Remove rows where 'date' column has pd.NaT (due to invalid dates) and specified column_name is pd.NA
+    df = df.dropna(subset=['date', column_name])
 
     # Set 'date' column as the index
     df = df.set_index('date')
