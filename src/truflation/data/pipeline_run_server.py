@@ -2,7 +2,7 @@
 
 """
 Usage:
-  pipeline_run_server.py <details_path> ... [--debug] [--dry_run]
+  pipeline_run_server.py <details_path> ... [--debug] [--dry_run] [--port=<n>]
 
 Arguments:
   details_path     the relative path to the pipeline details module
@@ -59,15 +59,15 @@ async def load_path(file_path_list: List[str] | str,
     return return_value
 
 app = Sanic("PipelineServerApp")
+args = docopt(__doc__)
 
 @app.get("/hello-world")
-async def hello_world(request):
+async def hello_world(_):
     return text("Hello, world.")
 
 @app.get("/<output>")
 async def test(request, output):
     query_params = request.args
-    args = docopt(__doc__)
     filelist = [ item for item in args['<details_path>'] if '=' not in item ]
     config = { item.split('=')[0]: item.split('=')[1] \
                for item in args['<details_path>'] if '=' in item }
@@ -78,4 +78,4 @@ async def test(request, output):
     return json(cache_.get(output))
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000, debug=True)
+    app.run(host='0.0.0.0', port=args.get('--port', 8000), debug=True)
