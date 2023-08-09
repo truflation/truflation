@@ -68,13 +68,29 @@ def format_duration(seconds):
     return duration_str
 
 
-# todo -- add in ability to create custom restriction, like a number x: 0<=x<=100
-def clean_date_value_dfs(df: pd.DataFrame, value_dtype: str = 'number') -> pd.DataFrame:
+def safe_apply(func: callable, value) -> bool:
+    """
+    Safely apply a function to a value. If the function raises an exception, return False.
+
+    :param func: Function to apply.
+    :param value: Value to apply the function on.
+    :return: Result of the function or False if an exception occurs.
+    """
+    try:
+        return func(value)
+    except Exception:
+        return False
+
+
+def clean_date_value_dfs(df: pd.DataFrame, value_dtype: str = 'number', restriction_fn: callable = None, column_name: str = 'value') -> pd.DataFrame:
     """
     Removes all rows that have invalid dates or non-numeric values. Sets index to 'date'.
 
     :param df: Input DataFrame.
-    :param value_dtype: Data type of the 'value' column. Default is 'number'.
+    :param value_dtype: Data type of the target column. Default is 'number'.
+    :param restriction_fn: A function that checks the validity of each data point in the target column.
+                           It should return True if the value is valid and False otherwise.
+    :param column_name: Name of the column to be cleaned. Default is 'value'.
     :return: Cleaned DataFrame.
     """
 
@@ -83,27 +99,24 @@ def clean_date_value_dfs(df: pd.DataFrame, value_dtype: str = 'number') -> pd.Da
 
     # Process 'value' column based on its data type
     if value_dtype == 'number':
-        # Convert 'value' to numeric and replace non-numeric values with pd.NA
-        df['value'] = pd.to_numeric(df['value'], errors='coerce')
+        df[column_name] = pd.to_numeric(df[column_name], errors='coerce')
     elif value_dtype == 'string':
-        # Convert 'value' to string and replace empty strings with pd.NA
-        df['value'] = df['value'].astype(str).replace('', pd.NA)
+        df[column_name] = df[column_name].astype(str).replace('', pd.NA)
     elif value_dtype == 'boolean':
-        # Convert 'value' to boolean; invalid entries will default to False
-        df['value'] = df['value'].astype('bool')
+        df[column_name] = df[column_name].astype('bool')
     elif value_dtype == 'datetime':
-        # Convert 'value' to datetime and replace invalid dates with pd.NaT
-        df['value'] = pd.to_datetime(df['value'], errors='coerce')
+        df[column_name] = pd.to_datetime(df[column_name], errors='coerce')
     elif value_dtype == 'category':
-        # Convert 'value' to category; invalid entries will be treated as pd.NA
-        df['value'] = df['value'].astype('category')
+        df[column_name] = df[column_name].astype('category')
     elif value_dtype == 'integer':
-        # Convert 'value' to integer and replace non-integer values with pd.NA
-        df['value'] = pd.to_numeric(df['value'], errors='coerce', downcast='integer')
+        df[column_name] = pd.to_numeric(df[column_name], errors='coerce', downcast='integer')
     elif value_dtype == 'float':
-        # Convert 'value' to float and replace non-float values with pd.NA
-        df['value'] = pd.to_numeric(df['value'], errors='coerce', downcast='float')
+        df[column_name] = pd.to_numeric(df[column_name], errors='coerce', downcast='float')
     # Add more conditions for other data types if needed
+
+    # Apply the custom restriction function to the 'value' column if provided
+    if restriction_fn:
+        df = df[df[column_name].apply(lambda x: safe_apply(restriction_fn, x))]
 
     # Remove rows where 'date' column has pd.NaT (due to invalid dates) and 'value' is pd.NA
     df = df.dropna(subset=['date', 'value'])
