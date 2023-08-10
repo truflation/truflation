@@ -43,7 +43,7 @@ async def load_path(file_path_list: List[str] | str,
             raise Exception(f"{file_path} does not exist as a module.")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-
+        _cache.clear()
         if hasattr(module, 'get_details_list'):
             return_value.extend([
                 Pipeline(detail).ingest(dry_run)
