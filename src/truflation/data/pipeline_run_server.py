@@ -78,4 +78,5 @@ async def test(request, output):
     return json(cache_.get(output))
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(args.get('--port', "8000")), debug=True)
+    port_string = args.get('--port')
+    app.run(host='0.0.0.0', port=8000 if port_string is None else int(port_string), debug=True)
