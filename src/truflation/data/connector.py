@@ -106,7 +106,7 @@ class Cache:
     def connector(self, default_key=None):
         return ConnectorCache(self, default_key)
 
-    def clear():
+    def clear(self):
         self.cache_data = {}
 
 

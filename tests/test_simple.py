@@ -3,7 +3,7 @@ import unittest
 
 from overrides import override
 from truflation.data.connector import ConnectorCsv,\
-    ConnectorSql, ConnectorRest, connector_factory
+    ConnectorSql, ConnectorRest, connector_factory, Cache
 import truflation.data.task
 import truflation.data.validator
 import truflation.data.metadata
@@ -151,5 +151,12 @@ class TestGoogleSheets(unittest.TestCase):
         print(df)
 
 
+class TestCache(unittest.TestCase):
+    def test_cache(self):
+        cache = Cache()
+        cache.set('foo', 'bar')
+        self.assertEqual(cache.get('foo'), 'bar')
+        cache.clear()
+        
 if __name__ == '__main__':
     unittest.main()
