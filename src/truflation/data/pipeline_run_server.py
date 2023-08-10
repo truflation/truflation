@@ -67,7 +67,7 @@ async def hello_world(_):
 
 @app.get("/<output>")
 async def test(request, output):
-    query_params = request.args
+    query_params = { key: value[0] for key, value in request.args.items() }
     filelist = [ item for item in args['<details_path>'] if '=' not in item ]
     config = { item.split('=')[0]: item.split('=')[1] \
                for item in args['<details_path>'] if '=' in item }
@@ -78,4 +78,4 @@ async def test(request, output):
     return json(cache_.get(output))
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=args.get('--port', 8000), debug=True)
+    app.run(host='0.0.0.0', port=int(args.get('--port', "8000")), debug=True)
