@@ -53,13 +53,9 @@ class Exporter:
             df_local['created_at'] = pandas.to_datetime(datetime.datetime.utcnow())
         else:
             df_local['created_at'] = pandas.to_datetime(df_local['created_at'])
-        logger.debug('LOCAL')
-        logger.debug(df_local)
 
         # Read in remote database as dataframe
         df_remote = export_details.read()
-        logger.debug('REMOTE')
-        logger.debug(df_remote)
 
         # Reduce future created at to current time
         df_local = self.reduce_future_created_at(df_local)
@@ -131,7 +127,6 @@ class Exporter:
           df_incoming: Pandas.DataFrame: dataframe to add
         """
 
-        logger.debug('MERGE')
         # Merge
         # ensure date columns are in datetime format
         if df_incoming.index.name == 'date':
@@ -148,7 +143,6 @@ class Exporter:
                 how='left',
                 indicator=True
             )
-            logger.debug(df_new_data)
             df_new_data = df_new_data[
                 df_new_data['_merge']=='left_only'
             ].drop('_merge', axis=1)
@@ -168,8 +162,6 @@ class Exporter:
         df_new_data = df_new_data.sort_values(columns, ascending=True).drop_duplicates(
             subset=columns_filtered
         )
-        logger.debug(df_base.columns)
-        logger.debug(df_new_data.columns)
         df_new_data = df_new_data[df_base.columns].set_index(['date'])
         return df_new_data
 
