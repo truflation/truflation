@@ -12,14 +12,13 @@ Arguments:
 import asyncio
 import importlib
 import logging
+from typing import List, Optional
 from truflation.data.pipeline import Pipeline
 from docopt import docopt
-from typing import List
-
 
 async def load_path(file_path_list: List[str] | str,
                     debug: bool, dry_run: bool,
-                    config: dict | None = None):
+                    config: Optional[dict] = None):
     """
     Dynamically import and run module, pipeline_details
     """
@@ -29,7 +28,7 @@ async def load_path(file_path_list: List[str] | str,
         config = {}
 
     # convert strings to lists
-    if type(file_path_list) is str:
+    if isinstance(file_path_list, str):
         file_path_list = file_path_list.split(" ")
 
     for file_path in file_path_list:
