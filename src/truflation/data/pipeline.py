@@ -1,9 +1,7 @@
-import datetime
 import time
+import logging
+from typing import Dict
 
-from truflation.data.validator import Validator
-from truflation.data.task import Task
-from truflation.data.loader import Loader
 from truflation.data.general_loader import GeneralLoader
 # from truflation.data.data import DataPandas, DataFormat
 from truflation.data.pipeline_details import PipeLineDetails
@@ -12,11 +10,8 @@ from truflation.data.util import format_duration
 from truflation.data.logging_handler import get_handler
 from telegram_bot.push_logs_for_bot import push_general_logs
 from telegram_bot.general_logger import log_to_bot
-from typing import Dict
-import logging
 
-
-class Pipeline(Task):
+class Pipeline:
     """
     A class that defines a data pipeline, used for ingesting, transforming, and exporting data.
 
@@ -54,9 +49,9 @@ class Pipeline(Task):
     def __init__(self, pipeline_details: PipeLineDetails):
         # super().__init__(reader, writer)
         self.name = pipeline_details.name
-        self.pre_ingestion_function = pipeline_details.pre_ingestion_function,
-        self.post_ingestion_function = pipeline_details.post_ingestion_function,
-        self.sources = dict({x.name: x for x in pipeline_details.sources})
+        self.pre_ingestion_function = pipeline_details.pre_ingestion_function
+        self.post_ingestion_function = pipeline_details.post_ingestion_function
+        self.sources = {x.name: x for x in pipeline_details.sources}
         self.loader = GeneralLoader()
         # self.validator = Validator(self.reader, self.writer)  # todo -- this should be general purpose
         self.transformer = pipeline_details.transformer
@@ -75,7 +70,7 @@ class Pipeline(Task):
 
             # Pre-Ingestion Function
             self.header("Pre Ingestion Function...")
-            self.pre_ingestion_function[0]()  # The class saves the function as a tuple
+            self.pre_ingestion_function()  # The class saves the function as a tuple
 
             # Read, Parse,  and Validate from all sources
             self.header("Loading...")
@@ -88,7 +83,7 @@ class Pipeline(Task):
 
             # Get cache
             my_cache = self.loader.cache
-            exports = dict() if not dry_run else \
+            exports = {} if not dry_run else \
                 dict({export_details.name: my_cache.get(export_details.name, None) for export_details in self.exports})
 
             #  Export y dataframes into z tables on servers
@@ -99,7 +94,7 @@ class Pipeline(Task):
 
             #  Post ingestion function
             self.header("Post Ingestion Function...")
-            self.post_ingestion_function[0]()
+            self.post_ingestion_function()
 
             # log success
             print(f'ingestor {self.name} ran successfully')
@@ -117,9 +112,9 @@ class Pipeline(Task):
             logging.exception(e_msg)
         finally:
             push_general_logs()
+        return None
 
     @staticmethod
     def header(s: str):
-        print('\n' + f'#'*20 + f'   {s}   ' + '#'*(40 - len(s)))
+        print('\n' + '#'*20 + f'   {s}   ' + '#'*(40 - len(s)))
         # print(f'time: {time.time()}')
-
