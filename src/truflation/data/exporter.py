@@ -1,15 +1,8 @@
-import pandas
-from truflation.data.export_details import ExportDetails
-from sqlalchemy import create_engine, types, MetaData, Table, Column
-from sqlalchemy.dialects.mysql import DATETIME, DATE
-import pymysql
-# pip install SQLAlchemy
-# pip install PyMySQL
-# pip install mariadb
-# sudo apt install libmariadb3 libmariadb-dev # needed for mariadb installation
-import time
 import datetime
 import logging
+import pandas
+from truflation.data.export_details import ExportDetails
+from sqlalchemy import types
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +145,7 @@ class Exporter:
             raise e
 
         if 'index' in df_new_data.columns:
-             df_new_data = df_new_data.drop(columns=['index'])
+            df_new_data = df_new_data.drop(columns=['index'])
         # drop duplicates
         columns = list(df_new_data.columns.values)
         columns_filtered = [
