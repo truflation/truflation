@@ -74,8 +74,8 @@ class PipeLineDetails:
                  sources: list[SourceDetails],
                  exports: list[ExportDetails],
                  cron_schedule: dict = None,
-                 pre_ingestion_function: Callable = lambda x: None,
-                 post_ingestion_function: Callable = lambda x: None,
+                 pre_ingestion_function: Callable = lambda: None,
+                 post_ingestion_function: Callable = lambda: None,
                  transformer: Callable[[Dict], Dict] = lambda x: x
                  ):
         self.name = name

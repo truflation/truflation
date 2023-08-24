@@ -254,7 +254,7 @@ class ConnectorSql(Connector):
         self.engine = self.engines.get(engine)
         if self.engine is None:
             self.engine = \
-                create_engine(engine)
+                create_engine(engine, pool_pre_ping=True)
             self.engines[engine] = self.engine
 
     # rollbacks are necessary to prevent timeouts
@@ -264,7 +264,8 @@ class ConnectorSql(Connector):
         with self.engine.connect() as conn:
             try:
                 return pd.read_sql(args[0], conn,
-                                   dtype_backend='pyarrow')
+                                   dtype_backend='pyarrow',
+                                   **kwargs)
             except Exception as e:
                 logger.debug(e)
                 conn.rollback()
