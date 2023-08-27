@@ -9,14 +9,13 @@ Arguments:
   details_path     the relative path to the pipeline details module
 """
 
-import asyncio
 import importlib
 import logging
 from typing import List, Optional
 from truflation.data.pipeline import Pipeline
 from docopt import docopt
 
-async def load_path(file_path_list: List[str] | str,
+def load_path(file_path_list: List[str] | str,
                     debug: bool, dry_run: bool,
                     config: Optional[dict] = None):
     """
@@ -63,7 +62,6 @@ if __name__ == '__main__':
     config = { item.split('=')[0]: item.split('=')[1] \
                for item in args['<details_path>'] if '=' in item }
 
-    asyncio.run(
-        load_path(filelist,
-                  args['--debug'], args['--dry_run'], config)
-    )
+    load_path(filelist,
+              args['--debug'], args['--dry_run'], config)
+
