@@ -13,6 +13,7 @@ import importlib
 import logging
 from typing import List, Optional
 from truflation.data.pipeline import Pipeline
+from truflation.data.general_loader import GeneralLoader
 from docopt import docopt
 
 def load_path(file_path_list: List[str] | str,
@@ -52,6 +53,9 @@ def load_path(file_path_list: List[str] | str,
             return_value.append(my_pipeline.ingest(dry_run))
         else:
             raise Exception("get_details not found in supplied module,")
+        if config.get('clear_cache', True):
+            loader = GeneralLoader()
+            loader.clear()
 
     return return_value
 
