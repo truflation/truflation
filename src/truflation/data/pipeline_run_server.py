@@ -23,7 +23,7 @@ async def load_path(file_path_list: List[str] | str,
                     debug: bool, dry_run: bool,
                     config: dict | None = None):
     return pipeline_run_direct.load_path(
-        file_path_list, debug, dry_run, config
+        file_path_list, debug, dry_run, config | {'clear_cache': False}
     )
 
 app = Sanic("PipelineServerApp")
