@@ -41,22 +41,21 @@ def load_path(file_path_list: List[str] | str,
             raise Exception(f"{file_path} does not exist as a module.")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-
+        loader = GeneralLoader()
         if hasattr(module, 'get_details_list'):
-            return_value.extend([
-                Pipeline(detail).ingest(dry_run)
-                for detail in module.get_details_list(**config)
-            ])
+            for detail in module.get_details_list(**config):
+                my_pipeline = Pipeline(detail)
+                return_value.append(my_pipeline.ingest(dry_run))
+                if config.get('clear_cache', True):
+                    loader.clear()
         elif hasattr(module, 'get_details'):
-            pipeline_details = module.get_details(**config)
-            my_pipeline = Pipeline(pipeline_details)
+            detail = module.get_details(**config)
+            my_pipeline = Pipeline(detail)
             return_value.append(my_pipeline.ingest(dry_run))
+            if config.get('clear_cache', True):
+                loader.clear()
         else:
             raise Exception("get_details not found in supplied module,")
-        if config.get('clear_cache', True):
-            loader = GeneralLoader()
-            loader.clear()
-
     return return_value
 
 if __name__ == '__main__':
