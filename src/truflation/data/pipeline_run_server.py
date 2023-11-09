@@ -22,6 +22,8 @@ import pipeline_run_direct
 async def load_path(file_path_list: List[str] | str,
                     debug: bool, dry_run: bool,
                     config: dict | None = None):
+    if config is None:
+        config = {}
     return pipeline_run_direct.load_path(
         file_path_list, debug, dry_run, config | {'clear_cache': False}
     )
@@ -39,6 +41,7 @@ async def test(request, output):
     filelist = [ item for item in args['<details_path>'] if '=' not in item ]
     config = { item.split('=')[0]: item.split('=')[1] \
                for item in args['<details_path>'] if '=' in item }
+    cache_.clear()
     await load_path(
         filelist,
         args['--debug'], args['--dry_run'], {**config, **query_params})
