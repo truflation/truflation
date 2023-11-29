@@ -1,0 +1,8 @@
+#docker-compose up --build
+
+services:
+  chainlink_historical:
+      build:
+        context: .
+      ports:
+        - 3000:3000
