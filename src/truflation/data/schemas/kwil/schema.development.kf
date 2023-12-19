@@ -1,0 +1,69 @@
+database truflation_stream;
+
+// `prices` is the main table that tracks the stream prices
+table prices {
+  id text primary notnull minlen(36) maxlen(36), // rfc 4122 uuidv4
+  date_value text notnull minlen(10) maxlen(10), // enforce yyyy-mm-dd format
+  value int notnull, 
+  created_at int notnull // based on blockheight
+}
+
+//get_all retrieves the records in the stream, so they can be composed with in another stream
+action get_all() public view {
+  SELECT * FROM prices;
+}
+
+// public action to add record to prices table
+action add_record ($id, $date_value, $value, $created_at) public {
+  check_admin();
+  
+  INSERT INTO prices (id, date_value, value, created_at)
+  VALUES ($id, $date_value, $value, $created_at);
+}
+
+// action to remove record from prices table
+action delete_record ($id) public {
+  check_admin();
+  
+  DELETE FROM prices
+  WHERE id = $id;
+}
+
+// the table `admin_users` is for enforcing write access on the `prices` table
+table admin_users {
+  id int primary notnull,
+  wallet text notnull unique
+}
+
+// action to add an admin to the admin table
+// only the schema owner can execute this action
+action add_admin_owner($id, $address) public owner {
+  INSERT INTO admin_users (id, wallet)
+  VALUES ($id, $address);
+}
+
+// action to remove an admin
+// only the owner can do this
+action remove_admin_owner($address) public owner {
+  DELETE FROM admin_users
+  WHERE wallet = $address;
+}
+
+// action to add an admin to the admin table
+// only an admin can call this action
+action add_admin($id, $address) public {
+  check_admin();
+
+  INSERT INTO admin_users (id, wallet)
+  VALUES ($id, $address);
+} 
+
+// prive action to be called within other actions to check if the user executing the action is admin
+action check_admin () private {
+  SELECT
+      CASE
+          WHEN NOT EXISTS (SELECT id FROM admin_users WHERE wallet = @caller)
+          THEN ERROR('user is not in admin table')
+      ELSE null
+  END;
+}
