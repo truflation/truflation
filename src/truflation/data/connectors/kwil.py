@@ -163,7 +163,7 @@ class ConnectorKwil(Connector):
             df = df.reset_index()
         df.rename(columns={'date': 'date_value'}, inplace=True)
         df['id'] = df.apply(lambda row: uuid.uuid4(), axis=1)
-        df['value'] = (df['value'] * 10**self.round).astype(int)
+        df['value'] = round(df['value'] * 10**self.round, self.round).astype(int)
         df['created_at'] = df['created_at'].astype(int)
         ic(df)
         ic(df.dtypes)
