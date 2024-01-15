@@ -28,8 +28,9 @@ PIPELINE_NAME = "Generate USD"
 
 ROUNDING = 6
 TABLES = [
-    'com_investing_dutch_ttf_natural_gas_futures',
-    'com_investing_usd_eur_historical'
+    'com_truflation_lithium_backfill',
+    'com_investing_lithium_carbonate_95_min_china_spot',
+    'com_investing_usd_cny_historical'
 ]
 
 import hashlib
