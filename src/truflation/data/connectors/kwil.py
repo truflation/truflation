@@ -12,6 +12,9 @@ import subprocess
 import tempfile
 import pandas as pd
 from icecream import ic
+import asyncio
+import aiohttp
+import logging
 
 import truflation.data
 from truflation.data.connector import Connector, add_connector_factory
@@ -30,26 +33,9 @@ def hash_to_int32(address: str) -> int:
     int32_hash = struct.unpack('>L', address_hash[:4])[0]
     return int32_hash
 
-class ConnectorKwil(Connector):
-    def __init__(self, *args, **kwargs):
-        super().__init__()
-        self.kwil_user = os.environ['KWIL_USER']
-        self.executable_name = 'kwil-cli'
-        self.executable_path = self._get_executable_path()
-        self.round = 6
-        ic(self.version())
-        if self.version()['Version'] != '0.6.3':
-            raise ValueError('invalid version')
-
-    def _get_executable_path(self):
-        return next(
-            (
-                os.path.join(path, self.executable_name)
-                for path in os.environ["PATH"].split(os.pathsep)
-                if os.path.isfile(os.path.join(path, self.executable_name))
-            ),
-            None,
-        )
+class CommandExecutor:
+    def __init__(self, executable_name):
+        self.executable_name = executable_name
 
     def execute_command(self, *args):
         executable_path = self.executable_path
@@ -68,6 +54,52 @@ class ConnectorKwil(Connector):
     def execute_command_json(self, *args):
         args_ext = args + ('--output', 'json',)
         return json.loads(self.execute_command(*args_ext))
+    
+class BlockchainInteraction:
+    def __init__(self, executor):
+        self.executor = executor
+
+    #Refactor the query_tx_wait method using asyncio and aiohttp:
+    async def query_tx_wait_async(self, txid):
+        while True:
+            retval = await self.query_tx_async(txid)
+            if retval['result'].get('height') != -1:
+                return retval
+            await asyncio.sleep(0.2)
+
+    async def query_tx_async(self, txid):
+        async with aiohttp.ClientSession() as session:
+            while True:
+                try:
+                    async with session.get(f'https://api.example.com/tx/{txid}') as response:
+                        result = await response.json()
+                        return result
+                except aiohttp.ClientError as e:
+                    logging.error(f'An error occured while querying transaction: {str(e)}')
+                    pass
+                await asyncio.sleep(0.2)
+class ConnectorKwil(Connector):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.executor = CommandExecutor('kwil-cli')
+        self.blockchain = BlockchainInteraction(self.executor)
+        self.kwil_user = os.environ['KWIL_USER']
+        self.executable_name = 'kwil-cli'
+        self.executable_path = self._get_executable_path()
+        self.round = 6
+        ic(self.version())
+        if self.version()['Version'] != '0.6.3':
+            raise ValueError('invalid version')
+
+    def _get_executable_path(self):
+        return next(
+            (
+                os.path.join(path, self.executable_name)
+                for path in os.environ["PATH"].split(os.pathsep)
+                if os.path.isfile(os.path.join(path, self.executable_name))
+            ),
+            None,
+        )
 
     def ping(self):
         return self.execute_command('utils', 'ping')
@@ -192,18 +224,6 @@ class ConnectorKwil(Connector):
             '-a',
             'add_admin_owner'
         ] + self._get_db_arg(dbid)))
-
-    def query_tx(self, txid):
-        return self.execute_command_json(
-            'utils', 'query-tx', txid
-        )
-
-    def query_tx_wait(self, txid):
-        while True:
-            retval = self.query_tx(txid)
-            if retval['result'].get('height') != -1:
-                return retval
-            time.sleep(0.2)
 
     def list_databases(self):
         return self.execute_command_json(
