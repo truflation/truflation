@@ -70,11 +70,13 @@ if __name__ == "__main__":
     tracemalloc.start()
     pipeline_details = get_details()
     tr = tracker.SummaryTracker()
+    my_pipeline = Pipeline(pipeline_details)
     while True:
-        my_pipeline = Pipeline(pipeline_details)
         my_pipeline.ingest()
         ic(tracemalloc.get_traced_memory())
         all_objects = muppy.get_objects()
         sum1 = summary.summarize(all_objects)
         summary.print_(sum1)
+        my_pipeline.clear()
+
 

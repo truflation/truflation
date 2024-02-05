@@ -111,7 +111,7 @@ class Cache:
         return ConnectorCache(self, default_key)
 
     def clear(self):
-        self.cache_data = {}
+        self.cache_data.clear()
 
 
 class ConnectorCsv(Connector):

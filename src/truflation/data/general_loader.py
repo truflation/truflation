@@ -89,7 +89,7 @@ class GeneralLoader:
 
     def clear(self):
         """ Clears the cache"""
-        self.writer.cache.cache_data = {}
+        self.writer.cache.cache_data.clear()
 
     def replace_cache(self, cache: dict):
         """ Clears the cache"""

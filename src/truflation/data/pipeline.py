@@ -125,6 +125,9 @@ class Pipeline:
             logging.exception(e_msg)
         return None
 
+    def clear(self):
+        self.loader.clear()
+
     @staticmethod
     def header(s: str):
         print('\n' + '#'*20 + f'   {s}   ' + '#'*(40 - len(s)))
