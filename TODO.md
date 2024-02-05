@@ -1,3 +1,34 @@
+Projects.  Pull requests welcome
+
+* The logging is broken.  There is no flexible way of logging errors,
+  and the current mechanism of sending out a telegram message with an
+  error is not thread-safe and causes errors when one process tries to
+  load a file while another process is writing.  Look into ways that
+  we can do alerts in case the ingesting throws an exception.  This is
+  fairly high priority since right now the ingestion can fail silently.
+
+* The pipelines are not using python classes, and so it makes it
+  difficult to compose the objects together.  Look at redesigning the
+  pipelines in using proper python classes.  This also creates
+  problems for parallel processing and memory management
+
+* Right now there are memory leaks because the objects are taking a
+  data frame from one function storing in a cache and then reading
+  from the cache.  Look at ingest and then try to smooth out the
+  internal logic so that it is uses only local variables and that
+  everything is garbage collected during the ingest
+
+* Use async to parallized calls.  This is particularly important for
+  database calls.  However the system should be such so that some
+  calls are done in order while others are done in parallel
+
+
+* look into using numba for pandas calculations
+
+
+
+
+
 Please come up with some ideas to make this easier to write connectors
 and ingestors
 
