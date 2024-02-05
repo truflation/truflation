@@ -27,6 +27,8 @@ Projects.  Pull requests welcome
 * Try to see what it would take to use OpenLlama to generate ingestors
   using AI.
 
+* The truflation-data framework has internal cron schedule, which we are
+  not using.  This can be removed.
 
 
 Please come up with some ideas to make this easier to write connectors
