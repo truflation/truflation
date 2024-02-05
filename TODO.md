@@ -22,10 +22,10 @@ Projects.  Pull requests welcome
   database calls.  However the system should be such so that some
   calls are done in order while others are done in parallel
 
-
 * look into using numba for pandas calculations
 
-
+* Try to see what it would take to use OpenLlama to generate ingestors
+  using AI.
 
 
 
