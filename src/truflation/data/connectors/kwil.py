@@ -101,6 +101,24 @@ class ConnectorKwil(Connector):
             None,
         )
 
+    def execute_command(self, *args):
+        executable_path = self.executable_path
+        if not executable_path:
+            raise ValueError(
+                f"Executable '{self.executable_name}' not found in the system path.")
+        command = [executable_path, *args]
+        try:
+            result = subprocess.run(
+                command, capture_output=True, text=True, check=True
+            )
+            return result.stdout
+        except subprocess.CalledProcessError as e:
+            raise ValueError (f"Command execution failed: {e}")
+
+    def execute_command_json(self, *args):
+        args_ext = args + ('--output', 'json',)
+        return json.loads(self.execute_command(*args_ext))
+
     def ping(self):
         return self.execute_command('utils', 'ping')
 
@@ -224,6 +242,18 @@ class ConnectorKwil(Connector):
             '-a',
             'add_admin_owner'
         ] + self._get_db_arg(dbid)))
+
+    def query_tx(self, txid):
+        return self.execute_command_json(
+            'utils', 'query-tx', txid
+        )
+
+    def query_tx_wait(self, txid):
+        while True:
+            retval = self.query_tx(txid)
+            if retval['result'].get('height') != -1:
+                return retval
+            time.sleep(0.2)
 
     def list_databases(self):
         return self.execute_command_json(
