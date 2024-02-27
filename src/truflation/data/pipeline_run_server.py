@@ -8,6 +8,15 @@ Arguments:
   details_path     the relative path to the pipeline details module
 """
 
+"""
+Issues in pipeline_run_server.py:
+
+The pipeline_run_server.py script isn't currently taking advantage of asynchronous features (async/await).
+Although the Sanic web framework it uses supports asynchronous capabilities, the script itself isn't making use of them.
+To make the most of asynchronous operations, consider using await for tasks that might cause delays, like reading from disk or network operations.
+
+"""
+
 import importlib
 import logging
 from typing import List

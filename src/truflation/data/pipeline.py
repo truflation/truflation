@@ -106,7 +106,7 @@ class Pipeline:
                     "exports": exports
                 }
             run_time = time.time() - start_time
-            log_to_bot(f'{self.name} has successfully run. Duration: {format_duration(run_time)}')
+#            log_to_bot(f'{self.name} has successfully run. Duration: {format_duration(run_time)}')
         except Exception as e:
             e_msg = f'Ingestor {self.name} erred.'
             logging.exception(e_msg)

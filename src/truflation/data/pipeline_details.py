@@ -69,14 +69,20 @@ class PipeLineDetails:
         Data transformation function for the pipeline.
     """
 
+    def return_none():
+        return None
+
+    def return_same(x):
+        return x
+
     def __init__(self,
                  name,
                  sources: list[SourceDetails],
                  exports: list[ExportDetails],
                  cron_schedule: dict = None,
-                 pre_ingestion_function: Callable = lambda: None,
-                 post_ingestion_function: Callable = lambda: None,
-                 transformer: Callable[[Dict], Dict] = lambda x: x
+                 pre_ingestion_function: Callable = return_none,
+                 post_ingestion_function: Callable = return_none,
+                 transformer: Callable[[Dict], Dict] = return_same
                  ):
         self.name = name
         self.sources = sources
