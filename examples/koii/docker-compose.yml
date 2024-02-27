@@ -1,0 +1,9 @@
+version: "3.8"
+
+services:
+  koii-data:
+    build:
+      context: .
+      dockerfile: Dockerfile # Path to your Dockerfile
+    ports:
+      - "3001:3001" # Map ports if necessary
