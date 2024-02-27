@@ -1,0 +1,26 @@
+{
+    "name": "js_app_deploy",
+    "version": "1.0.0",
+    "description": "",
+    "main": "fetchAvgData.js",
+    "scripts": {
+      "test": "jest --detectOpenHandles",
+      "start": "node fetchAvgData.js",
+      "webpack": "webpack",
+      "webpack:prod": "webpack --mode production"
+    },
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+      "@_koi/web3.js": "^0.0.6",
+      "@solana/buffer-layout": "^4.0.1",
+      "axios": "^0.27.2"
+    },
+    "devDependencies": {
+      "jest": "^29.5.0",
+      "joi": "^17.9.2",
+      "webpack": "^5.28.0",
+      "webpack-cli": "^4.5.0"
+    }
+  }
+  
