@@ -1,186 +1,120 @@
-const { Connection, PublicKey } = require('@_koi/web3.js');
-const fs = require('fs');
-const path = require('path');
-const axios = require('axios');
+const { Connection, PublicKey } = require("@_koi/web3.js");
+const fs = require("fs");
+const path = require("path");
+const axios = require("axios");
 
-function getUploadingRound(round) {
-  if (round === '0') {
-    return 0;
+async function getTaskData(taskID, round) {
+  const connection = new Connection("https://testnet.koii.live");
+
+  // Check if TASK_ID is defined
+  if (!taskID) {
+    throw new Error("TASK_ID is not defined");
   }
-  round = parseInt(round);
-  return Math.abs(round) % 10;
-}
 
-async function test() {
-  const connection = new Connection('https://testnet.koii.live');
-  // const taskId = 'EN4CA8EuLzUJGDC8p6WwCqCniwGB99sXh7Ma2WBKDL9o'; // task ID
-  const taskId = '8RbhDGLzZnujXigx3Zx3LL8LvbKJ9Ho71jzoaifXtd6N'; // old task ID  
+  let maxRound;
+  let submissionList;
+  let taskState;
+  let submissionData = {};
   let historicalData = {};
-  const accountInfo = await connection.getAccountInfo(new PublicKey(taskId));
-  if (!accountInfo) {
-    console.log(`${taskId} doesn't contain any distribution list data`);
-    return null;
+
+  const accountInfo = await connection.getAccountInfo(new PublicKey(taskID));
+  taskState = JSON.parse(accountInfo.data);
+
+  // Create a submissionList to contain each submission_value
+  submissionList = [];
+
+  // Identify the round with the highest number
+  maxRound = Math.max(...Object.keys(taskState.submissions).map(Number));
+
+  // Iterate through the entries in the highest round
+  for (let entry in taskState.submissions[maxRound]) {
+    // Extract the submission_value and add it to the list
+    submissionList.push(
+      taskState.submissions[maxRound][entry].submission_value
+    );
   }
 
-  const data = JSON.parse(accountInfo.data.toString());
-  const payoutRecords = data.distributions_audit_record;
+  console.log("Submission List: ", submissionList, "at round", maxRound);
 
-  let latestSuccessfulRound = findLatestSuccessfulRound(payoutRecords);
-  const distributionSubmissions =
-    data.distribution_rewards_submission[latestSuccessfulRound];
+  let i = 0;
+  while (maxRound >= maxRound-3) {
 
-  const latestDistributionSubmission = findLatestDistributionSubmission(
-    distributionSubmissions,
-  );
-  let parsed = await fetchDataFromAccount(
-    latestDistributionSubmission,
-    latestSuccessfulRound,
-    connection,
-    taskId,
-  );
-  //   parsed = JSON.parse(parsed);
-  const storageWalletAccount = findStorageWalletAccount(parsed);
-  const uploadableRound = getUploadingRound(latestSuccessfulRound);
-  origData = await fetchDataFromAccount(
-    storageWalletAccount,
-    uploadableRound,
-    connection,
-    taskId,
-  );
-  historicalData[latestSuccessfulRound] = origData;
-  console.log(origData);
-  let shouldBreak = false;
-  let cidBegin = origData.avgData;
-  while (latestSuccessfulRound >= 0) {
-    console.log('latestSuccessfulRound', latestSuccessfulRound);
+    console.log('maxRound', maxRound)
+
     let curr_round_data;
+    let cid = submissionList[i];
+
     try {
-       curr_round_data = await axios.get(`https://${cidBegin}.ipfs.w3s.link/data.json`)
+      curr_round_data = await axios.get(
+        `https://${cid}.ipfs.w3s.link/data.json`
+      );
     } catch (error) {
       break;
     }
-    
-    // console.log('curr_round_data', curr_round_data.data);  
-    if(!curr_round_data || !curr_round_data.data || !curr_round_data.data.prevIpfsCid) {
+
+    if (!curr_round_data || !curr_round_data.data) {
       break;
     }
-    console.log('curr_round_data', curr_round_data.data);
-    historicalData[latestSuccessfulRound] = curr_round_data.data;
-    cidBegin = curr_round_data.data.prevIpfsCid;
-    latestSuccessfulRound--;
-  }
-  // while (latestSuccessfulRound >= 0) {
-  //   console.log('latestSuccessfulRound', latestSuccessfulRound);
-  //   console.log('origData', origData.prevRoundStorageWallet);
-  //   while (latestSuccessfulRound >= 0) {
-  //     console.log('latestSuccessfulRound', latestSuccessfulRound);
-  //     const curr_storage_wallet_data = await fetchDataFromAccount(
-  //       curr_storage_wallet,
-  //       latestSuccessfulRound,
-  //       connection,
-  //       taskId,
-  //     );
-  //     if (curr_storage_wallet_data == null) {
-  //       console.log('we reached end of the history');
-  //       shouldBreak = true;
-  //       break;
-  //     }
-  //     console.log(curr_storage_wallet_data);
-  //     historicalData[latestSuccessfulRound] = curr_storage_wallet_data;
-  //     origData = curr_storage_wallet_data;
-  //     latestSuccessfulRound--;
-  //   }
-  //   if (shouldBreak) {
-  //     break;
-  //   }
-  // }
-  try {
-    const filePath = path.join(__dirname, '../output/FindingHistoricData.json');
-    console.log(`Writing to: ${filePath}`);
-    const historicalDataString = JSON.stringify(historicalData, null, 2);
+    submissionData[maxRound] = curr_round_data.data;
 
-    if (!historicalDataString) {
-      console.error('No data to write.');
+    console.log('submissionData[maxRound]', submissionData[maxRound])
+
+    for (let j = 0 ; j < submissionData[maxRound].length ; j ++ ) {
+      let cid =  submissionData[maxRound][j].cid
+      try {
+        historic_data = await axios.get(
+          `https://${cid}.ipfs.w3s.link/data.json`
+        );
+        
+      } catch (error) {
+        break;
+      }
+
+      if (!historic_data || !historic_data.data) {
+        break;
+      }
+      console.log('historic_data.data', historic_data.data)
+      historicalData[cid] = historic_data.data;
+    }
+
+    maxRound--;
+    i++;
+  }
+
+  try {
+    const filePath = path.join(__dirname, "../output/submissionData.json");
+    console.log(`Writing to: ${filePath}`);
+    const submissionDataString = JSON.stringify(submissionData, null, 2);
+
+    if (!submissionDataString) {
+      console.error("No data to write.");
       return;
     }
 
-    fs.writeFileSync(filePath, historicalDataString);
-    console.log('Historical data written to file successfully.');
+    fs.writeFileSync(filePath, submissionDataString);
+    console.log("Historical data written to file successfully.");
   } catch (error) {
-    console.error('Failed to write historical data to file:', error);
+    console.error("Failed to write historical data to file:", error);
   }
-  return historicalData;
-}
 
-function findLatestSuccessfulRound(payoutRecords) {
-  const rounds = Object.keys(payoutRecords);
-  for (let j = rounds.length - 1; j >= 0; j--) {
-    if (payoutRecords[rounds[j]] !== 'PayoutFailed') {
-      return rounds[j];
+  try {
+    const historicFilePath = path.join(__dirname, "../output/historicData.json");
+    console.log(`Writing to: ${historicFilePath}`);
+    const historicalDataString = JSON.stringify(historicalData, null, 2);
+
+    if (!historicalDataString) {
+      console.error("No data to write.");
+      return;
     }
+
+    fs.writeFileSync(historicFilePath, historicalDataString);
+    console.log("Historical data written to file successfully.");
+  } catch (error) {
+    console.error("Failed to write historical data to file:", error);
   }
-  return 0;
+
+  return submissionList;
 }
 
-async function fetchDataFromAccount(account, round, connection, taskId) {
-  const storageWalletAccountInfo = await connection.getAccountInfo(
-    new PublicKey(account),
-  );
-  const storageWalletAccountData = JSON.parse(
-    storageWalletAccountInfo.data + '',
-  );
-  if (storageWalletAccountData[round]) {
-    const bufferAccountData = Buffer.from(
-      storageWalletAccountData[round][taskId],
-    );
-
-    let origData = extractOrigDataFromBuffer(bufferAccountData);
-    console.log('origData1', origData)
-    origData = JSON.parse(origData);
-    console.log('origData2', origData)
-    origData = JSON.parse(origData);
-    console.log('origData3', origData)
-    return origData;
-  } else return null;
-}
-
-function findLatestDistributionSubmission(distributionSubmissions) {
-  let latestSlot = -Infinity;
-  let latestSubmissionKey = null;
-
-  for (const key in distributionSubmissions) {
-    const slot = distributionSubmissions[key].slot;
-    if (slot > latestSlot) {
-      latestSlot = slot;
-      latestSubmissionKey = key;
-    }
-  }
-  return latestSubmissionKey;
-}
-
-function extractOrigDataFromBuffer(bufferData) {
-  const index = bufferData.indexOf(0x00);
-  const slicedBuffer = bufferData.slice(0, index);
-  return JSON.stringify(new TextDecoder().decode(slicedBuffer));
-}
-
-function findStorageWalletAccount(parsed) {
-  for (const key in parsed) {
-    if (parsed[key] === 0) {
-      return key;
-    }
-  }
-  return null;
-}
-
-test()
-  .then(historicalData => {
-    if (!historicalData || Object.keys(historicalData).length === 0) {
-      console.error('No historical data was returned from the test function.');
-    } else {
-      // console.log('done', historicalData);
-    }
-  })
-  .catch(error => {
-    console.error('An error occurred during the test execution:', error);
-  });
+getTaskData("EN4CA8EuLzUJGDC8p6WwCqCniwGB99sXh7Ma2WBKDL9o", "0");
+// getTaskData('9JWr6aQRjgBFKvrJbp3USEvpgwZqWJzN1gfrSHr76uaz', '0');
