@@ -25,9 +25,9 @@ def fetch_data_and_convert_to_csv(json_file, csv_file):
         json_data = json.load(file)
 
     # Prepare the CSV header
-    csv_header = 'Round'
+    csv_header = 'CID'
     cities = ['Denver', 'Boston', 'Brooklyn', 'Chicago', 'Seattle', 'Miami', 'Washington, D.C.', 'Los Angeles']
-    categories = ['Economy', 'Compact', 'Intermediate', 'Standard', 'Standard SUV']
+    categories = ['Economy', 'Compact', 'Intermediate', 'Standard SUV']
 
     for city in cities:
         for category in categories:
@@ -36,31 +36,29 @@ def fetch_data_and_convert_to_csv(json_file, csv_file):
     csv_data = f"{csv_header}\n"
 
     # Process each round
-    for round, data in json_data.items():
-        # The key for the current data changes for each round
-        curr_data_key = str(list(data.get("curr_data", {}).keys())[0])
-        curr_data = data.get("curr_data", {}).get(curr_data_key, {})
-        csv_row = [round]
+    for key, value in json_data.items():
+        round_data = value.get("locationSummary", [])
+        csv_row = [key]
 
         for city in cities:
-            city_data = curr_data.get(city, {})
+            city_data = next((item for item in round_data if item["location"] == city), {}).get("data", {})
             csv_row.extend([city_data.get(category, "") for category in categories])
 
         csv_data += ','.join(map(str, csv_row)) + '\n'
 
     # Write CSV data to a file
-        
     print(csv_data)
     with open(csv_file, 'w') as file:
         file.write(csv_data)
+
     print('CSV file has been created!')
 
-# Specify the file paths
+
 
 def main():
-    script_path = './src/fetchAvgData.js'  # Path to your JS script
-    json_file_path = '/output/FindingHistoricData.json'  # Path to the output JSON file
-    csv_file_path = '/output/data.csv'
+    script_path = './fetchAvgData.js'  # Path to your JS script
+    json_file_path = '../output/historicData.json'  # Path to the output JSON file
+    csv_file_path = '../output/csv.csv'
 
     while True:
         print("Running JS script...")
@@ -72,7 +70,7 @@ def main():
         if df is not None:
             print(df.head())  # Display the first few rows of the DataFrame
             # Run the function
-            fetch_data_and_convert_to_csv(json_file_path, csv_file_path)
+        fetch_data_and_convert_to_csv(json_file_path, csv_file_path)    
 
         time.sleep(60 * 10)  # Wait for 10 min (60 seconds * 10 minutes) before repeating
 
