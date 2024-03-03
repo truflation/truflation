@@ -37,7 +37,7 @@ async function getTaskData(taskID, round) {
   console.log("Submission List: ", submissionList, "at round", maxRound);
 
   let i = 0;
-  while (maxRound >= maxRound-3) {
+  while (maxRound >= 0) {
 
     console.log('maxRound', maxRound)
 
@@ -59,23 +59,23 @@ async function getTaskData(taskID, round) {
 
     console.log('submissionData[maxRound]', submissionData[maxRound])
 
-    for (let j = 0 ; j < submissionData[maxRound].length ; j ++ ) {
-      let cid =  submissionData[maxRound][j].cid
-      try {
-        historic_data = await axios.get(
-          `https://${cid}.ipfs.w3s.link/data.json`
-        );
+    // for (let j = 0 ; j < submissionData[maxRound].length ; j ++ ) {
+    //   let cid =  submissionData[maxRound][j].cid
+    //   try {
+    //     historic_data = await axios.get(
+    //       `https://${cid}.ipfs.w3s.link/data.json`
+    //     );
         
-      } catch (error) {
-        break;
-      }
+    //   } catch (error) {
+    //     break;
+    //   }
 
-      if (!historic_data || !historic_data.data) {
-        break;
-      }
-      console.log('historic_data.data', historic_data.data)
-      historicalData[cid] = historic_data.data;
-    }
+    //   if (!historic_data || !historic_data.data) {
+    //     break;
+    //   }
+    //   console.log('historic_data.data', historic_data.data)
+    //   historicalData[cid] = historic_data.data;
+    // }
 
     maxRound--;
     i++;
@@ -97,24 +97,24 @@ async function getTaskData(taskID, round) {
     console.error("Failed to write historical data to file:", error);
   }
 
-  try {
-    const historicFilePath = path.join(__dirname, "../output/historicData.json");
-    console.log(`Writing to: ${historicFilePath}`);
-    const historicalDataString = JSON.stringify(historicalData, null, 2);
+  // try {
+  //   const historicFilePath = path.join(__dirname, "../output/historicData.json");
+  //   console.log(`Writing to: ${historicFilePath}`);
+  //   const historicalDataString = JSON.stringify(historicalData, null, 2);
 
-    if (!historicalDataString) {
-      console.error("No data to write.");
-      return;
-    }
+  //   if (!historicalDataString) {
+  //     console.error("No data to write.");
+  //     return;
+  //   }
 
-    fs.writeFileSync(historicFilePath, historicalDataString);
-    console.log("Historical data written to file successfully.");
-  } catch (error) {
-    console.error("Failed to write historical data to file:", error);
-  }
+  //   fs.writeFileSync(historicFilePath, historicalDataString);
+  //   console.log("Historical data written to file successfully.");
+  // } catch (error) {
+  //   console.error("Failed to write historical data to file:", error);
+  // }
 
   return submissionList;
 }
 
-getTaskData("EN4CA8EuLzUJGDC8p6WwCqCniwGB99sXh7Ma2WBKDL9o", "0");
+getTaskData("EZBDt97VdVpvrv4sxDaRMRNgWhcGRfmoAW9Yp4SgETKF", "0");
 // getTaskData('9JWr6aQRjgBFKvrJbp3USEvpgwZqWJzN1gfrSHr76uaz', '0');
