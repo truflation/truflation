@@ -78,7 +78,7 @@ def main():
             # Run the function
         fetch_data_and_convert_to_csv(json_file_path, csv_file_path)    
 
-        time.sleep(60 * 10)  # Wait for 10 min (60 seconds * 10 minutes) before repeating
+        time.sleep(60 * 60 * 24)  # Wait for 10 min (60 seconds * 10 minutes) before repeating
 
 if __name__ == "__main__":
     main()
