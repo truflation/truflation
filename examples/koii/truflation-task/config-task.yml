@@ -29,10 +29,10 @@ total_bounty_amount: 10000
 bounty_amount_per_round: 1000
 
 #Number of times allowed to re-submit the distribution  list in case the distribution list is audited
-allowed_failed_distributions: 3
+allowed_failed_distributions: 5
 
 #Space in MBs for the account size, that holds the task data
-space: 1
+space: 10
 
 # Note that the value field in RequirementTag is optional, so it is up to you to include it or not based on your use case.
 # To add more task variables, please refer the type,value,description format shown below
@@ -52,7 +52,7 @@ requirementsTags:
 # OPTIONAL variables variables for creating task / REQUIRED variables for update task
 
 # OPTIONAL Only provide the taskId if you are updating the task otherwise leave blank
-task_id: '2cnUDDMpXQPvGGBesAX4Z4WWbPkShJVMXhE4KSoEJQMS'
+task_id: 'EN4CA8EuLzUJGDC8p6WwCqCniwGB99sXh7Ma2WBKDL9o'
 
 # Provide the description for changes made in new version of task
-migrationDescription: 'Release new version of task. Increased the bounty amount per round.'
+migrationDescription: 'Release new version of Truflation task. Increased the bounty amount per round and round time. Update data format for the task.'
