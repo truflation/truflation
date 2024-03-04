@@ -16,7 +16,7 @@ task_audit_program: 'dist/main.js'
 round_time: 200000
 
 audit_window: 180000
-submission_window: 2000
+submission_window: 10000
 
 # Amounts in KOII
 
