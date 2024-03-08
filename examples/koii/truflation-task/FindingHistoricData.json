@@ -1,0 +1,1282 @@
+{
+  "2": {
+    "prevIpfsCid": "bafybeidvk2m4eft365gcshwrw2jsaqqzr2sgdjiwzn5owitstlw2fbgq3i",
+    "curr_data": {
+      "2": {
+        "Denver": {
+          "Economy": 17,
+          "Compact": 21,
+          "Intermediate": 14,
+          "Standard": 15,
+          "Standard SUV": 26
+        },
+        "Boston": {
+          "Economy": 24,
+          "Compact": 22,
+          "Intermediate": 23,
+          "Standard": 25,
+          "Standard SUV": 30
+        },
+        "Brooklyn": {
+          "Economy": 26,
+          "Compact": 25,
+          "Intermediate": 31,
+          "Standard": 26,
+          "Standard SUV": 40
+        },
+        "Chicago": {
+          "Economy": 31,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 33
+        },
+        "Seattle": {
+          "Economy": 15,
+          "Compact": 15,
+          "Intermediate": 16,
+          "Standard": 21,
+          "Standard SUV": 27
+        },
+        "Miami": {
+          "Economy": 5,
+          "Compact": 5,
+          "Intermediate": 5,
+          "Standard": 9,
+          "Standard SUV": 16
+        },
+        "Washington, D.C.": {
+          "Economy": 26,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 27
+        },
+        "Los Angeles": {
+          "Economy": 11,
+          "Compact": 11,
+          "Intermediate": 11,
+          "Standard": 14,
+          "Standard SUV": 15
+        }
+      }
+    },
+    "uninitializedRounds": []
+  },
+  "3": {
+    "prevIpfsCid": "bafybeih57v4eqlys4fnwbote62qrxhqfv5azier2wyuau2s5uzxp5ouhoq",
+    "curr_data": {
+      "3": {
+        "Denver": {
+          "Economy": 17,
+          "Compact": 21,
+          "Intermediate": 14,
+          "Standard": 15,
+          "Standard SUV": 26
+        },
+        "Boston": {
+          "Economy": 24,
+          "Compact": 22,
+          "Intermediate": 23,
+          "Standard": 25,
+          "Standard SUV": 30
+        },
+        "Brooklyn": {
+          "Economy": 26,
+          "Compact": 25,
+          "Intermediate": 31,
+          "Standard": 26,
+          "Standard SUV": 40
+        },
+        "Chicago": {
+          "Economy": 31,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 33
+        },
+        "Seattle": {
+          "Economy": 15,
+          "Compact": 15,
+          "Intermediate": 16,
+          "Standard": 21,
+          "Standard SUV": 27
+        },
+        "Miami": {
+          "Economy": 5,
+          "Compact": 5,
+          "Intermediate": 5,
+          "Standard": 9,
+          "Standard SUV": 16
+        },
+        "Washington, D.C.": {
+          "Economy": 26,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 27
+        },
+        "Los Angeles": {
+          "Economy": 11,
+          "Compact": 11,
+          "Intermediate": 11,
+          "Standard": 14,
+          "Standard SUV": 15
+        }
+      }
+    },
+    "uninitializedRounds": []
+  },
+  "4": {
+    "prevIpfsCid": "bafybeicqqv2cov6qwrk4j5uwg67vmj6j7xzo6b6323mbdkzecpybsmfsda",
+    "curr_data": {
+      "4": {
+        "Denver": {
+          "Economy": 17,
+          "Compact": 21,
+          "Intermediate": 14,
+          "Standard": 15,
+          "Standard SUV": 26
+        },
+        "Boston": {
+          "Economy": 24,
+          "Compact": 22,
+          "Intermediate": 23,
+          "Standard": 25,
+          "Standard SUV": 30
+        },
+        "Brooklyn": {
+          "Economy": 26,
+          "Compact": 25,
+          "Intermediate": 31,
+          "Standard": 26,
+          "Standard SUV": 40
+        },
+        "Chicago": {
+          "Economy": 31,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 33
+        },
+        "Seattle": {
+          "Economy": 15,
+          "Compact": 15,
+          "Intermediate": 16,
+          "Standard": 21,
+          "Standard SUV": 27
+        },
+        "Miami": {
+          "Economy": 5,
+          "Compact": 5,
+          "Intermediate": 5,
+          "Standard": 9,
+          "Standard SUV": 16
+        },
+        "Washington, D.C.": {
+          "Economy": 26,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 27
+        },
+        "Los Angeles": {
+          "Economy": 11,
+          "Compact": 11,
+          "Intermediate": 11,
+          "Standard": 14,
+          "Standard SUV": 15
+        }
+      }
+    },
+    "uninitializedRounds": []
+  },
+  "5": {
+    "prevIpfsCid": "bafybeifhuft2juwib4qqb5y4iw2jhlcoumqgsemkuso4drt2wkm5k54axa",
+    "curr_data": {
+      "5": {
+        "Denver": {
+          "Economy": 17,
+          "Compact": 21,
+          "Intermediate": 14,
+          "Standard": 15,
+          "Standard SUV": 26
+        },
+        "Boston": {
+          "Economy": 24,
+          "Compact": 22,
+          "Intermediate": 23,
+          "Standard": 25,
+          "Standard SUV": 30
+        },
+        "Brooklyn": {
+          "Economy": 26,
+          "Compact": 25,
+          "Intermediate": 31,
+          "Standard": 26,
+          "Standard SUV": 40
+        },
+        "Chicago": {
+          "Economy": 31,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 33
+        },
+        "Seattle": {
+          "Economy": 15,
+          "Compact": 15,
+          "Intermediate": 16,
+          "Standard": 21,
+          "Standard SUV": 27
+        },
+        "Miami": {
+          "Economy": 5,
+          "Compact": 5,
+          "Intermediate": 5,
+          "Standard": 9,
+          "Standard SUV": 16
+        },
+        "Washington, D.C.": {
+          "Economy": 26,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 27
+        },
+        "Los Angeles": {
+          "Economy": 11,
+          "Compact": 11,
+          "Intermediate": 11,
+          "Standard": 14,
+          "Standard SUV": 15
+        }
+      }
+    },
+    "uninitializedRounds": []
+  },
+  "6": {
+    "prevIpfsCid": "bafybeiep323sjq3qgbpqu7wafjxxdhp2lch3fk2tby2fwbldg6p2dzj5ji",
+    "curr_data": {
+      "6": {
+        "Denver": {
+          "Economy": 17,
+          "Compact": 21,
+          "Intermediate": 14,
+          "Standard": 15,
+          "Standard SUV": 26
+        },
+        "Boston": {
+          "Economy": 24,
+          "Compact": 22,
+          "Intermediate": 23,
+          "Standard": 25,
+          "Standard SUV": 30
+        },
+        "Brooklyn": {
+          "Economy": 26,
+          "Compact": 25,
+          "Intermediate": 31,
+          "Standard": 26,
+          "Standard SUV": 40
+        },
+        "Chicago": {
+          "Economy": 31,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 33
+        },
+        "Seattle": {
+          "Economy": 15,
+          "Compact": 15,
+          "Intermediate": 16,
+          "Standard": 21,
+          "Standard SUV": 27
+        },
+        "Miami": {
+          "Economy": 5,
+          "Compact": 5,
+          "Intermediate": 5,
+          "Standard": 9,
+          "Standard SUV": 16
+        },
+        "Washington, D.C.": {
+          "Economy": 26,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 27
+        },
+        "Los Angeles": {
+          "Economy": 11,
+          "Compact": 11,
+          "Intermediate": 11,
+          "Standard": 14,
+          "Standard SUV": 15
+        }
+      }
+    },
+    "uninitializedRounds": []
+  },
+  "7": {
+    "prevIpfsCid": "bafybeih5qmzkgxuhiz24fznmpatlj5s6elucuj6ccdmqi2edzgvrzm4wrq",
+    "curr_data": {
+      "7": {
+        "Denver": {
+          "Economy": 17,
+          "Compact": 21,
+          "Intermediate": 14,
+          "Standard": 15,
+          "Standard SUV": 26
+        },
+        "Boston": {
+          "Economy": 24,
+          "Compact": 22,
+          "Intermediate": 23,
+          "Standard": 25,
+          "Standard SUV": 30
+        },
+        "Brooklyn": {
+          "Economy": 26,
+          "Compact": 25,
+          "Intermediate": 31,
+          "Standard": 26,
+          "Standard SUV": 40
+        },
+        "Chicago": {
+          "Economy": 31,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 33
+        },
+        "Seattle": {
+          "Economy": 15,
+          "Compact": 15,
+          "Intermediate": 16,
+          "Standard": 21,
+          "Standard SUV": 27
+        },
+        "Miami": {
+          "Economy": 5,
+          "Compact": 5,
+          "Intermediate": 5,
+          "Standard": 9,
+          "Standard SUV": 16
+        },
+        "Washington, D.C.": {
+          "Economy": 26,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 27
+        },
+        "Los Angeles": {
+          "Economy": 11,
+          "Compact": 11,
+          "Intermediate": 11,
+          "Standard": 14,
+          "Standard SUV": 15
+        }
+      }
+    },
+    "uninitializedRounds": []
+  },
+  "8": {
+    "prevIpfsCid": "bafybeid4afstipxvmlioluj2lxzs2aquzid3bmc4nuy677s65r3kyjrop4",
+    "curr_data": {
+      "8": {
+        "Denver": {
+          "Economy": 17,
+          "Compact": 21,
+          "Intermediate": 14,
+          "Standard": 15,
+          "Standard SUV": 26
+        },
+        "Boston": {
+          "Economy": 24,
+          "Compact": 22,
+          "Intermediate": 23,
+          "Standard": 25,
+          "Standard SUV": 30
+        },
+        "Brooklyn": {
+          "Economy": 26,
+          "Compact": 25,
+          "Intermediate": 31,
+          "Standard": 26,
+          "Standard SUV": 40
+        },
+        "Chicago": {
+          "Economy": 31,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 33
+        },
+        "Seattle": {
+          "Economy": 15,
+          "Compact": 15,
+          "Intermediate": 16,
+          "Standard": 21,
+          "Standard SUV": 27
+        },
+        "Miami": {
+          "Economy": 5,
+          "Compact": 5,
+          "Intermediate": 5,
+          "Standard": 9,
+          "Standard SUV": 16
+        },
+        "Washington, D.C.": {
+          "Economy": 26,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 27
+        },
+        "Los Angeles": {
+          "Economy": 11,
+          "Compact": 11,
+          "Intermediate": 11,
+          "Standard": 14,
+          "Standard SUV": 15
+        }
+      }
+    },
+    "uninitializedRounds": []
+  },
+  "9": {
+    "prevIpfsCid": "bafybeiapbm37iyd72jeaxq5rwpr32bdnwo54eykgufp6mc5vind3lf5ywy",
+    "curr_data": {
+      "9": {
+        "Denver": {
+          "Economy": 17,
+          "Compact": 21,
+          "Intermediate": 14,
+          "Standard": 15,
+          "Standard SUV": 26
+        },
+        "Boston": {
+          "Economy": 24,
+          "Compact": 22,
+          "Intermediate": 23,
+          "Standard": 25,
+          "Standard SUV": 30
+        },
+        "Brooklyn": {
+          "Economy": 26,
+          "Compact": 25,
+          "Intermediate": 31,
+          "Standard": 26,
+          "Standard SUV": 40
+        },
+        "Chicago": {
+          "Economy": 31,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 33
+        },
+        "Seattle": {
+          "Economy": 15,
+          "Compact": 15,
+          "Intermediate": 16,
+          "Standard": 21,
+          "Standard SUV": 27
+        },
+        "Miami": {
+          "Economy": 5,
+          "Compact": 5,
+          "Intermediate": 5,
+          "Standard": 9,
+          "Standard SUV": 16
+        },
+        "Washington, D.C.": {
+          "Economy": 26,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 27
+        },
+        "Los Angeles": {
+          "Economy": 11,
+          "Compact": 11,
+          "Intermediate": 11,
+          "Standard": 14,
+          "Standard SUV": 15
+        }
+      }
+    },
+    "uninitializedRounds": []
+  },
+  "10": {
+    "prevIpfsCid": "bafybeib4afdpsc5tqopxhs6qhbxuncdea6hxpfbt36ef7seu23lyqaclei",
+    "curr_data": {
+      "10": {
+        "Denver": {
+          "Economy": 17,
+          "Compact": 21,
+          "Intermediate": 14,
+          "Standard": 15,
+          "Standard SUV": 26
+        },
+        "Boston": {
+          "Economy": 24,
+          "Compact": 22,
+          "Intermediate": 23,
+          "Standard": 25,
+          "Standard SUV": 30
+        },
+        "Brooklyn": {
+          "Economy": 26,
+          "Compact": 25,
+          "Intermediate": 31,
+          "Standard": 26,
+          "Standard SUV": 40
+        },
+        "Chicago": {
+          "Economy": 31,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 33
+        },
+        "Seattle": {
+          "Economy": 15,
+          "Compact": 15,
+          "Intermediate": 16,
+          "Standard": 21,
+          "Standard SUV": 27
+        },
+        "Miami": {
+          "Economy": 5,
+          "Compact": 5,
+          "Intermediate": 5,
+          "Standard": 9,
+          "Standard SUV": 16
+        },
+        "Washington, D.C.": {
+          "Economy": 26,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 27
+        },
+        "Los Angeles": {
+          "Economy": 11,
+          "Compact": 11,
+          "Intermediate": 11,
+          "Standard": 14,
+          "Standard SUV": 15
+        }
+      }
+    },
+    "uninitializedRounds": []
+  },
+  "11": {
+    "prevIpfsCid": "bafybeicwwqueswzavax2rso7uzwtu6moatdff5qam4hx7o3bpjilddhc3m",
+    "curr_data": {
+      "11": {
+        "Denver": {
+          "Economy": 17,
+          "Compact": 21,
+          "Intermediate": 14,
+          "Standard": 15,
+          "Standard SUV": 26
+        },
+        "Boston": {
+          "Economy": 24,
+          "Compact": 22,
+          "Intermediate": 23,
+          "Standard": 25,
+          "Standard SUV": 30
+        },
+        "Brooklyn": {
+          "Economy": 26,
+          "Compact": 25,
+          "Intermediate": 31,
+          "Standard": 26,
+          "Standard SUV": 40
+        },
+        "Chicago": {
+          "Economy": 31,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 33
+        },
+        "Seattle": {
+          "Economy": 15,
+          "Compact": 15,
+          "Intermediate": 16,
+          "Standard": 21,
+          "Standard SUV": 27
+        },
+        "Miami": {
+          "Economy": 5,
+          "Compact": 5,
+          "Intermediate": 5,
+          "Standard": 9,
+          "Standard SUV": 16
+        },
+        "Washington, D.C.": {
+          "Economy": 26,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 27
+        },
+        "Los Angeles": {
+          "Economy": 11,
+          "Compact": 11,
+          "Intermediate": 11,
+          "Standard": 14,
+          "Standard SUV": 15
+        }
+      }
+    },
+    "uninitializedRounds": []
+  },
+  "12": {
+    "prevIpfsCid": "bafybeiahqt2hmj4aulvdbqefaphmronlkoqse7vaqddx6xw7brgm5fuwwu",
+    "curr_data": {
+      "12": {
+        "Denver": {
+          "Economy": 17,
+          "Compact": 21,
+          "Intermediate": 14,
+          "Standard": 15,
+          "Standard SUV": 26
+        },
+        "Boston": {
+          "Economy": 24,
+          "Compact": 22,
+          "Intermediate": 23,
+          "Standard": 25,
+          "Standard SUV": 30
+        },
+        "Brooklyn": {
+          "Economy": 26,
+          "Compact": 25,
+          "Intermediate": 31,
+          "Standard": 26,
+          "Standard SUV": 40
+        },
+        "Chicago": {
+          "Economy": 31,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 33
+        },
+        "Seattle": {
+          "Economy": 15,
+          "Compact": 15,
+          "Intermediate": 16,
+          "Standard": 21,
+          "Standard SUV": 27
+        },
+        "Miami": {
+          "Economy": 5,
+          "Compact": 5,
+          "Intermediate": 5,
+          "Standard": 9,
+          "Standard SUV": 16
+        },
+        "Washington, D.C.": {
+          "Economy": 26,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 27
+        },
+        "Los Angeles": {
+          "Economy": 11,
+          "Compact": 11,
+          "Intermediate": 11,
+          "Standard": 14,
+          "Standard SUV": 15
+        }
+      }
+    },
+    "uninitializedRounds": []
+  },
+  "13": {
+    "prevIpfsCid": "bafybeihkk23v5jmneyjzp4kz7viqsf575g3644flgppwn5rzjlo3ccau54",
+    "curr_data": {
+      "13": {
+        "Denver": {
+          "Economy": 17,
+          "Compact": 21,
+          "Intermediate": 14,
+          "Standard": 15,
+          "Standard SUV": 26
+        },
+        "Boston": {
+          "Economy": 24,
+          "Compact": 22,
+          "Intermediate": 23,
+          "Standard": 25,
+          "Standard SUV": 30
+        },
+        "Brooklyn": {
+          "Economy": 26,
+          "Compact": 25,
+          "Intermediate": 31,
+          "Standard": 26,
+          "Standard SUV": 40
+        },
+        "Chicago": {
+          "Economy": 31,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 33
+        },
+        "Seattle": {
+          "Economy": 15,
+          "Compact": 15,
+          "Intermediate": 16,
+          "Standard": 21,
+          "Standard SUV": 27
+        },
+        "Miami": {
+          "Economy": 5,
+          "Compact": 5,
+          "Intermediate": 5,
+          "Standard": 9,
+          "Standard SUV": 16
+        },
+        "Washington, D.C.": {
+          "Economy": 26,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 27
+        },
+        "Los Angeles": {
+          "Economy": 11,
+          "Compact": 11,
+          "Intermediate": 11,
+          "Standard": 14,
+          "Standard SUV": 15
+        }
+      }
+    },
+    "uninitializedRounds": []
+  },
+  "14": {
+    "prevIpfsCid": "bafybeiewivjqcm7oaergd7uywsd3sdgqnl4ilapx4qxu6ivzwhn7srur54",
+    "curr_data": {
+      "14": {
+        "Denver": {
+          "Economy": 17,
+          "Compact": 21,
+          "Intermediate": 14,
+          "Standard": 15,
+          "Standard SUV": 26
+        },
+        "Boston": {
+          "Economy": 24,
+          "Compact": 22,
+          "Intermediate": 23,
+          "Standard": 25,
+          "Standard SUV": 30
+        },
+        "Brooklyn": {
+          "Economy": 26,
+          "Compact": 25,
+          "Intermediate": 31,
+          "Standard": 26,
+          "Standard SUV": 40
+        },
+        "Chicago": {
+          "Economy": 31,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 33
+        },
+        "Seattle": {
+          "Economy": 15,
+          "Compact": 15,
+          "Intermediate": 16,
+          "Standard": 21,
+          "Standard SUV": 27
+        },
+        "Miami": {
+          "Economy": 5,
+          "Compact": 5,
+          "Intermediate": 5,
+          "Standard": 9,
+          "Standard SUV": 16
+        },
+        "Washington, D.C.": {
+          "Economy": 26,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 27
+        },
+        "Los Angeles": {
+          "Economy": 11,
+          "Compact": 11,
+          "Intermediate": 11,
+          "Standard": 14,
+          "Standard SUV": 15
+        }
+      }
+    },
+    "uninitializedRounds": []
+  },
+  "15": {
+    "prevIpfsCid": "bafybeiciryehfhugaicatcy5xlpvefkw5s7iq4f5op3yl5xdvfvggzoary",
+    "curr_data": {
+      "15": {
+        "Denver": {
+          "Economy": 17,
+          "Compact": 21,
+          "Intermediate": 14,
+          "Standard": 15,
+          "Standard SUV": 26
+        },
+        "Boston": {
+          "Economy": 24,
+          "Compact": 22,
+          "Intermediate": 23,
+          "Standard": 25,
+          "Standard SUV": 30
+        },
+        "Brooklyn": {
+          "Economy": 26,
+          "Compact": 25,
+          "Intermediate": 31,
+          "Standard": 26,
+          "Standard SUV": 40
+        },
+        "Chicago": {
+          "Economy": 31,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 33
+        },
+        "Seattle": {
+          "Economy": 15,
+          "Compact": 15,
+          "Intermediate": 16,
+          "Standard": 21,
+          "Standard SUV": 27
+        },
+        "Miami": {
+          "Economy": 5,
+          "Compact": 5,
+          "Intermediate": 5,
+          "Standard": 9,
+          "Standard SUV": 16
+        },
+        "Washington, D.C.": {
+          "Economy": 26,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 27
+        },
+        "Los Angeles": {
+          "Economy": 11,
+          "Compact": 11,
+          "Intermediate": 11,
+          "Standard": 14,
+          "Standard SUV": 15
+        }
+      }
+    },
+    "uninitializedRounds": []
+  },
+  "16": {
+    "prevIpfsCid": "bafybeiciu64mtumk3cjj2xlojhfvv5u65oa4b5alxwq72xze4bi7zcw4hm",
+    "curr_data": {
+      "16": {
+        "Denver": {
+          "Economy": 17,
+          "Compact": 21,
+          "Intermediate": 14,
+          "Standard": 15,
+          "Standard SUV": 26
+        },
+        "Boston": {
+          "Economy": 24,
+          "Compact": 22,
+          "Intermediate": 23,
+          "Standard": 25,
+          "Standard SUV": 30
+        },
+        "Brooklyn": {
+          "Economy": 26,
+          "Compact": 25,
+          "Intermediate": 31,
+          "Standard": 26,
+          "Standard SUV": 40
+        },
+        "Chicago": {
+          "Economy": 31,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 33
+        },
+        "Seattle": {
+          "Economy": 15,
+          "Compact": 15,
+          "Intermediate": 16,
+          "Standard": 21,
+          "Standard SUV": 27
+        },
+        "Miami": {
+          "Economy": 5,
+          "Compact": 5,
+          "Intermediate": 5,
+          "Standard": 9,
+          "Standard SUV": 16
+        },
+        "Washington, D.C.": {
+          "Economy": 26,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 27
+        },
+        "Los Angeles": {
+          "Economy": 11,
+          "Compact": 11,
+          "Intermediate": 11,
+          "Standard": 14,
+          "Standard SUV": 15
+        }
+      }
+    },
+    "uninitializedRounds": []
+  },
+  "17": {
+    "prevIpfsCid": "bafybeiealyy3qf5finx2yqgtkj5wcwtvz6cltzrnfa465pfocy57jr5v64",
+    "curr_data": {
+      "17": {
+        "Denver": {
+          "Economy": 17,
+          "Compact": 21,
+          "Intermediate": 14,
+          "Standard": 15,
+          "Standard SUV": 26
+        },
+        "Boston": {
+          "Economy": 24,
+          "Compact": 22,
+          "Intermediate": 23,
+          "Standard": 25,
+          "Standard SUV": 30
+        },
+        "Brooklyn": {
+          "Economy": 26,
+          "Compact": 25,
+          "Intermediate": 31,
+          "Standard": 26,
+          "Standard SUV": 40
+        },
+        "Chicago": {
+          "Economy": 31,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 33
+        },
+        "Seattle": {
+          "Economy": 15,
+          "Compact": 15,
+          "Intermediate": 16,
+          "Standard": 21,
+          "Standard SUV": 27
+        },
+        "Miami": {
+          "Economy": 5,
+          "Compact": 5,
+          "Intermediate": 5,
+          "Standard": 9,
+          "Standard SUV": 16
+        },
+        "Washington, D.C.": {
+          "Economy": 26,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 27
+        },
+        "Los Angeles": {
+          "Economy": 11,
+          "Compact": 11,
+          "Intermediate": 11,
+          "Standard": 14,
+          "Standard SUV": 15
+        }
+      }
+    },
+    "uninitializedRounds": []
+  },
+  "18": {
+    "prevIpfsCid": "bafybeidq2b4rg2kesm6cwpefbdqjh6rlpjvu2khznglicprjp676ifgq6m",
+    "curr_data": {
+      "18": {
+        "Denver": {
+          "Economy": 17,
+          "Compact": 21,
+          "Intermediate": 14,
+          "Standard": 15,
+          "Standard SUV": 26
+        },
+        "Boston": {
+          "Economy": 24,
+          "Compact": 22,
+          "Intermediate": 23,
+          "Standard": 25,
+          "Standard SUV": 30
+        },
+        "Brooklyn": {
+          "Economy": 26,
+          "Compact": 25,
+          "Intermediate": 31,
+          "Standard": 26,
+          "Standard SUV": 40
+        },
+        "Chicago": {
+          "Economy": 31,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 33
+        },
+        "Seattle": {
+          "Economy": 15,
+          "Compact": 15,
+          "Intermediate": 16,
+          "Standard": 21,
+          "Standard SUV": 27
+        },
+        "Miami": {
+          "Economy": 5,
+          "Compact": 5,
+          "Intermediate": 5,
+          "Standard": 9,
+          "Standard SUV": 16
+        },
+        "Washington, D.C.": {
+          "Economy": 26,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 27
+        },
+        "Los Angeles": {
+          "Economy": 11,
+          "Compact": 11,
+          "Intermediate": 11,
+          "Standard": 14,
+          "Standard SUV": 15
+        }
+      }
+    },
+    "uninitializedRounds": []
+  },
+  "19": {
+    "prevIpfsCid": "bafybeiepje4brnaat7p6actj3hwovpmdtk4doj5sntnyzzmajg2zxdkkhm",
+    "curr_data": {
+      "19": {
+        "Denver": {
+          "Economy": 17,
+          "Compact": 21,
+          "Intermediate": 14,
+          "Standard": 15,
+          "Standard SUV": 26
+        },
+        "Boston": {
+          "Economy": 24,
+          "Compact": 22,
+          "Intermediate": 23,
+          "Standard": 25,
+          "Standard SUV": 30
+        },
+        "Brooklyn": {
+          "Economy": 26,
+          "Compact": 25,
+          "Intermediate": 31,
+          "Standard": 26,
+          "Standard SUV": 40
+        },
+        "Chicago": {
+          "Economy": 31,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 33
+        },
+        "Seattle": {
+          "Economy": 15,
+          "Compact": 15,
+          "Intermediate": 16,
+          "Standard": 21,
+          "Standard SUV": 27
+        },
+        "Miami": {
+          "Economy": 5,
+          "Compact": 5,
+          "Intermediate": 5,
+          "Standard": 9,
+          "Standard SUV": 16
+        },
+        "Washington, D.C.": {
+          "Economy": 26,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 27
+        },
+        "Los Angeles": {
+          "Economy": 11,
+          "Compact": 11,
+          "Intermediate": 11,
+          "Standard": 14,
+          "Standard SUV": 15
+        }
+      }
+    },
+    "uninitializedRounds": []
+  },
+  "20": {
+    "prevIpfsCid": "bafybeibqsa2jm7uoxunc2wl3t5rem2swym6hwy5fpnqeuumx5xcuz2clgi",
+    "curr_data": {
+      "20": {
+        "Denver": {
+          "Economy": 17,
+          "Compact": 21,
+          "Intermediate": 14,
+          "Standard": 15,
+          "Standard SUV": 26
+        },
+        "Boston": {
+          "Economy": 24,
+          "Compact": 22,
+          "Intermediate": 23,
+          "Standard": 25,
+          "Standard SUV": 30
+        },
+        "Brooklyn": {
+          "Economy": 26,
+          "Compact": 25,
+          "Intermediate": 31,
+          "Standard": 26,
+          "Standard SUV": 40
+        },
+        "Chicago": {
+          "Economy": 31,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 33
+        },
+        "Seattle": {
+          "Economy": 15,
+          "Compact": 15,
+          "Intermediate": 16,
+          "Standard": 21,
+          "Standard SUV": 27
+        },
+        "Miami": {
+          "Economy": 5,
+          "Compact": 5,
+          "Intermediate": 5,
+          "Standard": 9,
+          "Standard SUV": 16
+        },
+        "Washington, D.C.": {
+          "Economy": 26,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 27
+        },
+        "Los Angeles": {
+          "Economy": 11,
+          "Compact": 11,
+          "Intermediate": 11,
+          "Standard": 14,
+          "Standard SUV": 15
+        }
+      }
+    },
+    "uninitializedRounds": []
+  },
+  "21": {
+    "prevIpfsCid": "bafybeidarz6khijp7bzbxfgliteuoo2a3rpwmrkswalnbuofm535ekzhji",
+    "curr_data": {
+      "21": {
+        "Denver": {
+          "Economy": 17,
+          "Compact": 21,
+          "Intermediate": 14,
+          "Standard": 15,
+          "Standard SUV": 26
+        },
+        "Boston": {
+          "Economy": 24,
+          "Compact": 22,
+          "Intermediate": 23,
+          "Standard": 25,
+          "Standard SUV": 30
+        },
+        "Brooklyn": {
+          "Economy": 26,
+          "Compact": 25,
+          "Intermediate": 31,
+          "Standard": 26,
+          "Standard SUV": 40
+        },
+        "Chicago": {
+          "Economy": 31,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 33
+        },
+        "Seattle": {
+          "Economy": 15,
+          "Compact": 15,
+          "Intermediate": 16,
+          "Standard": 21,
+          "Standard SUV": 27
+        },
+        "Miami": {
+          "Economy": 5,
+          "Compact": 5,
+          "Intermediate": 5,
+          "Standard": 9,
+          "Standard SUV": 16
+        },
+        "Washington, D.C.": {
+          "Economy": 26,
+          "Compact": 23,
+          "Intermediate": 24,
+          "Standard": 25,
+          "Standard SUV": 27
+        },
+        "Los Angeles": {
+          "Economy": 11,
+          "Compact": 11,
+          "Intermediate": 11,
+          "Standard": 14,
+          "Standard SUV": 15
+        }
+      }
+    },
+    "uninitializedRounds": []
+  }
+}

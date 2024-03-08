@@ -1,0 +1,58 @@
+# Name and metadata of your task
+task_name: 'Inflation Monitoring'
+author: 'Truflation'
+description: 'Truflation (see truflation.com) tracks inflation using real world data to inform governments and policy-makers around the world. Run this task to help Truflation gather key information from travel websites. In addition to helping governments understand and control inflation, this task will also reward you with KOII every time your computer helps to gather data from the internet. Rewards are proportional to the work done, and the amount of time your computer is online, so don’t worry about staking a lot of tokens here. Note: Please hold at least 0.3 KOII in your staking wallet to ensure your staking account.'
+
+repositoryUrl: 'https://github.com/truflation/truflation/tree/dev/koii/examples/koii'
+imageUrl: 'imageUrl'
+
+# network value can be DEVELOPMENT , ARWEAVE or IPFS, Recommended IPFS when deploying to testnet as the cli automatically takes care of uploading the executable with the help of web3.js key
+task_executable_network: 'IPFS'
+
+# Path to your executable webpack if the selected network is IPFS and in case of DEVELOPMENT  name it as main
+task_audit_program: 'dist/main.js'
+
+# Total round time of your task : it must be given in slots and each slot is roughly equal to 408ms
+round_time: 200000
+
+audit_window: 180000
+submission_window: 10000
+
+# Amounts in KOII
+
+minimum_stake_amount: 0.9
+
+# total_bounty_amount cannot be grater than bounty_amount_per_round
+# total bounty is not accepted in case of update task
+total_bounty_amount: 10000
+
+bounty_amount_per_round: 1000
+
+#Number of times allowed to re-submit the distribution  list in case the distribution list is audited
+allowed_failed_distributions: 5
+
+#Space in MBs for the account size, that holds the task data
+space: 10
+
+# Note that the value field in RequirementTag is optional, so it is up to you to include it or not based on your use case.
+# To add more task variables, please refer the type,value,description format shown below
+
+requirementsTags:
+  - type: TASK_VARIABLE
+    value: "Spheron_Storage"
+    description: "Used to store the data. Spheron offers secure, decentralized data storage using blockchain technology for enhanced reliability and transparent data management. Do not have the key? Click the Get Key button to get one."
+    retrievalInfo: "https://faucet-api.koii.network/api/get-spheron-storage-key;GET;SYSTEM_WALLET_PUBLIC_KEY"
+  - type: CPU
+    value: '4-core'
+  - type: RAM
+    value: '5 GB'
+  - type: STORAGE
+    value: '5 GB'
+
+# OPTIONAL variables variables for creating task / REQUIRED variables for update task
+
+# OPTIONAL Only provide the taskId if you are updating the task otherwise leave blank
+task_id: 'EN4CA8EuLzUJGDC8p6WwCqCniwGB99sXh7Ma2WBKDL9o'
+
+# Provide the description for changes made in new version of task
+migrationDescription: 'Release new version of Truflation task. Increased the bounty amount per round and round time. Update data format for the task.'
