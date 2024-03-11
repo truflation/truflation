@@ -9,6 +9,7 @@ from typing import Optional, Iterator, Any, List
 from pathlib import Path
 import logging
 import pandas as pd
+import pandas_datareader.data as web
 import gspread
 from gspread_pandas import Spread, Client
 import requests
@@ -177,6 +178,16 @@ class ConnectorCsv(Connector):
             return data.to_csv(
                 filename
             )
+        raise ValueError
+
+class ConnectorPandasDataReader(Connector):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+    def read_all(self, *args, **kwargs) -> Optional[pd.DataFrame]:
+        return web.DataReader(*args[0])
+
+    def write_all(self, data, *args, **kwargs) -> None:
         raise ValueError
 
 
@@ -622,6 +633,8 @@ def connector_factory(connector_type: str) -> Optional[Connector]:
             connector_type.startswith('gsheets') or \
             connector_type.startswith('pybigquery'):
         return ConnectorSql(connector_type)
+    if connector_type.startswith('pandas_datareader'):
+        return ConnectorPandasDataReader()
     for factory in connector_factory_list:
         result = factory(connector_type)
         if result is not None:
