@@ -1,0 +1,11 @@
+services:
+  ibkr:
+    image: ghcr.io/extrange/ibkr # latest, stable, 10.21, 10.21.1p etc
+    ports:
+      - "127.0.0.1:6080:6080" # noVNC browser access
+      - "127.0.0.1:8888:8888" # API access
+    ulimits:
+      nofile: 10000 # See FAQ
+    environment:
+      USERNAME: ${USERNAME}
+      PASSWORD: ${PASSWORD}
