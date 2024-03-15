@@ -13,10 +13,10 @@ class _MetadataHandler:
         
         # Connect to database using environment variables
         self.db_connection = mysql.connector.connect(
-            host = os.getenv('DB_HOST') | 'localhost',
-            user = os.getenv('DB_USER') | 'root',
-            password = os.getenv('DB_PASSWORD') | 'password12321',
-            database = os.getenv('DB_NAME') | 'timeseries'
+            host = os.getenv('DB_HOST') or 'localhost',
+            user = os.getenv('DB_USER') or 'root',
+            password = os.getenv('DB_PASSWORD') or 'password12321',
+            database = os.getenv('DB_NAME') or 'timeseries'
         )
         
         if self.db_connection.is_connected():
@@ -63,7 +63,6 @@ class _MetadataHandler:
         try:
             # Execute the SQL query to create the table
             self.cursor.execute(create_table_query)
-            print(f'Successfully created {self.table} table')
             
         except mysql.connector.Error as err:
             print(f'An error occurred while creating {self.table} table: {err}')
