@@ -1,0 +1,227 @@
+[
+    {
+        "index": "com_yahoo_finance_soy_meal_futures",
+        "frequency": "Daily",
+        "other": "No"
+    },
+    {
+        "index": "com_yahoo_finance_soy_oil_futures",
+        "frequency": "Daily",
+        "other": "No"
+    },
+    {
+        "index": "com_yahoo_finance_sugar_futures",
+        "frequency": "Daily",
+        "other": "No"
+    },
+    {
+        "index": "com_yahoo_finance_wheat_futures",
+        "frequency": "Daily",
+        "other": "No"
+    },
+    {
+        "index": "com_yahoo_finance_soybean_futures",
+        "frequency": "Daily",
+        "other": "No"
+    },
+    {
+        "index": "com_yahoo_finance_live_cattle_futures",
+        "frequency": "Daily",
+        "other": "No"
+    },
+    {
+        "index": "com_yahoo_finance_lean_hogs_futures",
+        "frequency": "Daily",
+        "other": "No"
+    },
+    {
+        "index": "com_yahoo_finance_corn_futures",
+        "frequency": "Daily",
+        "other": "No"
+    },
+    {
+        "index": "com_yahoo_finance_coffee_futures",
+        "frequency": "Daily",
+        "other": "No"
+    },
+    {
+        "index": "com_yahoo_finance_cocoa_futures",
+        "frequency": "Daily",
+        "other": "No"
+    },
+    {
+        "index": "edu_psu_housing_full_series",
+        "frequency": "Monthly",
+        "other": "25"
+    },
+    {
+        "index": "com_numbeo_us",
+        "frequency": "Monthly",
+        "other": "15"
+    },
+    {
+        "index": "com_mainheim_us_used_cars_and_trucks",
+        "frequency": "Monthly",
+        "other": "5"
+    },
+    {
+        "index": "com_jdpower_us_cars_and_trucks",
+        "frequency": "Monthly",
+        "other": "20"
+    },
+    {
+        "index": "com_kbb_us_cars_and_trucks",
+        "frequency": "Monthly",
+        "other": "15"
+    },
+    {
+        "index": "com_zillow_us_rented_dwellings",
+        "frequency": "Monthly",
+        "other": "15"
+    },
+    {
+        "index": "com_redfin_us_rented_dwellings",
+        "frequency": "Monthly",
+        "other": "15"
+    },
+    {
+        "index": "com_apartmentlist_us_rent",
+        "frequency": "Monthly",
+        "other": "5"
+    },
+    {
+        "index": "com_redfin_us_mortgage_rates",
+        "frequency": "Weekly",
+        "other": "Friday"
+    },
+    {
+        "index": "com_economist_us_big-mac",
+        "frequency": "Bi-annually",
+        "other": "15"
+    },
+    {
+        "index": "com_aaa_us_other_fuels",
+        "frequency": "Daily",
+        "other": "Yes"
+    },
+    {
+        "index": "com_aaa_us_gasoline",
+        "frequency": "Daily",
+        "other": "Yes"
+    },
+    {
+        "index": "com_challengergray_us_announced_job_cuts",
+        "frequency": "Monthly",
+        "other": "5"
+    },
+    {
+        "index": "com_truflation_us_hotel_price",
+        "frequency": "Quarterly",
+        "other": "15"
+    },
+    {
+        "index": "com_trivago_hotel",
+        "frequency": "Monthly",
+        "other": "15"
+    },
+    {
+        "index": "com_nielseniq_us",
+        "frequency": "Weekly",
+        "other": "Tuesday"
+    },
+    {
+        "index": "gov_eia_electricity",
+        "frequency": "Monthly",
+        "other": "26"
+    },
+    {
+        "index": "gov_eia_natural_gas",
+        "frequency": "Monthly",
+        "other": "30"
+    },
+    {
+        "index": "gov_eia_gasoline",
+        "frequency": "Weekly",
+        "other": "Wednesday"
+    },
+    {
+        "index": "gov_bls",
+        "frequency": "Monthly",
+        "other": "15"
+    },
+    {
+        "index": "com_cargurus_cars_and_trucks",
+        "frequency": "Daily",
+        "other": "Yes"
+    },
+    {
+        "index": "com_nielseniq_uk",
+        "frequency": "Monthly",
+        "other": "30"
+    },
+    {
+        "index": "com_kantar_uk",
+        "frequency": "Monthly",
+        "other": "10"
+    },
+    {
+        "index": "uk_co_homelet_uk_rented_dwellings",
+        "frequency": "Monthly",
+        "other": "14"
+    },
+    {
+        "index": "uk_co_autotrader_uk_cars_and_trucks",
+        "frequency": "Monthly",
+        "other": "10"
+    },
+    {
+        "index": "uk_gov",
+        "frequency": "Monthly",
+        "other": "15"
+    },
+    {
+        "index": "com_economist_uk_big-mac",
+        "frequency": "Bi-annually",
+        "other": "15"
+    },
+    {
+        "index": "uk_co_propertydata_uk_mortgage_interest",
+        "frequency": "Monthly",
+        "other": "15"
+    },
+    {
+        "index": "uk_gov_ofgem_dual_fuel",
+        "frequency": "Monthly",
+        "other": "30"
+    },
+    {
+        "index": "com_depositprotection_uk_rent",
+        "frequency": "Quarterly",
+        "other": "5"
+    },
+    {
+        "index": "uk_co_zoopla_rent",
+        "frequency": "Quarterly",
+        "other": "5"
+    },
+    {
+        "index": "com_rightmove_us_rent",
+        "frequency": "Quarterly",
+        "other": "15"
+    },
+    {
+        "index": "org_racfoundation_diesel",
+        "frequency": "Daily",
+        "other": "No"
+    },
+    {
+        "index": "org_racfoundation_petrol",
+        "frequency": "Daily",
+        "other": "No"
+    },
+    {
+        "index": "com_numbeo_uk",
+        "frequency": "Monthly",
+        "other": "15"
+    }
+]

@@ -102,8 +102,7 @@ class Pipeline:
             print(f'ingestor {self.name} ran successfully')
             
             for export_details in self.exports:
-                self._metadata_handler.update_index(export_details.key, 'latest_date')
-                self._metadata_handler.update_index(export_details.key, 'last_update')
+                self._metadata_handler.add_index(export_details.key)
                 
             print(f'Successfully updated _metadata table')
 
