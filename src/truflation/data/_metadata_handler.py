@@ -1,32 +1,48 @@
 import os
+import json
 import datetime
 import mysql.connector
 from dotenv import load_dotenv
 
 class _MetadataHandler:
-    def __init__(self):
+    def __init__(self, env_path = '../../../.env'):
         # Load environment variables from a .env file into the environment
-        load_dotenv()
+        self.env_path = env_path
+        
+        load_dotenv(self.env_path)
         
         # Connect to database using environment variables
         self.db_connection = mysql.connector.connect(
-            host = os.getenv('DB_HOST'),
-            user = os.getenv('DB_USER'),
-            password = os.getenv('DB_PASSWORD'),
-            database = os.getenv('DB_NAME')
+            host = os.getenv('DB_HOST') or 'localhost',
+            user = os.getenv('DB_USER') or 'root',
+            password = os.getenv('DB_PASSWORD') or 'password12321',
+            database = os.getenv('DB_NAME') or 'timeseries'
         )
-
+        
+        if self.db_connection.is_connected():
+            print("Successfully connected to main database.")
+            self.cursor = self.db_connection.cursor()
+        
         self.table = '_metadata'
         
         # Define _metadata keys
         self.key = ['category', 'name', 'latest_date', 'last_update']
+        self.temporary_key = ['frequency', 'other']
         
-        if self.db_connection.is_connected():
-            print('Successfully connected to the database')
+        # List of table prefixes that should be excluded from _metadata processing
+        self.blackList = ['__metadata__', '_metadata', 'categories', 'normalized']
+        
+        self.load_frequency()
 
-            self.cursor = self.db_connection.cursor()
-        else:
-            print('An error occurred while connecting to the database')        
+    def load_frequency(self):
+        with open('./frequency/frequency.json', 'r') as frequency_json:
+            self.frequency_data = json.load(frequency_json)
+    
+    def get_frequency_data(self, index_name = None):
+        for i in range(0, len(self.frequency_data)):
+            if index_name.startswith(self.frequency_data[i]['index']):
+                return self.frequency_data[i]
+        return None
 
     def create_table(self):
         '''
@@ -47,7 +63,6 @@ class _MetadataHandler:
         try:
             # Execute the SQL query to create the table
             self.cursor.execute(create_table_query)
-            print(f'Successfully created {self.table} table')
             
         except mysql.connector.Error as err:
             print(f'An error occurred while creating {self.table} table: {err}')
@@ -93,11 +108,8 @@ class _MetadataHandler:
         Check table name if it is valid for _metadata processing
         '''
         
-        # List of table prefixes that should be excluded from _metadata processing
-        blackList = ['__metadata__', '_metadata', 'categories', 'normalized']
-        
         # Check if the table name starts with any blacklisted prefix
-        for item in blackList:
+        for item in self.blackList:
             if table_name.startswith(item):
                 return False
             
@@ -108,8 +120,17 @@ class _MetadataHandler:
         Add new metadata for new index
         '''
         
+        # Create the _metadata table if not exists
+        self.create_table()
+        
         for key_item in self.key:
             self.update_index(index_name, key_item)
+        
+        frequency = self.get_frequency_data(index_name)
+        
+        if frequency is not None:
+            for key_item in self.temporary_key:
+                self.update_index(index_name, key_item, frequency[key_item])
 
     def update_index(self, table_name, key, value = ''):
         '''
@@ -127,14 +148,18 @@ class _MetadataHandler:
             elif key == 'latest_date' or key == 'last_update':
                 try:
                     # Retrieve the latest data from the table
-                    self.cursor.execute(f'select * from {table_name} order by date desc limit 1;')
-                    result = self.cursor.fetchone()
-                    
                     if key == 'latest_date':
+                        self.cursor.execute(f'select date from {table_name} order by date desc limit 1;')
+                        result = self.cursor.fetchone()
+                        
                         value = result[0].strftime('%Y-%m-%d')
                         value_type = 'date'
+                        
                     elif key == 'last_update':
-                        value = result[2].strftime('%Y-%m-%d %H:%M:%S')
+                        self.cursor.execute(f'select created_at from {table_name} order by date desc limit 1;')
+                        result = self.cursor.fetchone()
+                        
+                        value = result[0].strftime('%Y-%m-%d %H:%M:%S')
                         value_type = 'datetime'
                 except mysql.connector.Error as err:
                     print(f'An error occurred while getting data from {table_name} table: {err}')
