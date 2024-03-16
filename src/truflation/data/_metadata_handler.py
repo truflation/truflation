@@ -35,8 +35,11 @@ class _MetadataHandler:
         self.load_frequency()
 
     def load_frequency(self):
-        with open('./frequency/frequency.json', 'r') as frequency_json:
-            self.frequency_data = json.load(frequency_json)
+        try:
+            with open('./frequency/frequency.json', 'r') as frequency_json:
+                self.frequency_data = json.load(frequency_json)
+        except Exception:
+            self.frequency_data = []
     
     def get_frequency_data(self, index_name = None):
         for i in range(0, len(self.frequency_data)):
