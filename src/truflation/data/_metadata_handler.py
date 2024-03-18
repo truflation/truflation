@@ -2,6 +2,7 @@ import os
 import json
 import datetime
 import mysql.connector
+from icecream import ic
 from dotenv import load_dotenv
 
 class _MetadataHandler:
@@ -122,15 +123,17 @@ class _MetadataHandler:
         '''
         Add new metadata for new index
         '''
-        
+        if len(self.frequency_data) == 0:
+            return
+
         # Create the _metadata table if not exists
         self.create_table()
-        
+
         for key_item in self.key:
             self.update_index(index_name, key_item)
         
         frequency = self.get_frequency_data(index_name)
-        
+        ic(frequency)
         if frequency is not None:
             for key_item in self.temporary_key:
                 self.update_index(index_name, key_item, frequency[key_item])
