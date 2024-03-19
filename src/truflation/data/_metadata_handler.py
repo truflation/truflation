@@ -1,8 +1,10 @@
 import os
 import json
 import datetime
-import mysql.connector
 from dotenv import load_dotenv
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import OperationalError
+from sqlalchemy import create_engine, select, desc, MetaData, Table, Column, VARCHAR, DATETIME
 
 class _MetadataHandler:
     def __init__(self, env_path = '../../../.env'):
@@ -12,16 +14,17 @@ class _MetadataHandler:
         load_dotenv(self.env_path)
         
         # Connect to database using environment variables
-        self.db_connection = mysql.connector.connect(
-            host = os.getenv('DB_HOST') or 'localhost',
-            user = os.getenv('DB_USER') or 'root',
-            password = os.getenv('DB_PASSWORD') or 'password12321',
-            database = os.getenv('DB_NAME') or 'timeseries'
-        )
+        self.db_url = f"mariadb+pymysql://{os.environ.get('DB_USER', None)}:{os.environ.get('DB_PASSWORD', None)}@{os.environ.get('DB_HOST', 'localhost')}:{os.environ.get('DB_PORT', None)}/{os.environ.get('DB_NAME', None)}"
         
-        if self.db_connection.is_connected():
-            print("Successfully connected to main database.")
-            self.cursor = self.db_connection.cursor()
+        # Create the engine
+        self.engine = create_engine(self.db_url)
+        
+        # Create metadata
+        self.metadata = MetaData()
+        
+        # Create a session
+        Session = sessionmaker(bind=self.engine)
+        self.session = Session()
         
         self.table = '_metadata'
         
@@ -33,43 +36,57 @@ class _MetadataHandler:
         self.blackList = ['__metadata__', '_metadata', 'categories', 'normalized']
         
         self.load_frequency()
+        self.create_table()
 
     def load_frequency(self):
-        try:
-            with open('./frequency/frequency.json', 'r') as frequency_json:
+        file_path = './frequency/frequency.json'
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as frequency_json:
                 self.frequency_data = json.load(frequency_json)
-        except Exception:
-            self.frequency_data = []
     
     def get_frequency_data(self, index_name = None):
-        for i in range(0, len(self.frequency_data)):
-            if index_name.startswith(self.frequency_data[i]['index']):
-                return self.frequency_data[i]
+        if self.frequency_data:
+            for i in range(0, len(self.frequency_data)):
+                if index_name.startswith(self.frequency_data[i]['index']):
+                    return self.frequency_data[i]
         return None
 
     def create_table(self):
         '''
         Create _metadata table if it does not exist
         '''
-
-        create_table_query = f'''
-            CREATE TABLE IF NOT EXISTS {self.table} (
-                table_name VARCHAR(255),
-                _key VARCHAR(255),
-                value VARCHAR(255),
-                value_type VARCHAR(255),
-                created_at DATETIME,
-                updated_at DATETIME
-            )
-        '''
-
+        
+        # Define _metadata table
+        self._metadata = Table(
+            self.table,
+            self.metadata,
+            Column('table_name', VARCHAR(255)),
+            Column('_key', VARCHAR(255)),
+            Column('value', VARCHAR(255)),
+            Column('value_type', VARCHAR(255)),
+            Column('created_at', DATETIME),
+            Column('updated_at', DATETIME),
+        )
+        
         try:
-            # Execute the SQL query to create the table
-            self.cursor.execute(create_table_query)
+            # Create the table
+            self.metadata.create_all(self.engine)
+            print(f'Table {self.table} created successfully.')
             
-        except mysql.connector.Error as err:
+        except OperationalError as err:
             print(f'An error occurred while creating {self.table} table: {err}')
-
+    
+    def empty_metadata_table(self):
+        try:
+            # Get the table object
+            metadata_table = self.metadata.tables[self.table]
+            
+            # Create a connection
+            self.session.execute(metadata_table.delete())
+            print(f'Table {self.table} was emptied successfully.')
+            
+        except Exception as err:
+            print(f'An error occurred while emptying {self.table} table: {err}')
 
     def reset(self):
         '''
@@ -78,34 +95,27 @@ class _MetadataHandler:
         If it does not exist, create a new table, otherwise, empty the table content
         Add necessary metadata of all the tables existing in the database
         '''
-        
-        # Create the _metadata table
-        self.create_table()
-        
+
         # Empty the _metadata table
-        query = f'delete from {self.table}'
-        self.cursor.execute(query)
+        self.empty_metadata_table()
         
-        # Fetch all tables from the database
-        query = 'show tables'
+        # Reflect all tables
+        self.metadata.reflect(bind=self.engine)
         
         try:
-            self.cursor.execute(query)
-            tables = self.cursor.fetchall()
+            # Fetch all tables from the database
+            tables = self.metadata.tables.keys()
+            print('Successfully fetched all tables from database.')
             
-            print('Successfully fetch all tables from database')
-
             # Iterate through each table in the database
-            for table_item in tables:
-                table_name = table_item[0]
-                
+            for table_name in tables:
                 # Validate if the table is eligible for _metadata processing
                 if self.validate_table(table_name):
                     self.add_index(table_name)
-        except mysql.connector.Error as err:
-            print(f'An error occurred while resetting {self.table} table: {err}')
-
-
+            
+        except Exception as err:
+            print(f'An error occurred while fetching tables: {err}')
+        
     def validate_table(self, table_name):
         '''
         Check table name if it is valid for _metadata processing
@@ -123,9 +133,6 @@ class _MetadataHandler:
         Add new metadata for new index
         '''
         
-        # Create the _metadata table if not exists
-        self.create_table()
-        
         for key_item in self.key:
             self.update_index(index_name, key_item)
         
@@ -134,6 +141,8 @@ class _MetadataHandler:
         if frequency is not None:
             for key_item in self.temporary_key:
                 self.update_index(index_name, key_item, frequency[key_item])
+        
+        self.session.commit()
 
     def update_index(self, table_name, key, value = ''):
         '''
@@ -151,60 +160,54 @@ class _MetadataHandler:
             elif key == 'latest_date' or key == 'last_update':
                 try:
                     # Retrieve the latest data from the table
-                    if key == 'latest_date':
-                        self.cursor.execute(f'select date from {table_name} order by date desc limit 1;')
-                        result = self.cursor.fetchone()
+                    table_item = self.metadata.tables[table_name]
+                    query = select(table_item.c.date, table_item.c.created_at).order_by(desc(table_item.c.date))
+                    result = self.session.execute(query).fetchone()
                         
-                        value = result[0].strftime('%Y-%m-%d')
+                    if key == 'latest_date':
+                        value = result[0].strftime('%Y-%m-%d') if result[0] else None
                         value_type = 'date'
                         
                     elif key == 'last_update':
-                        self.cursor.execute(f'select created_at from {table_name} order by date desc limit 1;')
-                        result = self.cursor.fetchone()
-                        
-                        value = result[0].strftime('%Y-%m-%d %H:%M:%S')
+                        value = result[1].strftime('%Y-%m-%d %H:%M:%S')
                         value_type = 'datetime'
-                except mysql.connector.Error as err:
+                        
+                except OperationalError as err:
                     print(f'An error occurred while getting data from {table_name} table: {err}')
         
         self.insert_row(table_name, key, value, value_type)
 
     def insert_row(self, table_name, key, value, value_type):
         # Check if the row exists in the _metadata table and perform insertion or update
-        query = f'''
-            SELECT COUNT(*) FROM {self.table}
-            WHERE table_name = '{table_name}' AND _key = '{key}'
-        '''
+        _metadata_table = self.metadata.tables[self.table]
+        query = select(_metadata_table).where(_metadata_table.c.table_name == table_name).where(_metadata_table.c._key == key)
         
         try:
-            self.cursor.execute(query)
-            count = self.cursor.fetchone()[0]
+            # with self.engine.connect() as connection:
+            result = self.session.execute(query).fetchone()
             
-            if count > 0:
-                update_query = f'''
-                    UPDATE {self.table}
-                    SET value = '{value}', value_type = '{value_type}', updated_at = '{datetime.datetime.utcnow()}'
-                    WHERE table_name = '{table_name}' AND _key= '{key}'
-                '''
-                
-                try:
-                    self.cursor.execute(update_query)
-                    print(f'Row updated Successfully at {table_name} table')
-                except mysql.connector.Error as err:
-                    print(f'An error occurred while updating row at {table_name} table: {err}')
+            if result:
+                # Row exists, perform update
+                update_query = _metadata_table.update().where(_metadata_table.c.table_name == table_name).where(_metadata_table.c._key == key).values(
+                    value = value,
+                    value_type = value_type,
+                    updated_at = datetime.datetime.utcnow()
+                )
+                self.session.execute(update_query)
+                print(f'Row updated successfully into {_metadata_table} table')
+            
             else:
-                insert_query = f'''
-                    INSERT INTO {self.table} (table_name, _key, value, value_type, created_at, updated_at)
-                    VALUES ('{table_name}', '{key}', '{value}', '{value_type}', '{datetime.datetime.utcnow()}', '{datetime.datetime.utcnow()}')
-                '''
-                
-                try:
-                    self.cursor.execute(insert_query)
-                    print(f'Row inserted successfully at {table_name} table')
-                except mysql.connector.Error as err:
-                    print(f'An error occurred while inserting row at {table_name} table: {err}')
-        except mysql.connector.Error as err:
-            print(f'An error occurred while inserting row to {self.table} table: {err}')
-        
-        # Commit the transaction
-        self.db_connection.commit()
+                # Row doesn't exist, perform insert
+                insert_query = _metadata_table.insert().values(
+                    table_name = table_name,
+                    _key = key,
+                    value = value,
+                    value_type = value_type,
+                    created_at = datetime.datetime.utcnow(),
+                    updated_at = datetime.datetime.utcnow()
+                )
+                self.session.execute(insert_query)
+                print(f'Row inserted successfully into {_metadata_table} table')
+
+        except OperationalError as err:
+            print(f'An error occurred while checking row existence or updating/inserting row: {err}')
