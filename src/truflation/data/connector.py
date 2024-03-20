@@ -15,6 +15,8 @@ from gspread_pandas import Spread, Client
 import requests
 from playwright.sync_api import sync_playwright
 
+from logging_manager import Logger
+
 
 import sqlalchemy
 from sqlalchemy.sql import text
@@ -29,6 +31,7 @@ class Connector:
     """
 
     def __init__(self, *_args, **_kwargs):
+        self.logging_manager = Logger()
         pass
 
     def authenticate(self, token: str):
@@ -137,17 +140,33 @@ class ConnectorCsv(Connector):
 
         if 'http:' in source or 'https:' in source[:6]:
             # Read the CSV data from the URL
-            df = pd.read_csv(source, **kwargs)
-            return df
+            self.logging_manager.log_info('Reading CSV data...')
+            
+            try:
+                df = pd.read_csv(source, **kwargs)
+                self.logging_manager.log_info(f'CSV data successfully read from {source}')
+                return df
+            except Exception as e:
+                self.logging_manager.log_error(f'Error reading CSV data from {source}: {e} ')
+                return None
 
         filename = os.path.join(self.path_root, args[0])
-        print(f'args[0]: {args[0]}')
-        print(f'filename: {filename}')
+        self.logging_manager.log_info(f'Reading CSV data from file: {filename}')
+        self.logging_manager.log_debug(f'args[0]: {args[0]}')
+        self.logging_manager.log_debug(f'filename: {filename}')
+        # print(f'args[0]: {args[0]}')
+        # print(f'filename: {filename}')
         if os.access(filename, os.R_OK):
-            return pd.read_csv(
-                filename, dtype_backend='pyarrow',
-                **kwargs)
-        return None
+            try:
+                df = pd.read_csv(filename, dtype_backend='pyarrow', **kwargs)
+                self.logging_manager.log_info(f'CSV data successfully read from file.')
+                return df
+            except Exception as e:
+                self.logging_manager.log_error(f'Error reading CSV data from file: {e}')
+                return None
+        else:
+            self.logging_manager.log_warning(f'File {filename} is not accessible.')
+            return None
 
     def write_all(self, data, *args, **kwargs) -> None:
         """
@@ -161,31 +180,52 @@ class ConnectorCsv(Connector):
         Returns:
             None
         """
+        self.logging_manager.log_info('Saving CSV data...')
+        
         filename = kwargs.get('key', None)
         if_exists = kwargs.get('if_exists', 'none')
+        
         if filename is None and len(args) > 0:
             filename = args[0]
+            
         filename = os.path.join(self.path_root, filename)
+        self.logging_manager.log_debug(f'File path: {filename}')
+        
         if not os.path.exists(filename):
+            self.logging_manager.log_info(f'File {filename} does not exist. Creating a new file.')
             return data.to_csv(
                 filename
             )
+            
         if if_exists == 'append':
+            self.logging_manager.log_info(f'Appending data to file {filename}.')
             return data.to_csv(
                 filename, mode='a', header=False
             )
+            
         if if_exists == 'replace':
+            self.logging_manager.log_info(f'Replacing file {filename} with new data.')
             return data.to_csv(
                 filename
             )
-        raise ValueError
+        
+        self.logging_manager.log_error("Invalid value for 'if_exists' parameter.")
+        raise ValueError("Invalid value for 'if_exists' parameter.")
 
 class ConnectorPandasDataReader(Connector):
     def __init__(self, *args, **kwargs):
         super().__init__()
 
     def read_all(self, *args, **kwargs) -> Optional[pd.DataFrame]:
-        return web.DataReader(*args[0])
+        self.logging_manager.log_info('Reading data from web...')
+        
+        try:
+            data = web.DataReader(*args[0])
+            self.logging_manager.log_info('Data successfully retrieved from web.')
+            return data
+        except Exception as e:
+            self.logging_manager.log_error(f'Error reading data from web: {e}')
+            return None
 
     def write_all(self, data, *args, **kwargs) -> None:
         raise ValueError
@@ -200,13 +240,25 @@ class ConnectorJson(Connector):
     def read_all(
             self, *args, **kwargs
     ) -> Any:
+        self.logging_manager.log_info('Loading JSON file...')
+        
         filename = kwargs.get('key', None)
         if filename is None and len(args) > 0:
             filename = args[0]
+            
         if isinstance(filename, str):
-            with open(os.path.join(self.path_root, filename)) as fileh:
-                obj = json.load(fileh)
-                return obj
+            filepath = os.path.join(self.path_root, filename)
+            self.logging_manager.log_info(f'Loading JSON file from: {filepath}')
+            try:
+                with open(filepath) as fileh:
+                    obj = json.load(fileh)
+                    self.logging_manager.log_info('JSON file loaded successfully.')
+                    return obj
+            except FileNotFoundError:
+                self.logging_manager.log_error(f'File not found: {filepath}')
+            except Exception as e:
+                self.logging_manager.log_error(f"Error loading JSON file: {e}")
+                return None
         else:
             return json.load(filename)
 
@@ -214,17 +266,27 @@ class ConnectorJson(Connector):
             self,
             data,
             *args, **kwargs) -> None:
+        self.logging_manager.log_info('Saving data to file...')
+        
         filename = kwargs.get('key', None)
         if filename is None and len(args) > 0:
             filename = args[0]
+            
         if isinstance(filename, str):
             filename = os.path.join(self.path_root, filename)
-            with open(filename, 'w') as fileh:
-                fileh.write(json.dumps(data, default=str))
+            self.logging_manager.log_info(f'Writing data to file: {filename}')
+            try:
+                with open(filename, 'w') as fileh:
+                    fileh.write(json.dumps(data, default=str))
+                self.logging_manager.log_info('Data successfully written to file.')
+            except Exception as e:
+                self.logging_manager.log_error(f'Error writing data to file: {e}')
         else:
             if isinstance(data, str):
+                self.logging_manager.log_info('Writing string data to file.')
                 print(data, file=filename)
             elif isinstance(data, pd.DataFrame):
+                self.logging_manager.log_info('Writing DataFrame to file')
                 filename.write(data.to_json(**kwargs))
             else:
                 filename.write(json.dumps(data, default=str))
@@ -242,13 +304,21 @@ class ConnectorDirect(Connector):
     def read_all(
             self, *args, **kwargs
     ) -> Any:
+        self.logging_manager.log_info('Validating data type...')
+        
         data_type = kwargs.get('data_type', None)
         data = kwargs.get('data', None)
-        assert data_type is not None, "no data type specified"
-        assert data is not None, "no data provided"
-        assert isinstance(data, data_type), "data does not match data_type"
+        
+        try:
+            assert data_type is not None, "no data type specified"
+            assert data is not None, "no data provided"
+            assert isinstance(data, data_type), "data does not match data_type"
+            self.logging_manager.log_info('Data type validation successful.')
+            return data
 
-        return data
+        except AssertionError as e:
+            self.logging_manager.log_error(f'Data type validation failed: {e}')
+            return None
 
     def write_all(
             self,
@@ -272,12 +342,15 @@ class ConnectorSql(Connector):
     # see https://stackoverflow.com/questions/58378708/sqlalchemy-cant-reconnect-until-invalid-transaction-is-rolled-back
     # with error Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b)
     def read_all(self, *args, **kwargs) -> Optional[pd.DataFrame]:
+        self.logging_manager.log_info('Executing SQL query...')
+        
         with self.engine.connect() as conn:
             try:
-                return pd.read_sql(args[0], conn,
-                                   dtype_backend='pyarrow',
-                                   **kwargs)
+                result_df = pd.read_sql(args[0], conn, dtype_backend='pyarrow', **kwargs)
+                self.logging_manager.log_info('SQL query executed successfully.')
+                return result_df
             except Exception as e:
+                self.logging_manager.log_debug(f'Error executing SQL query: {e}')
                 logger.debug(e)
                 conn.rollback()
                 return None
@@ -288,9 +361,12 @@ class ConnectorSql(Connector):
             *args,
             **kwargs
     ) -> None:
+        self.logging_manager.log_info('Saving data to SQL database...')
+        
         table = kwargs.pop('key', kwargs.pop('table', None))
         if table is None and len(args) > 0:
             table = args[0]
+
         with self.engine.connect() as conn:
             try:
                 data.to_sql(
@@ -298,7 +374,9 @@ class ConnectorSql(Connector):
                     conn,
                     **kwargs
                 )
-            except:
+                self.logging_manager.log_info('Data saved to SQL database successfully.')
+            except Exception as e:
+                self.logging_manager.log_error(f'Error saving data to SQL database: {e}')
                 conn.rollback()
                 raise
 
@@ -320,6 +398,8 @@ class ConnectorSql(Connector):
             table_name: str,
             ignore_fail: bool = True
     ):
+        self.logging_manager.log_info(f"Dropping table '{table_name}'...")
+        
         try:
             tbl = Table(
                 table_name, MetaData(),
@@ -327,20 +407,38 @@ class ConnectorSql(Connector):
             )
         except sqlalchemy.exc.NoSuchTableError:
             if ignore_fail:
+                self.logging_manager.log_warning(f"Table '{table_name}' not found, skipping drop operation.")
                 return
+            else:
+                self.logging_manager.log_error(f"Table '{table_name}' not found.")
+                raise
+        
+        try:
+            tbl.drop(self.engine, checkfirst=False)
+            self.logging_manager.log_info(f"Table '{table_name}' dropped successfully.")
+        except Exception as e:
+            self.logging_manager.log_error(f"Error dropping table '{table_name}': {e}")
             raise
-        tbl.drop(self.engine, checkfirst=False)
 
     def create_table(
             self,
             table_name: str,
             columns,
             **params):
+        self.logging_manager.log_info(f"Creating table '{table_name}'...")
+        
         metadata = MetaData()
+        self.logging_manager.log_debug(f'Columns: {columns}')
         print(columns)
-        Table(table_name, metadata, *columns)
-        metadata.create_all(self.engine, **params)
-
+        
+        table = Table(table_name, metadata, *columns)
+        
+        try:
+            metadata.create_all(self.engine, **params)
+            self.logging_manager.log_info(f"Table '{table_name}' created successfully.")
+        except Exception as e:
+            self.logging_manager.log_error(f"Error creating table '{table_name}': {e}")
+            raise
 
 class ConnectorRest(Connector):
     def __init__(self, **kwargs):
@@ -353,34 +451,55 @@ class ConnectorRest(Connector):
     def read_all(
             self,
             url, *args, **kwargs) -> Any:
+        self.logging_manager.log_info(f'Fetching data from URL: {url}')
+        
         if self.playwright:
-            with sync_playwright() as p:
-                browser_type = p.firefox
-                browser = browser_type.launch()
-                self.page = browser.new_page()
-                response = self.page.goto(
-                    url
-                )
+            try:
+                with sync_playwright() as p:
+                    browser_type = p.firefox
+                    browser = browser_type.launch()
+                    self.page = browser.new_page()
+                    response = self.page.goto(
+                        url
+                    )
+                    self.logging_manager.log_info('Data fetched using Playwright.')
+                    return self.process_response(response)
+            except Exception as e:
+                self.logging_manager.log_error(f'Error fetching data using Playwright: {e}')
+
+        try:
+            response = requests.get(os.path.join(url))
+            if response.status_code == 200:
+                self.logging_manager.log_info("Data fetched successfully using requests.")
                 return self.process_response(response)
-
-        response = requests.get(os.path.join(url))
-        return self.process_response(response)
-
+            else:
+                self.logging_manager.log_warning(f'Unexpected status code {response.status_code} received from server.')
+        except requests.exceptions.RequestException as e:
+            self.logging_manager.log_error(f'Error fetching data using requests: {e}')
+            return None
+            
     def process_response(self, response):
         content_type = response.headers.get('content-type')
+        self.logging_manager.log_info(f'Content type of response: {content_type}')
+        
         if self.csv or content_type.startswith('text/csv'):
+            self.logging_manager.log_info('Parsing response as CSV...')
             return pd.read_csv(
                 io.StringIO(response.content.decode('utf-8')),
                 dtype_backend='pyarrow'
             )
         if self.json or content_type.startswith('application/json'):
+            self.logging_manager.log_info('Parsing response as JSON...')
             return self.process_json(response.json())
         if content_type == 'application/vnd.ms-excel' or \
                 content_type == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+            self.logging_manager.log_info('Parsing response as Excel file...')
             return pd.read_excel(
                 io.StringIO(response.content.decode('utf-8')),
                 dtype_backend='pyarrow'
             )
+        
+        self.logging_manager.log_info('Parsing response content...')
         return self.process_content(response.content)
 
     @staticmethod
@@ -433,11 +552,17 @@ class ConnectorGoogleSheets(Connector):
         """
         if self.client is None:
             url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/export'
-            df = pd.read_excel(url, dtype_backend='pyarrow', **kwargs)
-            df.columns.values[1] = "value"
-            df.rename(columns={'Date': 'date'}, inplace=True)
-            return df
+            self.logging_manager.log_info(f'Fetching data from Google Sheets URL: {url}')
+            try:
+                df = pd.read_excel(url, dtype_backend='pyarrow', **kwargs)
+                df.columns.values[1] = "value"
+                df.rename(columns={'Date': 'date'}, inplace=True)
+                return df
+            except Exception as e:
+                self.logging_manager.log_error(f'Error fetching data from Google Sheets: {e}')
+                return None
         try:
+            self.logging_manager.log_info('Fetching data from Google Sheets using gspread...')
             spread = Spread(sheet_id)
             columns_numeric = kwargs.get('columns_numeric', [])
             columns_float = kwargs.get('columns_float', [])
@@ -461,6 +586,7 @@ class ConnectorGoogleSheets(Connector):
             return df
 
         except gspread.exceptions.SpreadsheetNotFound:
+            self.logging_manager.log_error('Google Sheets spreadsheet not found.')
             return None
 
     def write_all(self, df, *args, **kwargs):
@@ -469,12 +595,15 @@ class ConnectorGoogleSheets(Connector):
         spread.move(self.path_root, create=True)
         replace = kwargs.get('if_exists', 'replace') == 'replace'
         if replace:
+            self.logging_manager.log_info('Replacing existing sheet with new data.')
             spread.df_to_sheet(df.astype(str), replace=replace)
         else:
             dims = spread.get_sheet_dims()
+            self.logging_manager.log_debug(f'Sheet dimensions: {dims}')
             logger.debug(dims)
-            spread.df_to_sheet(df.astype(str), start=(dims[0] + 1 if dims[0] > 1 else 1, 1), headers=dims[0] < 2)
-
+            start_row = dims[0] + 1 if dims[0] > 1 else 1
+            self.logging_manager.log_info(f'Appending data to sheet starting from row {start_row}.')
+            spread.df_to_sheet(df.astype(str), start=(start_row, 1), headers=dims[0] < 2)
 
 class ConnectorExcel(Connector):
     """
@@ -512,13 +641,16 @@ class ConnectorExcel(Connector):
         # if "http" == source[:4]:
         # df = pd.read_excel(source, **kwargs) # **kwargs may include values not intended for this function
 
+        self.logging_manager.log_info(f'Reading Excel file from: {source}')
         if source.endswith(".xls"):
+            self.logging_manager.log_debug('Detected .xls file format.')
             df = pd.read_excel(
                 source, engine='xlrd',
                 dtype_backend='pyarrow',
                 **kwargs) # needed for .xls files -- not xlsx
             # df = pd.read_excel(source, engine='openpyxl', **kwargs) # use for xlsx files (default?)
         else:
+            self.logging_manager.log_debug('Detected .xlsx file format.')
             df = pd.read_excel(source, dtype_backend='pyarrow', **kwargs)
 
         # print(f'df received: \n{df}')
@@ -527,6 +659,7 @@ class ConnectorExcel(Connector):
         # i don't think we should automatically set 'value' to the first column. Pass in a flag to do this.
         # df.columns.values[1] = "value"
         df.rename(columns={'Date': 'date'}, inplace=True)
+        self.logging_manager.log_info('Excel file successfully read.')
         return df
 
         # try:
