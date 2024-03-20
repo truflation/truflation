@@ -80,7 +80,7 @@ async function getTaskData(taskID, round) {
     console.error("Failed to write historical data to file:", error);
   }
 
-  return {maxRound , submissionList};
+  return submissionList;
 }
 
 getTaskData("6ENPknrNEhG7kJ8L5Nd1wZdGjN5ypmyVwxUWBGCoCuwo", "0");

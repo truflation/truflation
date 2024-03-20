@@ -5,6 +5,7 @@ from typing import Dict
 from truflation.data.general_loader import GeneralLoader
 # from truflation.data.data import DataPandas, DataFormat
 from truflation.data.pipeline_details import PipeLineDetails
+from truflation.data._metadata_handler import _MetadataHandler
 from truflation.data.exporter import Exporter
 from truflation.data.util import format_duration
 from truflation.data.logging_handler import get_handler
@@ -57,6 +58,7 @@ class Pipeline:
         self.transformer = pipeline_details.transformer
         self.exports = pipeline_details.exports
         self.exporter = Exporter()
+        self._metadata_handler = _MetadataHandler()
         if not logging.getLogger('').hasHandlers():
             handler = get_handler()
             logging.getLogger('').addHandler(handler)
@@ -98,6 +100,11 @@ class Pipeline:
 
             # log success
             print(f'ingestor {self.name} ran successfully')
+            
+            for export_details in self.exports:
+                self._metadata_handler.add_index(export_details.key)
+                
+            print(f'Successfully updated _metadata table')
 
             # return results if debug_mod/dry_run
             if dry_run:
