@@ -1,4 +1,15 @@
+Ingestors
+
+* There is a ton of data in OECD, but it happens to be in an odd data
+  format, and a lot of the data is in stats.oecd.org, but this is
+  deprecated.  There is data from https://data-explorer.oecd.org/ but
+  it's not clear how to get it.
+** The data we want to add to our website are US Consumer Confidence data
+
+
+
 Projects.  Pull requests welcome
+
 
 * The logging is broken.  There is no flexible way of logging errors,
   and the current mechanism of sending out a telegram message with an
