@@ -52,7 +52,7 @@ requirementsTags:
 # OPTIONAL variables variables for creating task / REQUIRED variables for update task
 
 # OPTIONAL Only provide the taskId if you are updating the task otherwise leave blank
-task_id: '2cnUDDMpXQPvGGBesAX4Z4WWbPkShJVMXhE4KSoEJQMS'
+task_id: 'EN4CA8EuLzUJGDC8p6WwCqCniwGB99sXh7Ma2WBKDL9o'
 
 # Provide the description for changes made in new version of task
-migrationDescription: 'Release new version of task. Increased the bounty amount per round.'
+migrationDescription: 'Release new version of Truflation task. Increased the bounty amount per round and round time. Update data format for the task.'
