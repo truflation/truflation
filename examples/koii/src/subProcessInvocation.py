@@ -25,6 +25,9 @@ def fetch_data_and_convert_to_csv(json_file, csv_file):
     with open(json_file, 'r') as file:
         json_data = json.load(file)
 
+    # Get the list of round numbers available in the JSON data
+    round_numbers = sorted(map(int, json_data.keys()))
+
     # Prepare the CSV header
     csv_header = 'CID,Timestamp,Timestamp (Human Readable)'
     cities = ['Denver', 'Boston', 'Brooklyn', 'Chicago', 'Seattle', 'Miami', 'Washington, D.C.', 'Los Angeles']
@@ -37,21 +40,22 @@ def fetch_data_and_convert_to_csv(json_file, csv_file):
     csv_data = f"{csv_header}\n"
 
     # Process each round
-    for round_data in json_data['1']:
-        round_id = round_data['id']
-        timestamp = round_data.get("data", {}).get("timestamp", "")
-        
-        # Convert timestamp to datetime object and format it
-        human_readable_timestamp = datetime.fromtimestamp(timestamp / 1000).strftime('%Y-%m-%d %H:%M:%S')
-        
-        location_summary = round_data.get("data", {}).get("locationSummary", [])
-        csv_row = [round_id, timestamp, human_readable_timestamp]
+    for round_num in round_numbers:
+        for round_data in json_data.get(str(round_num), []):
+            round_id = round_data['id']
+            timestamp = round_data.get("data", {}).get("timestamp", "")
 
-        for city in cities:
-            city_data = next((item["data"] for item in location_summary if item["location"] == city), {})
-            csv_row.extend([city_data.get(category, "") for category in categories])
+            # Convert timestamp to datetime object and format it
+            human_readable_timestamp = datetime.fromtimestamp(timestamp / 1000).strftime('%Y-%m-%d %H:%M:%S')
 
-        csv_data += ','.join(map(str, csv_row)) + '\n'
+            location_summary = round_data.get("data", {}).get("locationSummary", [])
+            csv_row = [round_id, timestamp, human_readable_timestamp]
+
+            for city in cities:
+                city_data = next((item["data"] for item in location_summary if item["location"] == city), {})
+                csv_row.extend([city_data.get(category, "") for category in categories])
+
+            csv_data += ','.join(map(str, csv_row)) + '\n'
 
     # Write CSV data to a file
     with open(csv_file, 'w') as file:
