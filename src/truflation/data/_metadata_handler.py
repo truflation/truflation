@@ -137,7 +137,7 @@ class _MetadataHandler:
             self.update_index(index_name, key_item)
         
         frequency = self.get_frequency_data(index_name)
-        
+        ic(frequency)
         if frequency is not None:
             for key_item in self.temporary_key:
                 self.update_index(index_name, key_item, frequency[key_item])
