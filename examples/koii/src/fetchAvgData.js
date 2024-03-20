@@ -37,9 +37,10 @@ async function getTaskData(taskID, round) {
   console.log("Submission List: ", submissionList, "at round", maxRound);
 
   let i = 0;
-  while (maxRound >= 0) {
-
-    console.log('maxRound', maxRound)
+  let minRound = 14
+  // while (maxRound >= 0) {
+  while (maxRound >= (maxRound -7 >= minRound ? maxRound - 7 : minRound)) {
+    console.log("maxRound", maxRound);
 
     let curr_round_data;
     let cid = submissionList[i];
@@ -57,7 +58,7 @@ async function getTaskData(taskID, round) {
     }
     submissionData[maxRound] = curr_round_data.data;
 
-    console.log('submissionData[maxRound]', submissionData[maxRound])
+    console.log("submissionData[maxRound]", submissionData[maxRound]);
 
     maxRound--;
     i++;
@@ -79,7 +80,7 @@ async function getTaskData(taskID, round) {
     console.error("Failed to write historical data to file:", error);
   }
 
-  return submissionList;
+  return {maxRound , submissionList};
 }
 
 getTaskData("6ENPknrNEhG7kJ8L5Nd1wZdGjN5ypmyVwxUWBGCoCuwo", "0");
