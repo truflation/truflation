@@ -137,7 +137,7 @@ class _MetadataHandler:
             self.update_index(index_name, key_item)
         
         frequency = self.get_frequency_data(index_name)
-        ic(frequency)
+        
         if frequency is not None:
             for key_item in self.temporary_key:
                 self.update_index(index_name, key_item, frequency[key_item])
@@ -160,7 +160,8 @@ class _MetadataHandler:
             elif key == 'latest_date' or key == 'last_update':
                 try:
                     # Retrieve the latest data from the table
-                    table_item = self.metadata.tables[table_name]
+                    # table_item = self.metadata.tables[table_name]
+                    table_item = Table(table_name, self.metadata, autoload_with = self.engine)
                     query = select(table_item.c.date, table_item.c.created_at).order_by(desc(table_item.c.date))
                     result = self.session.execute(query).fetchone()
                         
