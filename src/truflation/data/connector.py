@@ -15,7 +15,7 @@ from gspread_pandas import Spread, Client
 import requests
 from playwright.sync_api import sync_playwright
 
-from logging_manager import Logger
+from truflation.data.logging_manager import Logger
 
 
 import sqlalchemy

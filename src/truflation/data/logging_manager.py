@@ -3,7 +3,7 @@ from datetime import datetime
 from loguru import logger
 
 class Logger:
-    def __init__(self, log_dir_path = '../../../log'):
+    def __init__(self, log_dir_path = 'log'):
         # Define the directory path
         self.log_dir_path = log_dir_path
         
