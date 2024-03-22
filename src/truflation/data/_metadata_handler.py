@@ -1,6 +1,7 @@
 import os
 import json
 import datetime
+from icecream import ic
 from dotenv import load_dotenv
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError
@@ -49,7 +50,9 @@ class _MetadataHandler:
     
     def get_frequency_data(self, index_name = None):
         for item in self.frequency_data:
-            if index_name.startswith(item['index']):
+            if item['exact'] == 1 and index_name == item['index']:
+                return item
+            if item['exact'] == 0 and index_name.startswith(item['index']):
                 return item
         return None
 
@@ -73,11 +76,10 @@ class _MetadataHandler:
         try:
             # Create the table
             self.metadata.create_all(self.engine)
-            print(f'Table {self.table} created successfully.')
+            ic(f'Table {self.table} created successfully.')
             
         except OperationalError as err:
-            print(f'An error occurred while creating {self.table} table: {err}')
-
+            ic(f'An error occurred while creating {self.table} table: {err}')
     
     def empty_metadata_table(self):
         try:
@@ -86,10 +88,10 @@ class _MetadataHandler:
             
             # Create a connection
             self.session.execute(metadata_table.delete())
-            print(f'Table {self.table} was emptied successfully.')
+            ic(f'Table {self.table} was emptied successfully.')
             
         except Exception as err:
-            print(f'An error occurred while emptying {self.table} table: {err}')
+            ic(f'An error occurred while emptying {self.table} table: {err}')
 
     def reset(self):
         '''
@@ -108,7 +110,7 @@ class _MetadataHandler:
         try:
             # Fetch all tables from the database
             tables = self.metadata.tables.keys()
-            print('Successfully fetched all tables from database.')
+            ic('Successfully fetched all tables from database.')
             
             # Iterate through each table in the database
             for table_name in tables:
@@ -117,7 +119,7 @@ class _MetadataHandler:
                     self.add_index(table_name)
             
         except Exception as err:
-            print(f'An error occurred while fetching tables: {err}')
+            ic(f'An error occurred while fetching tables: {err}')
         
     def validate_table(self, table_name):
         '''
@@ -136,20 +138,16 @@ class _MetadataHandler:
         Add new metadata for new index
         '''
         
-        if len(self.frequency_data) == 0:
-            return
-
-        # Create the _metadata table if not exists
         for key_item in self.key:
             self.update_index(index_name, key_item)
         
         frequency = self.get_frequency_data(index_name)
+        
         if frequency is not None:
             for key_item in self.temporary_key:
                 self.update_index(index_name, key_item, frequency[key_item])
         
         self.session.commit()
-
 
     def update_index(self, table_name, key, value = None):
         '''
@@ -167,26 +165,29 @@ class _MetadataHandler:
             elif key == 'latest_date' or key == 'last_update':
                 try:
                     # Retrieve the latest data from the table
-                    table_item = self.metadata.tables.get(table_name)
-                    if table_item:
-                        query = select(table_item.c.date, table_item.c.created_at).order_by(desc(table_item.c.date))
-                        result = self.session.execute(query).fetchone()
-                        if key == 'latest_date':
-                            value = result[0].strftime('%Y-%m-%d') if result[0] else None
-                            value_type = 'date'
+                    # table_item = self.metadata.tables.get(table_name)
+                    table_item = Table(table_name, self.metadata, autoload_with = self.engine)
+                    query = select(table_item.c.date, table_item.c.created_at).order_by(desc(table_item.c.date))
+                    result = self.session.execute(query).fetchone()
+                    
+                    if key == 'latest_date':
+                        value = result[0].strftime('%Y-%m-%d') if result[0] else None
+                        value_type = 'date'
                         
-                        elif key == 'last_update':
-                            value = result[1].strftime('%Y-%m-%d %H:%M:%S')
-                            value_type = 'datetime'
-                except Exception as err:
+                    elif key == 'last_update':
+                        value = result[1].strftime('%Y-%m-%d %H:%M:%S')
+                        value_type = 'datetime'
+                        
+                except OperationalError as err:
                     ic(f'An error occurred while getting data from {table_name} table: {err}')
-
+        
         if value is not None:
             self.insert_row(table_name, key, value, value_type)
- 
+
     def insert_row(self, table_name, key, value, value_type):
         # Check if the row exists in the _metadata table and perform insertion or update
-        _metadata_table = self.metadata.tables[self.table]
+        # _metadata_table = self.metadata.tables[self.table]
+        _metadata_table = Table(self.table, self.metadata, autoload_with = self.engine)
         query = select(_metadata_table).where(_metadata_table.c.table_name == table_name).where(_metadata_table.c._key == key)
         
         try:
@@ -201,7 +202,8 @@ class _MetadataHandler:
                     updated_at = datetime.datetime.utcnow()
                 )
                 self.session.execute(update_query)
-                print(f'Row updated successfully into {_metadata_table} table')
+                ic(f'Row updated successfully into {_metadata_table} table')
+            
             else:
                 # Row doesn't exist, perform insert
                 insert_query = _metadata_table.insert().values(
@@ -213,8 +215,7 @@ class _MetadataHandler:
                     updated_at = datetime.datetime.utcnow()
                 )
                 self.session.execute(insert_query)
-                print(f'Row inserted successfully into {_metadata_table} table')
+                ic(f'Row inserted successfully into {_metadata_table} table')
 
         except OperationalError as err:
-            print(f'An error occurred while checking row existence or updating/inserting row: {err}')
-
+            ic(f'An error occurred while checking row existence or updating/inserting row: {err}')
