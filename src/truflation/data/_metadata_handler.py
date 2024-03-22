@@ -1,7 +1,6 @@
 import os
 import json
 import datetime
-from icecream import ic
 from dotenv import load_dotenv
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError
@@ -74,10 +73,11 @@ class _MetadataHandler:
         try:
             # Create the table
             self.metadata.create_all(self.engine)
-            ic(f'Table {self.table} created successfully.')
+            print(f'Table {self.table} created successfully.')
             
         except OperationalError as err:
-            ic(f'An error occurred while creating {self.table} table: {err}')
+            print(f'An error occurred while creating {self.table} table: {err}')
+
     
     def empty_metadata_table(self):
         try:
@@ -86,10 +86,10 @@ class _MetadataHandler:
             
             # Create a connection
             self.session.execute(metadata_table.delete())
-            ic(f'Table {self.table} was emptied successfully.')
+            print(f'Table {self.table} was emptied successfully.')
             
         except Exception as err:
-            ic(f'An error occurred while emptying {self.table} table: {err}')
+            print(f'An error occurred while emptying {self.table} table: {err}')
 
     def reset(self):
         '''
@@ -108,7 +108,7 @@ class _MetadataHandler:
         try:
             # Fetch all tables from the database
             tables = self.metadata.tables.keys()
-            ic('Successfully fetched all tables from database.')
+            print('Successfully fetched all tables from database.')
             
             # Iterate through each table in the database
             for table_name in tables:
@@ -117,7 +117,7 @@ class _MetadataHandler:
                     self.add_index(table_name)
             
         except Exception as err:
-            ic(f'An error occurred while fetching tables: {err}')
+            print(f'An error occurred while fetching tables: {err}')
         
     def validate_table(self, table_name):
         '''
@@ -135,6 +135,7 @@ class _MetadataHandler:
         '''
         Add new metadata for new index
         '''
+        
         if len(self.frequency_data) == 0:
             return
 
@@ -143,12 +144,12 @@ class _MetadataHandler:
         #    self.update_index(index_name, key_item)
         
         frequency = self.get_frequency_data(index_name)
-        ic(frequency)
         if frequency is not None:
             for key_item in self.temporary_key:
                 self.update_index(index_name, key_item, frequency[key_item])
         
         self.session.commit()
+
 
     def update_index(self, table_name, key, value = None):
         '''
@@ -182,7 +183,7 @@ class _MetadataHandler:
 
         if value is not None:
             self.insert_row(table_name, key, value, value_type)
-
+ 
     def insert_row(self, table_name, key, value, value_type):
         # Check if the row exists in the _metadata table and perform insertion or update
         _metadata_table = self.metadata.tables[self.table]
@@ -200,8 +201,7 @@ class _MetadataHandler:
                     updated_at = datetime.datetime.utcnow()
                 )
                 self.session.execute(update_query)
-                ic(f'Row updated successfully {value} into {_metadata_table} table')
-            
+                print(f'Row updated successfully into {_metadata_table} table')
             else:
                 # Row doesn't exist, perform insert
                 insert_query = _metadata_table.insert().values(
@@ -213,7 +213,8 @@ class _MetadataHandler:
                     updated_at = datetime.datetime.utcnow()
                 )
                 self.session.execute(insert_query)
-                ic(f'Row inserted successfully {value} into {_metadata_table} table')
+                print(f'Row inserted successfully into {_metadata_table} table')
 
         except OperationalError as err:
-            ic(f'An error occurred while checking row existence or updating/inserting row: {err}')
+            print(f'An error occurred while checking row existence or updating/inserting row: {err}')
+

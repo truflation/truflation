@@ -10,7 +10,6 @@ Ingestors
 
 Projects.  Pull requests welcome
 
-
 * The logging is broken.  There is no flexible way of logging errors,
   and the current mechanism of sending out a telegram message with an
   error is not thread-safe and causes errors when one process tries to
