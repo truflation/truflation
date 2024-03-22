@@ -140,8 +140,8 @@ class _MetadataHandler:
             return
 
         # Create the _metadata table if not exists
-        #for key_item in self.key:
-        #    self.update_index(index_name, key_item)
+        for key_item in self.key:
+            self.update_index(index_name, key_item)
         
         frequency = self.get_frequency_data(index_name)
         if frequency is not None:
