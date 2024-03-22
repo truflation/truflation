@@ -40,7 +40,7 @@ async function getTaskData(taskID, round) {
   let minRound = 14
   // while (maxRound >= 0) {
   while (maxRound >= (maxRound -7 >= minRound ? maxRound - 7 : minRound)) {
-    console.log("maxRound", maxRound);
+    console.log("maxRound", maxRound);n
 
     let curr_round_data;
     let cid = submissionList[i];

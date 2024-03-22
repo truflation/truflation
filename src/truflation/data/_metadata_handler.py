@@ -36,19 +36,21 @@ class _MetadataHandler:
         self.blackList = ['__metadata__', '_metadata', 'categories', 'normalized']
         
         self.load_frequency()
-        self.create_table()
+        if len(self.frequency_data) > 0:
+            self.create_table()
 
     def load_frequency(self):
         file_path = './frequency/frequency.json'
-        if os.path.exists(file_path):
-            with open(file_path, 'r') as frequency_json:
-                self.frequency_data = json.load(frequency_json)
+        if not os.path.exists(file_path):
+            self.frequency_data = []
+            return
+        with open(file_path, 'r') as frequency_json:
+            self.frequency_data = json.load(frequency_json)
     
     def get_frequency_data(self, index_name = None):
-        if self.frequency_data:
-            for i in range(0, len(self.frequency_data)):
-                if index_name.startswith(self.frequency_data[i]['index']):
-                    return self.frequency_data[i]
+        for item in self.frequency_data:
+            if index_name.startswith(item['index']):
+                return item
         return None
 
     def create_table(self):
@@ -75,6 +77,7 @@ class _MetadataHandler:
             
         except OperationalError as err:
             print(f'An error occurred while creating {self.table} table: {err}')
+
     
     def empty_metadata_table(self):
         try:
@@ -133,18 +136,22 @@ class _MetadataHandler:
         Add new metadata for new index
         '''
         
-        for key_item in self.key:
-            self.update_index(index_name, key_item)
+        if len(self.frequency_data) == 0:
+            return
+
+        # Create the _metadata table if not exists
+        #for key_item in self.key:
+        #    self.update_index(index_name, key_item)
         
         frequency = self.get_frequency_data(index_name)
-        
         if frequency is not None:
             for key_item in self.temporary_key:
                 self.update_index(index_name, key_item, frequency[key_item])
         
         self.session.commit()
 
-    def update_index(self, table_name, key, value = ''):
+
+    def update_index(self, table_name, key, value = None):
         '''
         Update metadata for specific index
         '''
@@ -152,7 +159,7 @@ class _MetadataHandler:
         value_type = 'string'
         
         # Populate metadata values based on the key
-        if not value:
+        if value is None:
             if key == 'category':
                 value = '_'.join(table_name.split('_')[:2])
             elif key == 'name':
@@ -160,24 +167,23 @@ class _MetadataHandler:
             elif key == 'latest_date' or key == 'last_update':
                 try:
                     # Retrieve the latest data from the table
-                    # table_item = self.metadata.tables[table_name]
-                    table_item = Table(table_name, self.metadata, autoload_with = self.engine)
-                    query = select(table_item.c.date, table_item.c.created_at).order_by(desc(table_item.c.date))
-                    result = self.session.execute(query).fetchone()
+                    table_item = self.metadata.tables.get(table_name)
+                    if table_item:
+                        query = select(table_item.c.date, table_item.c.created_at).order_by(desc(table_item.c.date))
+                        result = self.session.execute(query).fetchone()
+                        if key == 'latest_date':
+                            value = result[0].strftime('%Y-%m-%d') if result[0] else None
+                            value_type = 'date'
                         
-                    if key == 'latest_date':
-                        value = result[0].strftime('%Y-%m-%d') if result[0] else None
-                        value_type = 'date'
-                        
-                    elif key == 'last_update':
-                        value = result[1].strftime('%Y-%m-%d %H:%M:%S')
-                        value_type = 'datetime'
-                        
-                except OperationalError as err:
-                    print(f'An error occurred while getting data from {table_name} table: {err}')
-        
-        self.insert_row(table_name, key, value, value_type)
+                        elif key == 'last_update':
+                            value = result[1].strftime('%Y-%m-%d %H:%M:%S')
+                            value_type = 'datetime'
+                except Exception as err:
+                    ic(f'An error occurred while getting data from {table_name} table: {err}')
 
+        if value is not None:
+            self.insert_row(table_name, key, value, value_type)
+ 
     def insert_row(self, table_name, key, value, value_type):
         # Check if the row exists in the _metadata table and perform insertion or update
         _metadata_table = self.metadata.tables[self.table]
@@ -196,7 +202,6 @@ class _MetadataHandler:
                 )
                 self.session.execute(update_query)
                 print(f'Row updated successfully into {_metadata_table} table')
-            
             else:
                 # Row doesn't exist, perform insert
                 insert_query = _metadata_table.insert().values(
@@ -212,3 +217,4 @@ class _MetadataHandler:
 
         except OperationalError as err:
             print(f'An error occurred while checking row existence or updating/inserting row: {err}')
+

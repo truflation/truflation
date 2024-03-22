@@ -230,6 +230,16 @@ class ConnectorPandasDataReader(Connector):
     def write_all(self, data, *args, **kwargs) -> None:
         raise ValueError
 
+class ConnectorPandasDataReader(Connector):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+    def read_all(self, *args, **kwargs) -> Optional[pd.DataFrame]:
+        return web.DataReader(*args[0])
+
+    def write_all(self, data, *args, **kwargs) -> None:
+        raise ValueError
+
 
 class ConnectorJson(Connector):
     def __init__(self, *args, **kwargs):

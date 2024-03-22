@@ -57,6 +57,7 @@ def fetch_data_and_convert_to_csv(json_file, csv_file):
 
             csv_data += ','.join(map(str, csv_row)) + '\n'
 
+
     # Write CSV data to a file
     with open(csv_file, 'w') as file:
         file.write(csv_data)
