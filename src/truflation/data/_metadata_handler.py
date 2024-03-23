@@ -50,9 +50,9 @@ class _MetadataHandler:
     
     def get_frequency_data(self, index_name = None):
         for item in self.frequency_data:
-            if item['exact'] == 1 and index_name == item['index']:
+            if item.get('exact') == 1 and index_name == item['index']:
                 return item
-            if item['exact'] == 0 and index_name.startswith(item['index']):
+            if index_name.startswith(item['index']):
                 return item
         return None
 
