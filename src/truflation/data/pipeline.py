@@ -1,3 +1,4 @@
+import os
 import time
 import logging
 from typing import Dict
@@ -9,8 +10,12 @@ from truflation.data._metadata_handler import _MetadataHandler
 from truflation.data.exporter import Exporter
 from truflation.data.util import format_duration
 from truflation.data.logging_handler import get_handler
+from truflation.data.connector import ConnectorSql
 from telegram_bot.push_logs_for_bot import push_general_logs
 from telegram_bot.general_logger import log_to_bot
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class Pipeline:
     """
@@ -58,7 +63,9 @@ class Pipeline:
         self.transformer = pipeline_details.transformer
         self.exports = pipeline_details.exports
         self.exporter = Exporter()
-        self._metadata_handler = _MetadataHandler()
+        self._metadata_handler = _MetadataHandler() \
+            if os.getenv('USE_METADATA_HANDLER') == "1" \
+               else None
         if not logging.getLogger('').hasHandlers():
             handler = get_handler()
             logging.getLogger('').addHandler(handler)
@@ -100,11 +107,15 @@ class Pipeline:
 
             # log success
             print(f'ingestor {self.name} ran successfully')
-            
-            for export_details in self.exports:
-                self._metadata_handler.add_index(export_details.key)
-                
-            print(f'Successfully updated _metadata table')
+
+            if self._metadata_handler is not None:
+                print('Running _metadata table')
+                for export_details in self.exports:
+                    if type(export_details.writer) == ConnectorSql:
+                        self._metadata_handler.add_index(export_details.key)
+                print('Successfully updated _metadata table')
+            else:
+                print('skipping _metadata')
 
             # return results if debug_mod/dry_run
             if dry_run:
