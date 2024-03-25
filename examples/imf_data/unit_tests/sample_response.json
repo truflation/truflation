@@ -1,0 +1,56 @@
+{
+  "CompactData": {
+    "@xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+    "@xmlns:xsd": "http://www.w3.org/2001/XMLSchema",
+    "@xsi:schemaLocation": "http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message https://registry.sdmx.org/schemas/v2_0/SDMXMessage.xsd http://dataservices.imf.org/compact/IFS http://dataservices.imf.org/compact/IFS.xsd",
+    "@xmlns": "http://www.SDMX.org/resources/SDMXML/schemas/v2_0/message",
+    "Header": {
+      "ID": "77d5ae85-49cc-4db7-a3b4-2435314dd7cc",
+      "Test": "false",
+      "Prepared": "2024-03-25T14:51:33",
+      "Sender": {
+        "@id": "1C0",
+        "Name": {
+          "@xml:lang": "en",
+          "#text": "IMF"
+        },
+        "Contact": {
+          "URI": "http://www.imf.org",
+          "Telephone": "+ 1 (202) 623-6220"
+        }
+      },
+      "Receiver": {
+        "@id": "ZZZ"
+      },
+      "DataSetID": "IFS"
+    },
+    "DataSet": {
+      "@xmlns": "http://dataservices.imf.org/compact/IFS",
+      "Series": {
+        "@FREQ": "M",
+        "@REF_AREA": "GB",
+        "@INDICATOR": "PMP_IX",
+        "@UNIT_MULT": "0",
+        "@BASE_YEAR": "2010=100",
+        "@TIME_FORMAT": "P1M",
+        "Obs": [ {
+            "@TIME_PERIOD": "2018-11",
+            "@OBS_VALUE": "108.12133072407"
+          }, {
+            "@TIME_PERIOD": "2018-12",
+            "@OBS_VALUE": "106.947162426614"
+          }, {
+            "@TIME_PERIOD": "2019-01",
+            "@OBS_VALUE": "104.794520547945"
+          }, {
+            "@TIME_PERIOD": "2019-05",
+            "@OBS_VALUE": "108.12133072407"
+          }, {
+            "@TIME_PERIOD": "2019-06",
+            "@OBS_VALUE": "107.3385518591"
+          }
+        ]
+      }
+    }
+  }
+}
