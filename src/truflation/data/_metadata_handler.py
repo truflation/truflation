@@ -22,11 +22,6 @@ class _MetadataHandler:
         
         # Create metadata
         self.metadata = MetaData()
-        
-        # Create a session
-        Session = sessionmaker(bind=self.engine)
-        self.session = Session()
-        
         self.table = '_metadata'
         
         # Define _metadata keys
@@ -82,16 +77,15 @@ class _MetadataHandler:
             ic(f'An error occurred while creating {self.table} table: {err}')
     
     def empty_metadata_table(self):
-        try:
-            # Get the table object
-            metadata_table = self.metadata.tables[self.table]
-            
-            # Create a connection
-            self.session.execute(metadata_table.delete())
-            ic(f'Table {self.table} was emptied successfully.')
-            
-        except Exception as err:
-            ic(f'An error occurred while emptying {self.table} table: {err}')
+        with self.engine.connect() as conn:
+            try:
+                # Get the table object
+                metadata_table = self.metadata.tables[self.table]
+                conn.execute(metadata_table.delete())
+                ic(f'Table {self.table} was emptied successfully.')
+            except Exception as err:
+                ic(f'An error occurred while emptying {self.table} table: {err}')
+                conn.rollback()
 
     def reset(self):
         '''
@@ -146,8 +140,7 @@ class _MetadataHandler:
         if frequency is not None:
             for key_item in self.temporary_key:
                 self.update_index(index_name, key_item, frequency[key_item])
-        
-        self.session.commit()
+
 
     def update_index(self, table_name, key, value = None):
         '''
@@ -163,23 +156,25 @@ class _MetadataHandler:
             elif key == 'name':
                 value = '_'.join(table_name.split('_')[2:])
             elif key == 'latest_date' or key == 'last_update':
-                try:
-                    # Retrieve the latest data from the table
-                    # table_item = self.metadata.tables.get(table_name)
-                    table_item = Table(table_name, self.metadata, autoload_with = self.engine)
-                    query = select(table_item.c.date, table_item.c.created_at).order_by(desc(table_item.c.date))
-                    result = self.session.execute(query).fetchone()
+                with self.engine.connect() as conn:
+                    try:
+                        # Retrieve the latest data from the table
+                        # table_item = self.metadata.tables.get(table_name)
+                        table_item = Table(table_name, self.metadata, autoload_with = self.engine)
+                        query = select(table_item.c.date, table_item.c.created_at).order_by(desc(table_item.c.date))
+                        result = conn.execute(query).fetchone()
                     
-                    if key == 'latest_date':
-                        value = result[0].strftime('%Y-%m-%d') if result[0] else None
-                        value_type = 'date'
+                        if key == 'latest_date':
+                            value = result[0].strftime('%Y-%m-%d') if result[0] else None
+                            value_type = 'date'
                         
-                    elif key == 'last_update':
-                        value = result[1].strftime('%Y-%m-%d %H:%M:%S')
-                        value_type = 'datetime'
+                        elif key == 'last_update':
+                            value = result[1].strftime('%Y-%m-%d %H:%M:%S')
+                            value_type = 'datetime'
                         
-                except OperationalError as err:
-                    ic(f'An error occurred while getting data from {table_name} table: {err}')
+                    except OperationalError as err:
+                        ic(f'An error occurred while getting data from {table_name} table: {err}')
+                        conn.rollback()
         
         if value is not None:
             self.insert_row(table_name, key, value, value_type)
@@ -189,35 +184,33 @@ class _MetadataHandler:
         # _metadata_table = self.metadata.tables[self.table]
         _metadata_table = Table(self.table, self.metadata, autoload_with = self.engine)
         query = select(_metadata_table).where(_metadata_table.c.table_name == table_name).where(_metadata_table.c._key == key)
-        
-        try:
-            # with self.engine.connect() as connection:
-            result = self.session.execute(query).fetchone()
+        with self.engine.connect() as conn:
+            try:
+                # with self.engine.connect() as connection:
+                result = conn.execute(query).fetchone()
             
-            if result:
-                # Row exists, perform update
-                update_query = _metadata_table.update().where(_metadata_table.c.table_name == table_name).where(_metadata_table.c._key == key).values(
-                    value = value,
-                    value_type = value_type,
+                if result:
+                    # Row exists, perform update
+                    update_query = _metadata_table.update().where(_metadata_table.c.table_name == table_name).where(_metadata_table.c._key == key).values(
+                        value = value,
+                        value_type = value_type,
+                        updated_at = datetime.datetime.utcnow()
+                    )
+                    conn.execute(update_query)
+                    ic(f'Row updated successfully into {_metadata_table} table')
+                else:
+                    # Row doesn't exist, perform insert
+                    insert_query = _metadata_table.insert().values(
+                        table_name = table_name,
+                        _key = key,
+                        value = value,
+                        value_type = value_type,
+                        created_at = datetime.datetime.utcnow(),
                     updated_at = datetime.datetime.utcnow()
-                )
-                self.session.execute(update_query)
-                ic(f'Row updated successfully into {_metadata_table} table')
-            
-            else:
-                # Row doesn't exist, perform insert
-                insert_query = _metadata_table.insert().values(
-                    table_name = table_name,
-                    _key = key,
-                    value = value,
-                    value_type = value_type,
-                    created_at = datetime.datetime.utcnow(),
-                    updated_at = datetime.datetime.utcnow()
-                )
-                self.session.execute(insert_query)
-                ic(f'Row inserted successfully into {_metadata_table} table')
-
-        except OperationalError as err:
-            ic(f'An error occurred while checking row existence or updating/inserting row: {err}')
-            # rollbacks are necessary to prevent timeouts
-            self.session.rollback()
+                    )
+                    conn.execute(insert_query)
+                    ic(f'Row inserted successfully into {_metadata_table} table')
+            except OperationalError as err:
+                ic(f'An error occurred while checking row existence or updating/inserting row: {err}')
+                # rollbacks are necessary to prevent timeouts
+                conn.rollback()
