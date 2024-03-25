@@ -219,3 +219,5 @@ class _MetadataHandler:
 
         except OperationalError as err:
             ic(f'An error occurred while checking row existence or updating/inserting row: {err}')
+            # rollbacks are necessary to prevent timeouts
+            self.session.rollback()
