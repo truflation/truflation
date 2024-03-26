@@ -45,9 +45,9 @@ class _MetadataHandler:
     
     def get_frequency_data(self, index_name = None):
         for item in self.frequency_data:
-            if item.get('exact') == 1 and index_name == item['index']:
+            if item['exact'] == 1 and index_name == item['index']:
                 return item
-            if index_name.startswith(item['index']):
+            if item['exact'] == 0 and index_name.startswith(item['index']):
                 return item
         return None
 
@@ -82,6 +82,7 @@ class _MetadataHandler:
                 # Get the table object
                 metadata_table = self.metadata.tables[self.table]
                 conn.execute(metadata_table.delete())
+                conn.commit()
                 ic(f'Table {self.table} was emptied successfully.')
             except Exception as err:
                 ic(f'An error occurred while emptying {self.table} table: {err}')
@@ -197,6 +198,7 @@ class _MetadataHandler:
                         updated_at = datetime.datetime.utcnow()
                     )
                     conn.execute(update_query)
+                    conn.commit()
                     ic(f'Row updated successfully into {_metadata_table} table')
                 else:
                     # Row doesn't exist, perform insert
@@ -209,6 +211,7 @@ class _MetadataHandler:
                     updated_at = datetime.datetime.utcnow()
                     )
                     conn.execute(insert_query)
+                    conn.commit()
                     ic(f'Row inserted successfully into {_metadata_table} table')
             except OperationalError as err:
                 ic(f'An error occurred while checking row existence or updating/inserting row: {err}')
