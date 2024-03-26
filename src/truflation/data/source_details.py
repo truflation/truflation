@@ -89,7 +89,7 @@ class SourceDetails:
         # options: override, csv,
         self.source_type = source_type
         self.source = source
-        self.connector = connector  # instance of overriden class
+        self.connector = connector  # instance of overridden class
         self.parser = parser # parser is run on the dataframe that is returned
         self.args = args
         self.transformer = transformer # if transformer else lambda x: x

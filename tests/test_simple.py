@@ -92,9 +92,9 @@ class TestSimple(unittest.TestCase):
     def test_cache(self):
         r = truflation.data.connector.ConnectorCache('key1')
 
-    def test_playwrite(self):
+    def test_playwright(self):
         r = ConnectorRest(
-            playwrite=True
+            playwright=True
         )
         b = r.read_all('http://ergast.com/api/f1/2004/1/results.json')
 

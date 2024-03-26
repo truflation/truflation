@@ -39,7 +39,7 @@ This pipeline is designed to be deployed as a Docker image for consistent deploy
 
 ## Repository Structure
 
-This repository (`tfi-data`) contains the `Pipeline` class and its associated components necessary for data ingestion, transformation, and export. It does not include the module that calls and runs the `Pipeline` class or the details that get fed to the class. However, there are examples in the repo of implimenting and calling PipelineDetails.
+This repository (`tfi-data`) contains the `Pipeline` class and its associated components necessary for data ingestion, transformation, and export. It does not include the module that calls and runs the `Pipeline` class or the details that get fed to the class. However, there are examples in the repo of implementing and calling PipelineDetails.
 
 The details specific to the data processing, including `PipelineDetails`, are stored in a separate private repository named `dataloaders`.
 
