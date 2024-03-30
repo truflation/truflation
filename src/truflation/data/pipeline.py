@@ -9,7 +9,6 @@ from truflation.data.pipeline_details import PipeLineDetails
 from truflation.data._metadata_handler import _MetadataHandler
 from truflation.data.exporter import Exporter
 from truflation.data.util import format_duration
-from truflation.data.logging_handler import get_handler
 from truflation.data.connector import ConnectorSql
 from telegram_bot.general_logger import log_to_bot
 from dotenv import load_dotenv
@@ -65,9 +64,6 @@ class Pipeline:
         self._metadata_handler = _MetadataHandler() \
             if os.getenv('USE_METADATA_HANDLER') == "1" \
                else None
-        if not logging.getLogger('').hasHandlers():
-            handler = get_handler()
-            logging.getLogger('').addHandler(handler)
 
     def ingest(self, dry_run=False) -> None | Dict:
         try:
