@@ -35,6 +35,8 @@ class ExportDetails(Task):
     def __init__(self, name: str, connector: Connector | str, key: str,
                  *args,
                  replace: bool = False,
+                 reconcile = None,
+                 create_table = None,
                  **kwargs):
         super().__init__(connector, connector)
         self.name = name
@@ -42,6 +44,8 @@ class ExportDetails(Task):
         self.args = args
         self.kwargs = kwargs
         self.replace = replace
+        self.reconcile = reconcile
+        self.create_table = create_table
 
     def __repr__(self):
         return "ExportDetails()"
