@@ -11,6 +11,11 @@ services:
       command: python3 src/truflation/data/pipeline_coupler.py examples/csv_example/my_pipeline_details.py
       volumes:
         - pipeline_details:/data/todo
+  ingestor_happy:
+      build: .
+      command: python3 src/truflation/data/ingestors/happy_ingestor.py
+      environment:
+        - HAPPY_PATH=/ingestor/tests/happy_test.csv
 volumes:
   pipeline_details:
     driver: local
