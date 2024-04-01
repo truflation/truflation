@@ -12,4 +12,3 @@ def test_happy_ingestor():
     ingestor = HappyIngestor()
     result = ingestor.process(df)
     assert result.to() == '{"2000":2.0,"2024":4.0}'
-
