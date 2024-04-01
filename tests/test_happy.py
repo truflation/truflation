@@ -1,4 +1,4 @@
-from src.truflation.data.ingestors.happy_ingestor import HappyIngestor
+from truflation.data.ingestors.happy_ingestor import HappyIngestor
 import pandas as pd
 
 
