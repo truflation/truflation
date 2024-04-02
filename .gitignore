@@ -160,3 +160,5 @@ cython_debug/
 #.idea/
 
 **/*rsa_id
+
+metadata_handler_test
