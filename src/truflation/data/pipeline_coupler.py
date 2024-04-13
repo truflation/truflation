@@ -19,8 +19,6 @@ from typing import List
 from apscheduler.schedulers.background import BackgroundScheduler
 from docopt import docopt
 from pytz import utc
-
-from telegram_bot.push_logs_for_bot import push_general_logs
 from telegram_bot.general_logger import log_to_bot
 
 from truflation.data.pipeline import Pipeline
@@ -89,7 +87,6 @@ def main(module_list: list, cron_schedule=None):
 
     # log start of pipeline
     log_to_bot(f'{pipeline_name} has been scheduled: {job}')
-    push_general_logs()
 
     # Runs an infinite loop
     while True:
