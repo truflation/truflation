@@ -725,7 +725,7 @@ class ConnectorExcel(Connector):
         #     return None
 
     def write_all(self, df, *args, **kwargs):
-        raise Exception("write_all not implimented for Excel connector")
+        raise Exception("write_all not implemented for Excel connector")
         # key = kwargs.get('key', self.default_key)
         # spread = Spread(key, create_spread=True)
         # spread.move(self.path_root, create=True)
