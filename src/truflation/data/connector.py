@@ -487,6 +487,7 @@ class ConnectorRest(Connector):
         self.playwright = kwargs.get('playwright', False)
         self.json = kwargs.get('json', True)
         self.csv = kwargs.get('csv', False)
+        self.no_cache = kwargs.get('no_cache', False)
         self.page = None
 
     def read_all(
@@ -496,6 +497,17 @@ class ConnectorRest(Connector):
         
         if self.playwright:
             try:
+                if self.no_cache:
+                    with sync_playwright() as p:
+                        browser_type = p.firefox
+                        browser = browser_type.launch()
+                        self.page = browser.new_page()
+                        response = self.page.goto(
+                            url
+                        )
+                        self.logging_manager.log_info('Data fetched using Playwright.')
+                        return self.process_response(response)
+
                 with playw_browser().new_context() as context:
                     page = context.new_page()
                     response = page.goto(
