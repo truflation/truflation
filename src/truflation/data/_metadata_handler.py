@@ -8,17 +8,19 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy import create_engine, select, desc, MetaData, Table, Column, VARCHAR, DATETIME
 
 class _MetadataHandler:
-    def __init__(self, env_path = '../../../.env'):
+    def __init__(self, env_path = '../../../.env', engine=None):
         # Load environment variables from a .env file into the environment
         self.env_path = env_path
-        
-        load_dotenv(self.env_path)
-        
-        # Connect to database using environment variables
-        self.db_url = f"mariadb+pymysql://{os.environ.get('DB_USER', None)}:{os.environ.get('DB_PASSWORD', None)}@{os.environ.get('DB_HOST', 'localhost')}:{os.environ.get('DB_PORT', None)}/{os.environ.get('DB_NAME', None)}"
-        
-        # Create the engine
-        self.engine = create_engine(self.db_url)
+
+        if engine is None:
+            # load_dotenv(self.env_path)
+            load_dotenv(self.env_path)
+            
+            # Connect to database using environment variables
+            self.db_url = f"mariadb+pymysql://{os.environ.get('DB_USER', None)}:{os.environ.get('DB_PASSWORD', None)}@{os.environ.get('DB_HOST', 'localhost')}:{os.environ.get('DB_PORT', None)}/{os.environ.get('DB_NAME', None)}"
+            self.engine = create_engine(self.db_url)
+        else:
+            self.engine = engine
         
         # Create metadata
         self.metadata = MetaData()

@@ -55,7 +55,8 @@ class Exporter:
         df_remote = self.reduce_future_created_at(df_remote)
 
         # If remote exists, reconcile and receive the data needing to be added
-        df_new_data = self.reconcile_dataframes(df_remote, df_local) if df_remote is not None and not df_remote.empty else df_local
+        reconcile = self.reconcile_dataframes if export_details.reconcile is None else export_details.reconcile
+        df_new_data = reconcile(df_remote, df_local) if df_remote is not None and not df_remote.empty else df_local
         logger.debug('exporting....')
         logger.debug(df_new_data)
 
@@ -64,16 +65,22 @@ class Exporter:
 
         if not dry_run and not df_new_data.empty:
             # Insert
-            export_details.write(
-                df_new_data,
-                chunksize=1000,
-                index= (df_new_data.index.name == 'date'),
-                dtype={
-                    # 'created_at': types.DateTime(precision=6),
+            if export_details.create_table is None:
+                export_details.write(
+                    df_new_data,
+                    chunksize=1000,
+                    index= (df_new_data.index.name == 'date'),
+                    dtype={
+                        # 'created_at': types.DateTime(precision=6),
                     'date': types.Date(),
-                    'created_at': types.DATETIME()
+                        'created_at': types.DATETIME()
                 },
-            )
+                )
+            else:
+                export_details.create_table(
+                    export_details,
+                    df_new_data
+                )
 
         return df_new_data
 

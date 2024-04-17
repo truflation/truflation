@@ -5,6 +5,7 @@ Connector
 import os
 import json
 import io
+from icecream import ic
 from typing import Optional, Iterator, Any, List
 from pathlib import Path
 import logging
@@ -24,6 +25,36 @@ from sqlalchemy import create_engine, Table, MetaData
 
 logger = logging.getLogger(__name__)
 
+def playw_browser():
+    if playw_browser.count >= 50 :
+        playw_browser.count = 0
+        playw_browser.browser.close()
+        playw_browser.playwright.stop()
+        playw_browser.playwright = None
+        playw_browser.browser = None
+    if playw_browser.playwright is None:
+        launch_params = {}
+        playw_browser.playwright = sync_playwright().start()
+        if os.environ.get('PROXY_SERVER') is not None and \
+           os.environ.get('PROXY_USERNAME') is not None and \
+           os.environ.get('PROXY_PASSWORD') is not None:
+            launch_params = {
+                'proxy': {
+                    'server': os.environ.get('PROXY_SERVER'),
+                    'username': os.environ.get('PROXY_USERNAME'),
+                    'password': os.environ.get('PROXY_PASSWORD')
+                }
+            }
+            ic('#### using proxy server with playwright ####')
+        playw_browser.browser = playw_browser.playwright.firefox.launch(
+            **launch_params
+        )
+        playw_browser.count += 1
+    return playw_browser.browser
+
+playw_browser.playwright = None
+playw_browser.browser = None
+playw_browser.count = 0
 
 class Connector:
     """
@@ -111,7 +142,7 @@ class Cache:
         return ConnectorCache(self, default_key)
 
     def clear(self):
-        self.cache_data = {}
+        self.cache_data.clear()
 
 
 class ConnectorCsv(Connector):
@@ -465,11 +496,9 @@ class ConnectorRest(Connector):
         
         if self.playwright:
             try:
-                with sync_playwright() as p:
-                    browser_type = p.firefox
-                    browser = browser_type.launch()
-                    self.page = browser.new_page()
-                    response = self.page.goto(
+                with playw_browser().new_context() as context:
+                    page = context.new_page()
+                    response = page.goto(
                         url
                     )
                     self.logging_manager.log_info('Data fetched using Playwright.')
