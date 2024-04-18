@@ -4,7 +4,7 @@ import datetime
 from icecream import ic
 from dotenv import load_dotenv
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, NoSuchTableError
 from sqlalchemy import create_engine, select, desc, MetaData, Table, Column, VARCHAR, DATETIME
 
 class _MetadataHandler:
@@ -174,8 +174,7 @@ class _MetadataHandler:
                         elif key == 'last_update':
                             value = result[1].strftime('%Y-%m-%d %H:%M:%S')
                             value_type = 'datetime'
-                        
-                    except OperationalError as err:
+                    except (NoSuchTableError, OperationalError) as err:
                         ic(f'An error occurred while getting data from {table_name} table: {err}')
                         conn.rollback()
         
