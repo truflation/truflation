@@ -6,9 +6,11 @@ from loguru import logger
 class Logger:
     output_level = "INFO"
     stream=sys.stderr
-    def __init__(self, log_dir_path = 'log'):
+    def __init__(self, log_dir_path = None):
         # Define the directory path
-        self.log_dir_path = log_dir_path
+        self.log_dir_path = log_dir_path \
+            if log_dir_path is not None \
+               else os.environ.get('LOG_DIR_PATH', 'log')
 
         # Create the log directory if it doesn't exist
         os.makedirs(self.log_dir_path, exist_ok=True)
