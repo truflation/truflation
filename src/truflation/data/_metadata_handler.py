@@ -6,11 +6,14 @@ from dotenv import load_dotenv
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError, NoSuchTableError
 from sqlalchemy import create_engine, select, desc, MetaData, Table, Column, VARCHAR, DATETIME
+from truflation.data.logging_manager import Logger
+ic.disable()
 
 class _MetadataHandler:
     def __init__(self, env_path = '../../../.env', engine=None):
         # Load environment variables from a .env file into the environment
         self.env_path = env_path
+        self.logging_manager = Logger()
 
         if engine is None:
             # load_dotenv(self.env_path)
@@ -73,10 +76,14 @@ class _MetadataHandler:
         try:
             # Create the table
             self.metadata.create_all(self.engine)
-            ic(f'Table {self.table} created successfully.')
+            self.logging_manager.log_info(
+                f'Table {self.table} created successfully.'
+            )
             
         except OperationalError as err:
-            ic(f'An error occurred while creating {self.table} table: {err}')
+            self.logging_manager.log_exception(
+                f'An error occurred while creating {self.table} table: {err}'
+            )
     
     def empty_metadata_table(self):
         with self.engine.connect() as conn:
@@ -87,7 +94,9 @@ class _MetadataHandler:
                 conn.commit()
                 ic(f'Table {self.table} was emptied successfully.')
             except Exception as err:
-                ic(f'An error occurred while emptying {self.table} table: {err}')
+                self.logging_manager.log_exception(
+                    f'An error occurred while emptying {self.table} table: {err}'
+                )
                 conn.rollback()
 
     def reset(self):
@@ -116,7 +125,9 @@ class _MetadataHandler:
                     self.add_index(table_name)
             
         except Exception as err:
-            ic(f'An error occurred while fetching tables: {err}')
+            self.logging_manager.log_exception(
+                f'An error occurred while fetching tables: {err}'
+            )
         
     def validate_table(self, table_name):
         '''
@@ -175,7 +186,9 @@ class _MetadataHandler:
                             value = result[1].strftime('%Y-%m-%d %H:%M:%S')
                             value_type = 'datetime'
                     except (NoSuchTableError, OperationalError) as err:
-                        ic(f'An error occurred while getting data from {table_name} table: {err}')
+                        self.logging_manager.log_exception(
+                            f'An error occurred while getting data from {table_name} table: {err}'
+                        )
                         conn.rollback()
         
         if value is not None:
@@ -215,6 +228,8 @@ class _MetadataHandler:
                     conn.commit()
                     ic(f'Row inserted successfully into {_metadata_table} table')
             except OperationalError as err:
-                ic(f'An error occurred while checking row existence or updating/inserting row: {err}')
+                self.logging_manager.log_exception(
+                    f'An error occurred while checking row existence or updating/inserting row: {err}'
+                )
                 # rollbacks are necessary to prevent timeouts
                 conn.rollback()

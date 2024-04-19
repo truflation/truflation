@@ -1,6 +1,5 @@
 import os
 import time
-import logging
 from typing import Dict
 
 from truflation.data.general_loader import GeneralLoader
@@ -10,7 +9,7 @@ from truflation.data._metadata_handler import _MetadataHandler
 from truflation.data.exporter import Exporter
 from truflation.data.util import format_duration
 from truflation.data.connector import ConnectorSql
-from telegram_bot.general_logger import log_to_bot
+from truflation.data.logging_manager import Logger
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -61,6 +60,7 @@ class Pipeline:
         self.transformer = pipeline_details.transformer
         self.exports = pipeline_details.exports
         self.exporter = Exporter()
+        self.logging_manager = Logger()
         self._metadata_handler = _MetadataHandler() \
             if os.getenv('USE_METADATA_HANDLER') == "1" \
                else None
@@ -100,17 +100,15 @@ class Pipeline:
             self.header("Post Ingestion Function...")
             self.post_ingestion_function()
 
-            # log success
-            print(f'ingestor {self.name} ran successfully')
 
             if self._metadata_handler is not None:
-                print('Running _metadata table')
+                self.logging_manager.log_info('Running _metadata table')
                 for export_details in self.exports:
                     if type(export_details.writer) == ConnectorSql:
                         self._metadata_handler.add_index(export_details.key)
-                print('Successfully updated _metadata table')
+                self.logging_manager.log_info('Successfully updated _metadata table')
             else:
-                print('skipping _metadata')
+                self.logging_manager.log_debug('skipping _metadata')
 
             # return results if debug_mod/dry_run
             if dry_run:
@@ -119,16 +117,17 @@ class Pipeline:
                     "exports": exports
                 }
             run_time = time.time() - start_time
-#            log_to_bot(f'{self.name} has successfully run. Duration: {format_duration(run_time)}')
+            # log success
+            self.logging_manager.log_info(
+                f'ingestor {self.name} ran successfully Duration: {format_duration(run_time)}'
+            )
         except Exception as e:
             e_msg = f'Ingestor {self.name} erred.'
-            logging.exception(e_msg)
+            self.logging_manager.log_exception(e_msg)
         return None
 
     def clear(self):
         self.loader.clear()
 
-    @staticmethod
-    def header(s: str):
-        print('\n' + '#'*20 + f'   {s}   ' + '#'*(40 - len(s)))
-        # print(f'time: {time.time()}')
+    def header(self, s: str):
+        self.logging_manager.log_info('#'*20 + f'   {s}   ' + '#'*(40 - len(s)))

@@ -2,9 +2,8 @@ import datetime
 import logging
 import pandas
 from truflation.data.export_details import ExportDetails
+from truflation.data.logging_manager import Logger
 from sqlalchemy import types
-
-logger = logging.getLogger(__name__)
 
 '''
   Dev Notes
@@ -22,7 +21,7 @@ class Exporter:
     Exporter is a class that is able to export data to databases.
     """
     def __init__(self):
-        pass
+        self.logging_manager = Logger()
 
     def export(self, export_details: ExportDetails, df_local: pandas.DataFrame, dry_run=False) -> pandas.DataFrame:
         """
@@ -57,8 +56,9 @@ class Exporter:
         # If remote exists, reconcile and receive the data needing to be added
         reconcile = self.reconcile_dataframes if export_details.reconcile is None else export_details.reconcile
         df_new_data = reconcile(df_remote, df_local) if df_remote is not None and not df_remote.empty else df_local
-        logger.debug('exporting....')
-        logger.debug(df_new_data)
+        if not df_new_data.empty:
+            self.logging_manager.log_info('exporting....')
+            self.logging_manager.log_info(df_new_data)
 
         if 'date' in df_local:
             df_local['date'] = pandas.to_datetime(df_local['date'])  # make sure the 'date' column is in datetime format
@@ -147,8 +147,8 @@ class Exporter:
                 df_new_data['_merge']=='left_only'
             ].drop('_merge', axis=1)
         except ValueError as e:
-            logger.exception(df_base.info())
-            logger.exception(df_incoming.info())
+            self.logging_manager.log_exception(df_base.info())
+            self.logging_manager.log_exception(df_incoming.info())
             raise e
 
         if 'index' in df_new_data.columns:

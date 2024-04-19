@@ -383,16 +383,15 @@ class ConnectorSql(Connector):
     # see https://stackoverflow.com/questions/58378708/sqlalchemy-cant-reconnect-until-invalid-transaction-is-rolled-back
     # with error Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b)
     def read_all(self, *args, **kwargs) -> Optional[pd.DataFrame]:
-        self.logging_manager.log_info('Executing SQL query...')
+        self.logging_manager.log_debug('Executing SQL query...')
         
         with self.engine.connect() as conn:
             try:
                 result_df = pd.read_sql(args[0], conn, dtype_backend='pyarrow', **kwargs)
-                self.logging_manager.log_info('SQL query executed successfully.')
+                self.logging_manager.log_debug('SQL query executed successfully.')
                 return result_df
             except Exception as e:
                 self.logging_manager.log_debug(f'Error executing SQL query: {e}')
-                logger.debug(e)
                 conn.rollback()
                 return None
 
@@ -417,7 +416,7 @@ class ConnectorSql(Connector):
                 )
                 self.logging_manager.log_info('Data saved to SQL database successfully.')
             except Exception as e:
-                self.logging_manager.log_error(f'Error saving data to SQL database: {e}')
+                self.logging_manager.log_exception(f'Error saving data to SQL database: {e}')
                 conn.rollback()
                 raise
 
@@ -478,7 +477,7 @@ class ConnectorSql(Connector):
             metadata.create_all(self.engine, **params)
             self.logging_manager.log_info(f"Table '{table_name}' created successfully.")
         except Exception as e:
-            self.logging_manager.log_error(f"Error creating table '{table_name}': {e}")
+            self.logging_manager.log_exception(f"Error creating table '{table_name}': {e}")
             raise
 
 class ConnectorRest(Connector):
