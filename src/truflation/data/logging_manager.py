@@ -4,7 +4,7 @@ from datetime import datetime
 from loguru import logger
 
 class Logger:
-    output_level = "INFO"
+    level = "INFO"
     stream=sys.stderr
     def __init__(self, log_dir_path = 'log'):
         # Define the directory path
