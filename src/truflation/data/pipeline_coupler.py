@@ -22,6 +22,8 @@ from pytz import utc
 from truflation.data.logging_manager import Logger
 
 from truflation.data.pipeline import Pipeline
+# output information from scheduler
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 Logger.basic_config(stream=sys.stdout, level="DEBUG")
 
 def ingest(module_list: list, config: dict):
