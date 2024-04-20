@@ -57,7 +57,9 @@ class Exporter:
         reconcile = self.reconcile_dataframes if export_details.reconcile is None else export_details.reconcile
         df_new_data = reconcile(df_remote, df_local) if df_remote is not None and not df_remote.empty else df_local
         if not df_new_data.empty:
-            self.logging_manager.log_info('exporting....')
+            self.logging_manager.log_info(
+                f'exporting {export_details.name} to {export_details.key}'
+            )
             self.logging_manager.log_info(df_new_data)
 
         if 'date' in df_local:
