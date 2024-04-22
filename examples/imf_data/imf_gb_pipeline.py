@@ -98,7 +98,7 @@ def get_details():
 
     exports = [
         ExportDetails(
-            name="imf_gb_inflation", connector=CONNECTOR, key="imf_gb_inflation"
+            name="imf_gb_inflation", connector=CONNECTOR, key="imf_gb_inflation", replace=True
         )
     ]
 

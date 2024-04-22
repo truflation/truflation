@@ -4,6 +4,7 @@ import unittest
 import truflation.data.connectors.kwil as kwil
 from truflation.data.connector import connector_factory
 
+@unittest.skipIf('KWIL_USER' not in os.environ, "skipping test")
 class TestSimple(unittest.TestCase):
     def test_factory(self):
         connector = connector_factory('kwil:')
