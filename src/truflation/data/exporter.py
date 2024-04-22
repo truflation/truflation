@@ -61,6 +61,10 @@ class Exporter:
                 f'exporting {export_details.name} to {export_details.key}'
             )
             self.logging_manager.log_info(df_new_data)
+        else:
+            self.logging_manager.log_debug(
+                f'no new data - {export_details.name} to {export_details.key}'
+            )
 
         if 'date' in df_local:
             df_local['date'] = pandas.to_datetime(df_local['date'])  # make sure the 'date' column is in datetime format
