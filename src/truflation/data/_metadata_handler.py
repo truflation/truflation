@@ -7,7 +7,6 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError, NoSuchTableError
 from sqlalchemy import create_engine, select, desc, MetaData, Table, Column, VARCHAR, DATETIME
 from truflation.data.logging_manager import Logger
-ic.disable()
 
 class _MetadataHandler:
     def __init__(self, env_path = '../../../.env', engine=None):
@@ -92,7 +91,7 @@ class _MetadataHandler:
                 metadata_table = self.metadata.tables[self.table]
                 conn.execute(metadata_table.delete())
                 conn.commit()
-                ic(f'Table {self.table} was emptied successfully.')
+                self.logging_manager.log_debug(f'Table {self.table} was emptied successfully.')
             except Exception as err:
                 self.logging_manager.log_exception(
                     f'An error occurred while emptying {self.table} table: {err}'
@@ -116,7 +115,7 @@ class _MetadataHandler:
         try:
             # Fetch all tables from the database
             tables = self.metadata.tables.keys()
-            ic('Successfully fetched all tables from database.')
+            self.logging_manager.log_info('Successfully fetched all tables from database.')
             
             # Iterate through each table in the database
             for table_name in tables:
@@ -213,7 +212,7 @@ class _MetadataHandler:
                     )
                     conn.execute(update_query)
                     conn.commit()
-                    ic(f'Row updated successfully into {_metadata_table} table')
+                    self.logging_manager.log_debug(f'Row updated {table_name} {key} successfully into {_metadata_table} table')
                 else:
                     # Row doesn't exist, perform insert
                     insert_query = _metadata_table.insert().values(
@@ -226,7 +225,7 @@ class _MetadataHandler:
                     )
                     conn.execute(insert_query)
                     conn.commit()
-                    ic(f'Row inserted successfully into {_metadata_table} table')
+                    self.logging_manager.log_debug(f'Row inserted {table_name} {key} successfully into {_metadata_table} table')
             except OperationalError as err:
                 self.logging_manager.log_exception(
                     f'An error occurred while checking row existence or updating/inserting row: {err}'
