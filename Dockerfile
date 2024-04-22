@@ -8,3 +8,4 @@ RUN mkdir /ingestor
 ADD . /ingestor
 WORKDIR /ingestor
 RUN pip install .
+RUN python -mpytest .
