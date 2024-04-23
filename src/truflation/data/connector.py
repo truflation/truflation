@@ -5,6 +5,7 @@ Connector
 import os
 import json
 import io
+from icecream import ic
 from typing import Optional, Iterator, Any, List
 from pathlib import Path
 import logging
@@ -24,6 +25,36 @@ from sqlalchemy import create_engine, Table, MetaData
 
 logger = logging.getLogger(__name__)
 
+def playw_browser():
+    if playw_browser.count >= 50 :
+        playw_browser.count = 0
+        playw_browser.browser.close()
+        playw_browser.playwright.stop()
+        playw_browser.playwright = None
+        playw_browser.browser = None
+    if playw_browser.playwright is None:
+        launch_params = {}
+        playw_browser.playwright = sync_playwright().start()
+        if os.environ.get('PROXY_SERVER') is not None and \
+           os.environ.get('PROXY_USERNAME') is not None and \
+           os.environ.get('PROXY_PASSWORD') is not None:
+            launch_params = {
+                'proxy': {
+                    'server': os.environ.get('PROXY_SERVER'),
+                    'username': os.environ.get('PROXY_USERNAME'),
+                    'password': os.environ.get('PROXY_PASSWORD')
+                }
+            }
+            ic('#### using proxy server with playwright ####')
+        playw_browser.browser = playw_browser.playwright.firefox.launch(
+            **launch_params
+        )
+        playw_browser.count += 1
+    return playw_browser.browser
+
+playw_browser.playwright = None
+playw_browser.browser = None
+playw_browser.count = 0
 
 class Connector:
     """
@@ -111,7 +142,7 @@ class Cache:
         return ConnectorCache(self, default_key)
 
     def clear(self):
-        self.cache_data = {}
+        self.cache_data.clear()
 
 
 class ConnectorCsv(Connector):
@@ -352,16 +383,15 @@ class ConnectorSql(Connector):
     # see https://stackoverflow.com/questions/58378708/sqlalchemy-cant-reconnect-until-invalid-transaction-is-rolled-back
     # with error Can't reconnect until invalid transaction is rolled back.  Please rollback() fully before proceeding (Background on this error at: https://sqlalche.me/e/20/8s2b)
     def read_all(self, *args, **kwargs) -> Optional[pd.DataFrame]:
-        self.logging_manager.log_info('Executing SQL query...')
+        self.logging_manager.log_debug('Executing SQL query...')
         
         with self.engine.connect() as conn:
             try:
                 result_df = pd.read_sql(args[0], conn, dtype_backend='pyarrow', **kwargs)
-                self.logging_manager.log_info('SQL query executed successfully.')
+                self.logging_manager.log_debug('SQL query executed successfully.')
                 return result_df
             except Exception as e:
                 self.logging_manager.log_debug(f'Error executing SQL query: {e}')
-                logger.debug(e)
                 conn.rollback()
                 return None
 
@@ -386,7 +416,7 @@ class ConnectorSql(Connector):
                 )
                 self.logging_manager.log_info('Data saved to SQL database successfully.')
             except Exception as e:
-                self.logging_manager.log_error(f'Error saving data to SQL database: {e}')
+                self.logging_manager.log_exception(f'Error saving data to SQL database: {e}')
                 conn.rollback()
                 raise
 
@@ -447,7 +477,7 @@ class ConnectorSql(Connector):
             metadata.create_all(self.engine, **params)
             self.logging_manager.log_info(f"Table '{table_name}' created successfully.")
         except Exception as e:
-            self.logging_manager.log_error(f"Error creating table '{table_name}': {e}")
+            self.logging_manager.log_exception(f"Error creating table '{table_name}': {e}")
             raise
 
 class ConnectorRest(Connector):
@@ -456,6 +486,7 @@ class ConnectorRest(Connector):
         self.playwright = kwargs.get('playwright', False)
         self.json = kwargs.get('json', True)
         self.csv = kwargs.get('csv', False)
+        self.no_cache = kwargs.get('no_cache', False)
         self.page = None
 
     def read_all(
@@ -465,11 +496,20 @@ class ConnectorRest(Connector):
         
         if self.playwright:
             try:
-                with sync_playwright() as p:
-                    browser_type = p.firefox
-                    browser = browser_type.launch()
-                    self.page = browser.new_page()
-                    response = self.page.goto(
+                if self.no_cache:
+                    with sync_playwright() as p:
+                        browser_type = p.firefox
+                        browser = browser_type.launch()
+                        self.page = browser.new_page()
+                        response = self.page.goto(
+                            url
+                        )
+                        self.logging_manager.log_info('Data fetched using Playwright.')
+                        return self.process_response(response)
+
+                with playw_browser().new_context() as context:
+                    page = context.new_page()
+                    response = page.goto(
                         url
                     )
                     self.logging_manager.log_info('Data fetched using Playwright.')
@@ -696,7 +736,7 @@ class ConnectorExcel(Connector):
         #     return None
 
     def write_all(self, df, *args, **kwargs):
-        raise Exception("write_all not implimented for Excel connector")
+        raise Exception("write_all not implemented for Excel connector")
         # key = kwargs.get('key', self.default_key)
         # spread = Spread(key, create_spread=True)
         # spread.move(self.path_root, create=True)

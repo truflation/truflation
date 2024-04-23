@@ -2,9 +2,8 @@ import datetime
 import logging
 import pandas
 from truflation.data.export_details import ExportDetails
+from truflation.data.logging_manager import Logger
 from sqlalchemy import types
-
-logger = logging.getLogger(__name__)
 
 '''
   Dev Notes
@@ -22,7 +21,7 @@ class Exporter:
     Exporter is a class that is able to export data to databases.
     """
     def __init__(self):
-        pass
+        self.logging_manager = Logger()
 
     def export(self, export_details: ExportDetails, df_local: pandas.DataFrame, dry_run=False) -> pandas.DataFrame:
         """
@@ -55,25 +54,39 @@ class Exporter:
         df_remote = self.reduce_future_created_at(df_remote)
 
         # If remote exists, reconcile and receive the data needing to be added
-        df_new_data = self.reconcile_dataframes(df_remote, df_local) if df_remote is not None and not df_remote.empty else df_local
-        logger.debug('exporting....')
-        logger.debug(df_new_data)
+        reconcile = self.reconcile_dataframes if export_details.reconcile is None else export_details.reconcile
+        df_new_data = reconcile(df_remote, df_local) if df_remote is not None and not df_remote.empty else df_local
+        if not df_new_data.empty:
+            self.logging_manager.log_info(
+                f'exporting {export_details.name} to {export_details.key}'
+            )
+            self.logging_manager.log_info(df_new_data)
+        else:
+            self.logging_manager.log_debug(
+                f'no new data - {export_details.name} to {export_details.key}'
+            )
 
         if 'date' in df_local:
             df_local['date'] = pandas.to_datetime(df_local['date'])  # make sure the 'date' column is in datetime format
 
         if not dry_run and not df_new_data.empty:
             # Insert
-            export_details.write(
-                df_new_data,
-                chunksize=1000,
-                index= (df_new_data.index.name == 'date'),
-                dtype={
-                    # 'created_at': types.DateTime(precision=6),
+            if export_details.create_table is None:
+                export_details.write(
+                    df_new_data,
+                    chunksize=1000,
+                    index= (df_new_data.index.name == 'date'),
+                    dtype={
+                        # 'created_at': types.DateTime(precision=6),
                     'date': types.Date(),
-                    'created_at': types.DATETIME()
+                        'created_at': types.DATETIME()
                 },
-            )
+                )
+            else:
+                export_details.create_table(
+                    export_details,
+                    df_new_data
+                )
 
         return df_new_data
 
@@ -140,8 +153,8 @@ class Exporter:
                 df_new_data['_merge']=='left_only'
             ].drop('_merge', axis=1)
         except ValueError as e:
-            logger.exception(df_base.info())
-            logger.exception(df_incoming.info())
+            self.logging_manager.log_exception(df_base.info())
+            self.logging_manager.log_exception(df_incoming.info())
             raise e
 
         if 'index' in df_new_data.columns:

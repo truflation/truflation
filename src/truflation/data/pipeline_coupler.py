@@ -19,13 +19,12 @@ from typing import List
 from apscheduler.schedulers.background import BackgroundScheduler
 from docopt import docopt
 from pytz import utc
-
-from telegram_bot.push_logs_for_bot import push_general_logs
-from telegram_bot.general_logger import log_to_bot
+from truflation.data.logging_manager import Logger
 
 from truflation.data.pipeline import Pipeline
+# output information from scheduler
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-
+Logger.basic_config(stream=sys.stdout, level="DEBUG")
 
 def ingest(module_list: list, config: dict):
     """
@@ -86,10 +85,6 @@ def main(module_list: list, cron_schedule=None):
     # Print job and pipeline details so we know it is functioning
     print('Scheduling ingestor pipelines')
     print(f' --> {job}')
-
-    # log start of pipeline
-    log_to_bot(f'{pipeline_name} has been scheduled: {job}')
-    push_general_logs()
 
     # Runs an infinite loop
     while True:

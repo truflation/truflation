@@ -10,15 +10,14 @@ Arguments:
 """
 
 import importlib
-import logging
-from typing import List, Optional
 from truflation.data.pipeline import Pipeline
 from truflation.data.general_loader import GeneralLoader
+from truflation.data.logging_manager import Logger
 from docopt import docopt
 
-def load_path(file_path_list: List[str] | str,
+def load_path(file_path_list: list[str] | str,
                     debug: bool, dry_run: bool,
-                    config: Optional[dict] = None):
+                    config: dict | None = None):
     """
     Dynamically import and run module, pipeline_details
     """
@@ -34,7 +33,7 @@ def load_path(file_path_list: List[str] | str,
     for file_path in file_path_list:
         if debug:
             print('debugging')
-            logging.basicConfig(level=logging.DEBUG)
+            Logger.basic_config(level="DEBUG")
         module_name = 'my_pipeline_details'
         spec = importlib.util.spec_from_file_location(module_name, file_path)
         if spec is None or spec.loader is None:
