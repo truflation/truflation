@@ -32,4 +32,4 @@ jobs:
         uses: orgoro/coverage@v3.1
         with:
             coverageFile: coverage.xml
-            
+            token: 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
