@@ -27,7 +27,7 @@ jobs:
           pytest -s tests/metadata_handler_test.py
       - name: Generate coverage report
         run: |
-          pytest --cov=src/truflation/data/_metadata_handler tests/metadata_handler_test.py --cov-report=xml
+          pytest --cov=src/truflation/data/ tests/ --cov-report=xml
       - name: Get Cover 
         uses: orgoro/coverage@v3.1
         with:
