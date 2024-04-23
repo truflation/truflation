@@ -18,7 +18,7 @@ jobs:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.cfg', '**/pyproject.toml') }}
           restore-keys: |
-            ${{ runner.os }}-pip-
+            ${{ runner.os }}-pip-d
       - name: Install dependencies
         run: |
           pip install .
@@ -27,9 +27,9 @@ jobs:
           pytest -s tests/metadata_handler_test.py
       - name: Generate coverage report
         run: |
-          pytest --cov=myproject tests/metadata_handler_test.py --cov-report=xml
-      # - name: Upload coverage to Codecov (optional)
-      #   uses: codecov/codecov-action@v1
+          pytest --cov=src/truflation/data/ tests/metadata_handler_test.py --cov-report=xml
+      # - name: Upload coverage to Codecov
+      #   uses: codecov/codecov-action@v2
       #   with:
       #     file: ./coverage.xml
       #     fail_ci_if_error: true

@@ -1,11 +1,17 @@
 import os
+import sys
 import datetime
 from unittest import mock
 import pytest
 from icecream import ic
 from sqlalchemy import DATETIME, VARCHAR, Column, create_engine, func, select, MetaData, Table
 from sqlalchemy.exc import OperationalError
-from truflation.data._metadata_handler import _MetadataHandler 
+# from truflation.data._metadata_handler import _MetadataHandler 
+
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.join(SCRIPT_DIR, ".."))
+
+from src.truflation.data._metadata_handler import _MetadataHandler
 
 mock_frequency = '''[
     {
