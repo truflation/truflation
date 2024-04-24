@@ -1,7 +1,7 @@
 import logging
 import os
 # from telegram_bot.utilities import log_to_bot
-from telegram_bot.general_logger import log_to_bot
+#from telegram_bot.general_logger import log_to_bot
 
 # Define your logger function
 def my_logger(msg):
@@ -9,7 +9,7 @@ def my_logger(msg):
     # log_path = os.getenv('GENERAL_LOGFILE', "temporary_pipeline_logging_location")
     # print(f"My Logger: {msg}")
     my_dic_msg = {"error": msg}
-    log_to_bot(my_dic_msg)
+    #log_to_bot(my_dic_msg)
     # todo -- send to Telegram logger
 
 #  todo - think how to incorporate unique/personal logging (not in the main code)
