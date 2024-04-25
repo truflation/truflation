@@ -9,6 +9,8 @@ from jwcrypto import jwk, jwt
 from eth_account import Account
 from eth_account.messages import encode_typed_data
 
+ic.disable()
+
 def convert_floats_to_wei(json_dict):
     def float_to_int(num):
         if isinstance(num, list):
@@ -92,7 +94,7 @@ class JwtSigner(Signer):
     def signature(self, payload, **kwargs):
         token = jwt.JWT(
             header={
-                'alg': self.kwargs.get('alg', 'ES512')
+                'alg': self.kwargs.get('alg', 'ES256K')
             },
             claims=payload
         )
