@@ -3,6 +3,11 @@ from truflation.data.source_details import SourceDetails
 from truflation.data.export_details import ExportDetails
 import pandas
 
+def return_none():
+    return None
+
+def return_same(x):
+    return x
 
 class PipeLineDetails:
     """
@@ -68,12 +73,6 @@ class PipeLineDetails:
     transformer: Callable[[Dict], Dict]
         Data transformation function for the pipeline.
     """
-
-    def return_none():
-        return None
-
-    def return_same(x):
-        return x
 
     def __init__(self,
                  name,
