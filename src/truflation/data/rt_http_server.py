@@ -24,7 +24,7 @@ BASE_DIRECTORY = os.path.join(
 )
 LIMIT=5
 signer = Signer.factory(
-    os.environ.get('RT_HTTP_SERVER_SIGNER', 'jwt')
+    os.environ.get('RT_HTTP_SERVER_SIGNER')
 )
 
 def set_base_directory(base_directory: str):

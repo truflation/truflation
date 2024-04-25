@@ -48,7 +48,7 @@ class Signer(ABC):
     @classmethod
     def factory(
             cls,
-            sign_string : str,
+            sign_string : str | None,
             privkey=None,
             pubkey=None,
             *args,
@@ -68,7 +68,7 @@ class Signer(ABC):
                 *args,
                 **kwargs
             )
-        raise NotImplementedError
+        return NullSigner()
 
 class JwtSigner(Signer):
     """
@@ -144,3 +144,13 @@ class Eip712Signer(Signer):
                 'signature': sm.signature.hex()
             }
         }
+
+class NullSigner(Signer):
+    def __init__(self):
+        super().__init__(None, None)
+    def auth_info(self):
+        return {}
+    def preprocess(self, payload):
+        return payload
+    def signature(self, payload, **kwargs):
+        return None
