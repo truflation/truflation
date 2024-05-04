@@ -1,15 +1,13 @@
-import os
-import unittest
-from unittest.mock import patch
-from jwcrypto import jwk, jwt
-from eth_account import Account
-from eth_account.messages import encode_typed_data
-from truflation.data.signer import Signer, JwtSigner, Eip712Signer, NullSigner
-
 """
+Test for signer
+
 EC key from
 https://techdocs.akamai.com/iot-token-access-control/docs/generate-ecdsa-keys
 """
+
+import unittest
+from eth_account import Account
+from truflation.data.signer import Signer, JwtSigner, Eip712Signer, NullSigner
 
 class TestSigner(unittest.TestCase):
     def setUp(self):
@@ -63,23 +61,26 @@ nETz5KbXPSeG5FGwKMUXGfAmSZJq2gENULFewwymt+9bTXkjBZhh8A==
 
     def test_eip712_signer(self):
         msgtypes = {'Data': [{'name': 'data', 'type': 'uint256'}]}
-        domain = {'name': 'Test', 'version': '1', 'chainId': 1, 'verifyingContract': '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'}
+        domain = {'name': 'Test', 'version': '1', 'chainId': 1,
+                  'verifyingContract': Account.from_key(self.privkey).address}
         signer = Eip712Signer(self.privkey, self.pubkey, domain, msgtypes)
         auth_info = signer.auth_info()
         self.assertDictEqual(auth_info, {'types': msgtypes, 'domain': domain})
         preprocessed_payload = signer.preprocess(self.payload)
         self.assertDictEqual(preprocessed_payload, {'data': 123456000000000000000})
         signature = signer.signature(preprocessed_payload)
-        self.assertDictEqual(signature, {'sig': {
-            'hash': '0xbf319ef75c1b13b026a51eb5f396e6529c2586f9ea782671fb676d41c29266d8',
-            'signature': '0x048ab8b5a4398c4f4d5534e280ad973a8713b96166e389994bca8b0daef4db473a7778c378c1649ca4e700d99213102c82c65a324fc91e66e854d022f46165771c'}})
+        self.assertDictEqual(signature, {
+            'sig': {
+                'hash': '25fc66a2247a6c7054c1ea6a33e194cae3cbf345f7dca6d661240050c7400be3',
+                'signature': '8c9f26069dea7608baa35708deb954a704c10b094f22492c0fc6de6669f86e60061b0aad7587102f917f37c158aa43517dad2025277b3ba2df6ada8a0a22441b1c'
+            }
+        })
 
     def test_null_signer(self):
         signer = NullSigner()
         auth_info = signer.auth_info()
         self.assertDictEqual(auth_info, {})
-        signature = signer.signature(self.payload)
-        self.assertIsNone(signature)
+        self.assertIsNone(signer.signature(self.payload))
 
 if __name__ == '__main__':
     unittest.main()
