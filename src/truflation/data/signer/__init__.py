@@ -124,6 +124,13 @@ class Eip712Signer(Signer):
         if privkey is None:
             privkey = os.environ.get('ETH_PRIV_KEY')
         self.privkey = privkey
+        address = \
+            Account.from_key(self.privkey).address
+        if domain is not None:
+            if domain.get('verifyingContract') is None:
+                domain['verifyingContract'] = address
+            if domain['verifyingContract'] != address:
+                raise ValueError('domain and private key do not match')
         self.domain = domain
         self.msgtypes = msgtypes
     def auth_info(self):
