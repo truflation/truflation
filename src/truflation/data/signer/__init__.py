@@ -122,7 +122,7 @@ class Eip712Signer(Signer):
     ):
         super().__init__(privkey, pubkey)
         if privkey is None:
-            privkey = os.environ.get('ETH_PRIV_KEY')
+            privkey = os.environ.get('ETH_PRIVATE_KEY')
         self.privkey = privkey
         address = \
             Account.from_key(self.privkey).address
