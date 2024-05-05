@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 import os
 import traceback
+from typing import Annotated
 from datetime import datetime
+import uvicorn
 import ujson
 
-from sanic import Sanic, exceptions
-from sanic.response import json, text
+from fastapi import FastAPI, HTTPException, Path
+from fastapi.responses import JSONResponse, Response
 
 from sqlalchemy import text, select
 
@@ -18,7 +20,7 @@ from truflation.data.signer import Signer
 
 load_dotenv()
 
-app = Sanic('rt_http_server')
+app = FastAPI()
 BASE_DIRECTORY = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "json"
 )
@@ -54,36 +56,36 @@ def convdate(timestamp):
         int(timestamp)/1000
     ))
 
-@app.route("/auth-info")
-async def auth_info(request):
-    return json(signer.auth_info())
+@app.get("/auth-info")
+async def auth_info():
+    return signer.auth_info()
 
 def sign_json(payload):
     payload_sign = signer.preprocess(payload)
     signature = signer.signature(payload_sign)
     if signature is not None:
         if isinstance(signature, dict):
-            jresponse = json(payload_sign | signature)
+            return payload_sign | signature
         if isinstance(signature, str):
-            jresponse = json(payload_sign | { 'i': signature })
-            jresponse.headers['Authorization'] = 'Bearer ' + signature
-        return jresponse
-    return json(payload)
+            return JSONResponse(
+                content = payload_sign | { 'i': signature },
+                headers = {
+                    'Authorization': 'Bearer ' + signature
+                })
+    return payload
 
-@app.route("/history")
-async def get_history(request):
+@app.get("/history")
+async def get_history(symbol: str,
+                      start: str | None = None,
+                      end: str | None = None,
+                      countback: int = LIMIT):
     """
 See spec at
 
 https://www.tradingview.com/charting-library-docs/latest/connecting_data/UDF/
     """
-    query = request.args
     try:
-        symbol = query.get('symbol')
         table, column = symbol.split(':')
-        start = query.get('from')
-        end = query.get('to')
-        countback = int(query.get('countback', LIMIT))
 
         sqlstring = \
             f"SELECT date, {column} " \
@@ -133,26 +135,28 @@ https://www.tradingview.com/charting-library-docs/latest/connecting_data/UDF/
             's': 'error'
         })
 
-@app.route("/data/<filename:[A-z][A-z0-9_.]*>")
-async def get_file_contents(_, filename):
-
+@app.get("/data/{filename}")
+async def get_file_contents(
+        filename: Annotated [
+            str, Path(pattern='^[A-z][A-z0-9_.]*')
+        ]):
     # Construct the full path to the file
     file_path = os.path.join(BASE_DIRECTORY, filename)
     if not is_valid_file_path(file_path):
-        return json({"error": "Invalid file"}, status=404)
+        raise HTTPException(status_code=404, detail="error: Invalid file")
     try:
         with open(file_path, "r", encoding='utf-8') as file:
             file_type = get_file_type(filename)
             if file_type == 'json':
-                return json(ujson.load(file))
-            contents = file.read()
-            response = text(contents)
-            response.headers["Content-Type"] = f"application/{file_type}"
-            return response
+                return ujson.load(file)
+            return Response(
+                content=file.read(),
+                media_type=f"application/{file_type}"
+            )
     except FileNotFoundError:
-        return json({"error": "File not found"}, status=404)
+        return HTTPException(status_code=404, detail="error: file not found")
     except Exception as e:
-        return json({"error": str(e)}, status=500)
+        raise
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
