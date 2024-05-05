@@ -24,10 +24,10 @@ jobs:
           pip install .
       - name: Run pytest with coverage
         run: |
-          pytest -s tests/metadata_handler_test.py
+          pytest -s tests
       - name: Generate coverage report
         run: |
-          pytest --cov=myproject tests/metadata_handler_test.py --cov-report=xml
+          pytest --cov=myproject tests --cov-report=xml
       # - name: Upload coverage to Codecov (optional)
       #   uses: codecov/codecov-action@v1
       #   with:
