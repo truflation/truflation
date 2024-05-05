@@ -147,10 +147,11 @@ class Eip712Signer(Signer):
             } | self.auth_info()
         )
         ic(sm)
+        # chop off initial 0x
         return {
             'sig': {
-                'hash': sm.messageHash.hex(),
-                'signature': sm.signature.hex()
+                'hash': sm.messageHash.hex()[2:],
+                'signature': sm.signature.hex()[2:]
             }
         }
 
