@@ -11,6 +11,14 @@ from eth_account.messages import encode_typed_data
 
 ic.disable()
 
+# different versions of python seem to have
+# different conventions regarding adding 0x
+def hexbytes_no0x_str(hexb):
+    s = hexb.hex()
+    if s.startswith('0x'):
+        s = s[2:]
+    return s
+
 def convert_floats_to_wei(json_dict):
     def float_to_int(num):
         if isinstance(num, list):
@@ -147,11 +155,10 @@ class Eip712Signer(Signer):
             } | self.auth_info()
         )
         ic(sm)
-        # chop off initial 0x
         return {
             'sig': {
-                'hash': sm.messageHash.hex()[2:],
-                'signature': sm.signature.hex()[2:]
+                'hash': hexbytes_no0x_str(sm.messageHash),
+                'signature': hexbytes_no0x_str(sm.signature)
             }
         }
 
