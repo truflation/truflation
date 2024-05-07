@@ -23,7 +23,7 @@ RUN apt-get update && apt-get install -y nodejs npm
 RUN apt-get install -y nodejs
 
 # Install Node.js dependencies
-RUN npm install
+RUN npm install --no-scripts
 
 # Expose the port your app runs on
 EXPOSE 3001
