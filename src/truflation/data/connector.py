@@ -119,7 +119,7 @@ class Connector:
         ## if the environment variable is defined, append the filename to the manifest file.
         MANIFEST_FILE = os.environ.get('PIPELINE_FILES_MANIFEST', None)
         if MANIFEST_FILE != None:
-            self.logging_manager.log_debug(f'Appending to manifest: {MANIFEST_FILE}')
+            self.logging_manager.log_info(f'Appending to manifest: {MANIFEST_FILE}')
             os.makedirs(os.path.dirname(MANIFEST_FILE), exist_ok=True)
             with open(MANIFEST_FILE, "a+") as myfile:
                 myfile.write(filename + "\n")
