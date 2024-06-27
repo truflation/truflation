@@ -65,7 +65,7 @@ class Pipeline:
             if os.getenv('USE_METADATA_HANDLER') == "1" \
                else None
 
-    def ingest(self, dry_run=False) -> None | Dict:
+    def ingest(self, dry_run=False, fail_through=False) -> None | Dict:
         try:
             # get start time
             start_time = time.time()
@@ -124,6 +124,8 @@ class Pipeline:
         except Exception as e:
             e_msg = f'Ingestor {self.name} erred.'
             self.logging_manager.log_exception(e_msg)
+            if fail_through:
+                raise e
         return None
 
     def clear(self):
