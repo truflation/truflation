@@ -48,7 +48,7 @@ def load_path(file_path_list: list[str] | str,
         if hasattr(module, 'get_details_list'):
             for detail in module.get_details_list(**config):
                 my_pipeline = Pipeline(detail)
-                return_value.append(my_pipeline.ingest(dry_run))
+                return_value.append(my_pipeline.ingest(dry_run, fail_through))
                 if config.get('clear_cache', True):
                     loader.clear()
         elif hasattr(module, 'get_details'):
