@@ -157,7 +157,7 @@ class Eip712Signer(Signer):
         ic(sm)
         return {
             'sig': {
-                'hash': hexbytes_no0x_str(sm.messageHash),
+                'hash': hexbytes_no0x_str(sm.message_hash),
                 'signature': hexbytes_no0x_str(sm.signature)
             }
         }

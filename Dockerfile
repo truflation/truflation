@@ -7,4 +7,5 @@ RUN ["apt-get", "install", "-y", "git"]
 RUN mkdir /ingestor
 ADD . /ingestor
 WORKDIR /ingestor
-RUN pip install . && python -mpytest .
+RUN pip install . 
+RUN python -mpytest .
