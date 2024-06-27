@@ -3,10 +3,13 @@
 
 """
 Usage:
-  pipeline_coupler.py <details_path> ... [--debug] [--dry_run]
+  pipeline_coupler.py <details_path> ... [--debug] [--dry_run] [--fail_through]
 
 Arguments:
   details_path     the relative path to the pipeline details module
+  --debug          turns on debug output
+  --dry_run        do not export data
+  --fail_through   re-raise the exception if an exception is encountered in the pipeline script execution
 """
 
 import importlib
@@ -17,6 +20,7 @@ from docopt import docopt
 
 def load_path(file_path_list: list[str] | str,
                     debug: bool, dry_run: bool,
+                    fail_through: bool,
                     config: dict | None = None):
     """
     Dynamically import and run module, pipeline_details
@@ -44,13 +48,13 @@ def load_path(file_path_list: list[str] | str,
         if hasattr(module, 'get_details_list'):
             for detail in module.get_details_list(**config):
                 my_pipeline = Pipeline(detail)
-                return_value.append(my_pipeline.ingest(dry_run))
+                return_value.append(my_pipeline.ingest(dry_run, fail_through))
                 if config.get('clear_cache', True):
                     loader.clear()
         elif hasattr(module, 'get_details'):
             detail = module.get_details(**config)
             my_pipeline = Pipeline(detail)
-            return_value.append(my_pipeline.ingest(dry_run))
+            return_value.append(my_pipeline.ingest(dry_run, fail_through))
             if config.get('clear_cache', True):
                 loader.clear()
         else:
@@ -65,5 +69,5 @@ if __name__ == '__main__':
                for item in args['<details_path>'] if '=' in item }
 
     load_path(filelist,
-              args['--debug'], args['--dry_run'], config)
+              args['--debug'], args['--dry_run'], args['--fail_through'], config)
 
