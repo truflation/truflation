@@ -112,6 +112,18 @@ class Connector:
     ) -> Iterator[Any]:
         raise NotImplementedError
 
+    def write_manifest(
+            self, 
+            filename
+    ):
+        ## if the environment variable is defined, append the filename to the manifest file.
+        MANIFEST_FILE = os.environ.get('PIPELINE_FILES_MANIFEST', None)
+        if MANIFEST_FILE != None:
+            self.logging_manager.log_info(f'Appending to manifest: {MANIFEST_FILE}')
+            os.makedirs(os.path.dirname(MANIFEST_FILE), exist_ok=True)
+            with open(MANIFEST_FILE, "a+") as myfile:
+                myfile.write(filename + "\n")
+
 
 class ConnectorCache(Connector):
     def __init__(self, cache, default_key=None):
@@ -221,6 +233,8 @@ class ConnectorCsv(Connector):
             
         filename = os.path.join(self.path_root, filename)
         self.logging_manager.log_debug(f'File path: {filename}')
+
+        self.write_manifest(filename)
         
         if not os.path.exists(filename):
             self.logging_manager.log_info(f'File {filename} does not exist. Creating a new file.')
@@ -313,8 +327,11 @@ class ConnectorJson(Connector):
         if filename is None and len(args) > 0:
             filename = args[0]
             
+        # looks like filename will always be an instance of str?
         if isinstance(filename, str):
             filename = os.path.join(self.path_root, filename)
+            self.write_manifest(filename)
+
             self.logging_manager.log_info(f'Writing data to file: {filename}')
             try:
                 with open(filename, 'w') as fileh:
