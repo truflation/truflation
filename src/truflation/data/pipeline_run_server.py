@@ -36,7 +36,7 @@ async def load_path(file_path_list: List[str] | str,
     if config is None:
         config = {}
     return pipeline_run_direct.load_path(
-        file_path_list, debug, dry_run, config | {'clear_cache': False}
+        file_path_list, debug, dry_run, False, config | {'clear_cache': False}
     )
 
 app = FastAPI()
