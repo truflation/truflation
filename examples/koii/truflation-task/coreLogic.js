@@ -1,4 +1,5 @@
 const task = require('./task');
+const { namespaceWrapper } = require('./_koiiNode/koiiNode');
 
 class CoreLogic {
   async task(round) {
@@ -15,8 +16,15 @@ class CoreLogic {
     await task.audit.auditTask(round);
   }
 
-  async submitDistributionList(round) {
-    await task.distribution.submitDistributionList(round);
+  async selectAndGenerateDistributionList(
+    round,
+    isPreviousRoundFailed = false,
+  ) {
+    await namespaceWrapper.selectAndGenerateDistributionList(
+      task.distribution.submitDistributionList,
+      round,
+      isPreviousRoundFailed,
+    );
   }
 
   async auditDistribution(round) {

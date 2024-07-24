@@ -54,7 +54,7 @@ async function test() {
     console.log('latestSuccessfulRound', latestSuccessfulRound);
     let curr_round_data;
     try {
-       curr_round_data = await axios.get(`https://${cidBegin}.ipfs.w3s.link/data.json`)
+       curr_round_data = await axios.get(`https://${cidBegin}.ipfs.sphn.link/data.json`)
     } catch (error) {
       break;
     }
