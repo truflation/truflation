@@ -4,10 +4,11 @@ const PCR = require('puppeteer-chromium-resolver');
 const cheerio = require('cheerio');
 var crypto = require('crypto');
 const axios = require('axios');
-const { SpheronClient, ProtocolEnum } = require('@spheron/storage');
+const { KoiiStorageClient } = require('@_koii/storage-task-sdk');
 const Data = require('../../model/data');
 const { namespaceWrapper } = require('../../_koiiNode/koiiNode');
 const { writeFileSync } = require('fs');
+const path = require('path');
 
 /**
  * Twitter
@@ -97,11 +98,13 @@ class Kayak {
 
   getLinksForDifferentCarLocations = async () => {
     const options = {};
+    const userDataDir = path.join(__dirname, 'puppeteer_cache_truflation');
     const stats = await PCR(options);
     console.log(
       '*****************************************CALLED PURCHROMIUM RESOLVER*****************************************',
     );
     this.browser = await stats.puppeteer.launch({
+      userDataDir: userDataDir,
       // headless: false,
       userAgent:
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -141,7 +144,7 @@ class Kayak {
       data: modifiedResult,
     };
     await this.locationDb.create(locationData);
-    console.log(modifiedResult);
+    // console.log(modifiedResult);
     await this.browser.close();
     this.browser = null;
   };
@@ -169,10 +172,9 @@ class Kayak {
         // });
 
         const listFilePath = await makeFileFromObjectWithName(data);
-        if(!listFilePath)
-          return null;
+        if (!listFilePath) return null;
         // TEST USE
-        const client = makeStorageClient();
+        const client = new KoiiStorageClient(undefined, undefined, false);
         //const cid = await client.put([listFile]);
         // const cid = "cid"
 
@@ -184,29 +186,27 @@ class Kayak {
         );
 
         let currentlyUploaded = 0;
+        try {
+          const userStaking = await namespaceWrapper.getSubmitterAccount();
+          const response = await client.uploadFile(listFilePath, userStaking);
+          const cid = response.cid;
+          console.log(listFilePath, 'is uploaded to IPFS');
+          console.log(`CID: ${cid}`);
+          await this.proofs.create({
+            id: 'proof:' + round,
+            proof_round: round,
+            proof_cid: cid,
+          });
 
-        const { cid } = await client.upload(listFilePath, {
-          protocol: ProtocolEnum.IPFS,
-          name: 'test',
-          onUploadInitiated: uploadId => {
-            console.log(`Upload with id ${uploadId} started...`);
-          },
-          onChunkUploaded: (uploadedSize, totalSize) => {
-            currentlyUploaded += uploadedSize;
-            console.log(`Uploaded ${currentlyUploaded} of ${totalSize} Bytes.`);
-          },
-        });
-
-        console.log(`CID: ${cid}`);
-
-        await this.proofs.create({
-          id: 'proof:' + round,
-          proof_round: round,
-          proof_cid: cid,
-        });
-
-        console.log('returning proof cid for submission', cid);
-        return cid;
+          console.log('returning proof cid for submission', cid);
+          return cid;
+        } catch (error) {
+          if (error.message === 'Invalid Task ID') {
+            console.error('Error: Invalid Task ID');
+          } else {
+            console.error('An unexpected error occurred:', error);
+          }
+        }
       }
     } else {
       throw new Error('No proofs database provided');
@@ -229,32 +229,56 @@ class Kayak {
    * @description Crawls the queue of known links
    */
   crawl = async url => {
-    return axios
-      .get(url)
-      .then(response => {
-        const html = response.data;
-        // Use Cheerio to parse the HTML content
-        const $ = cheerio.load(html);
-        const carData = {}; // Object to store the car data
-        const matchingElements = $('table.rUzP-table tr');
-        matchingElements.each((index, element) => {
-          const carType = $(element).find('.rUzP-name').text().trim();
-          const carPrice = $(element).find('.rUzP-price').text().trim();
-          if (this.desiredCarTypes.includes(carType)) {
-            carData[carType] = parseFloat(carPrice.replace('$', ''));
-          }
-        });
-        console.log(carData);
-        return carData;
-      })
-      .catch(error => console.log(error));
+    try {
+      const options = {};
+      const userDataDir = path.join(__dirname, 'puppeteer_cache_truflation');
+      const stats = await PCR(options);
+      this.browser = await stats.puppeteer.launch({
+        userDataDir: userDataDir,
+        // headless: false,
+        userAgent:
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
+        executablePath: stats.executablePath,
+      });
+
+      this.page = await this.browser.newPage();
+      await this.page.setUserAgent(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+      );
+      await this.page.setViewport({ width: 1920, height: 1080 });
+      this.page.goto(url, { waitUntil: 'networkidle2' });
+      await this.page.waitForTimeout(5000);
+      const html = await this.page.content();
+      await this.browser.close();
+      
+      // Use Cheerio to parse the HTML content
+      const $ = cheerio.load(html);
+      const carData = {}; // Object to store the car data
+      const matchingElements = $('div.rDx--info');
+      console.log('matchingElements', matchingElements.length);
+      matchingElements.each((index, element) => {
+        const carType = $(element).find('.c4W84-category').text().trim();
+        // console.log('carType', carType);
+        const carPrice = $(element).find('.rDx--price').text().trim();
+        // console.log('carPrice', carPrice);
+        carData[carType] = parseFloat(
+          carPrice.replace('$', '').replace(',', ''),
+        );
+      });
+
+      // console.log(carData);
+      return carData;
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   storeScrapeOnIPFS = async data => {
-    console.log('storing scrape on IPFS');
+    console.log('storing scrape into DB');
     const round = await namespaceWrapper.getRound();
     const filePath = await makeFileFromObjectWithName(data);
-    console.log('**********filePath*********', filePath);
+    // console.log('**********filePath*********', filePath);
     // const cid = await storeFiles(filePath);
     // console.log('cid', cid);
     await this.cids.create({
@@ -277,15 +301,6 @@ class Kayak {
 
 module.exports = Kayak;
 
-// TODO - move the following functions to a utils file?
-function makeStorageClient() {
-  //return new Web3Storage({ token: getAccessToken() });
-
-  return new SpheronClient({
-    token: getAccessToken(),
-  });
-}
-
 async function makeFileFromObjectWithName(obj) {
   try {
     const dataString = JSON.stringify(obj);
@@ -293,7 +308,7 @@ async function makeFileFromObjectWithName(obj) {
     // await namespaceWrapper.fs('writeFile', 'data.json', dataString);
 
     const path = await namespaceWrapper.getBasePath();
-    console.log('path', path);
+    // console.log('path', path);
     const filePath = path + '/data.json';
     writeFileSync(filePath, dataString);
     return filePath;
@@ -313,41 +328,17 @@ async function makeFileFromObjectWithName(obj) {
   // return { dataJson };
 }
 
-async function storeFiles(filePath) {
-  const client = makeStorageClient();
-  //const cid = await client.put([files.dataJson]);
-  // console.log('stored files with cid:', cid);
+// async function storeFiles(filePath) {
+//   const client = new KoiiStorageClient(undefined, undefined, true);
+//   const userStaking = await namespaceWrapper.getSubmitterAccount();
+//   // console.log(`CID: ${cid}`);
+//   //const cid = await client.put([files.dataJson]);
+//   // console.log('stored files with cid:', cid);
 
-  console.log('***************STORING FILES***************', filePath);
+//   console.log('***************STORING FILES***************', filePath);
 
-  let currentlyUploaded = 0;
-
-  const { cid } = await client.upload(filePath, {
-    protocol: ProtocolEnum.IPFS,
-    name: 'test',
-    onUploadInitiated: uploadId => {
-      console.log(`Upload with id ${uploadId} started...`);
-    },
-    onChunkUploaded: (uploadedSize, totalSize) => {
-      currentlyUploaded += uploadedSize;
-      console.log(`Uploaded ${currentlyUploaded} of ${totalSize} Bytes.`);
-    },
-  });
-
-  console.log(`CID: ${cid}`);
-  return cid;
-}
-
-function getAccessToken() {
-  // If you're just testing, you can paste in a token
-  // and uncomment the following line:
-  // return 'paste-your-token-here'
-
-  // In a real app, it's better to read an access token from an
-  // environement variable or other configuration that's kept outside of
-  // your code base. For this to work, you need to set the
-  // WEB3STORAGE_TOKEN environment variable before you run your code.
-  return process.env.Spheron_Storage;
-
-  // SECRET_SPHERON_STORAGE_KEY is the key for the spheron storage.
-}
+//   const response = await client.uploadFile(listFilePath,userStaking);
+//   const cid = response.cid;
+//   console.log(`CID: ${cid}`);
+//   return cid;
+// }

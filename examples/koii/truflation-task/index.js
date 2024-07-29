@@ -44,10 +44,10 @@ async function setup() {
       coreLogic.task(m.roundNumber);
     } else if (m.functionCall == 'generateAndSubmitDistributionList') {
       console.log('generateAndSubmitDistributionList called');
-      coreLogic.submitDistributionList(m.roundNumber);
+      coreLogic.selectAndGenerateDistributionList(m.roundNumber, m.isPreviousRoundFailed);
     } else if (m.functionCall == 'distributionListAudit') {
       console.log('distributionListAudit called');
-      coreLogic.auditDistribution(m.roundNumber);
+      coreLogic.auditDistribution(m.roundNumber, m.isPreviousRoundFailed);
     }
   });
   /*######################################################

@@ -1,36 +1,12 @@
 const { default: axios } = require('axios');
+const { createHash } = require('crypto');
 
-const {
-  Connection,
-  PublicKey,
-  Keypair,
-  SystemProgram,
-  Transaction,
-  LAMPORTS_PER_SOL,
-  TransactionInstruction,
-  sendAndConfirmTransaction,
-} = require('@_koi/web3.js');
-const fs = require('fs');
+const { Connection, PublicKey, Keypair } = require('@_koi/web3.js');
+const semver = require('semver');
 const Datastore = require('nedb-promises');
 const fsPromises = require('fs/promises');
 const bs58 = require('bs58');
-const BufferLayout = require('@solana/buffer-layout');
 const nacl = require('tweetnacl');
-const makeChunks = require('../helpers/makeChunks');
-const encodeData = require('../helpers/encodeData');
-const DEFAULT_PROGRAM_ID = 'Koiitask22222222222222222222222222222222222';
-const CHUNKNUM_BYTE_COUNT = 2; // u16 int, which chunk
-const CHUNKSIZE_BYTE_COUNT = 2; // u16 int, how big are chunks
-const TASK_INSTRUCTION_LAYOUTS = Object.freeze({
-  UploadDistributionList: {
-    index: 11,
-    layout: BufferLayout.struct([
-      BufferLayout.u8('instruction'),
-      BufferLayout.blob(512, 'instruction_data'),
-      BufferLayout.ns64('round'),
-    ]),
-  },
-});
 
 /****************************************** init.js ***********************************/
 
@@ -70,9 +46,9 @@ const MAIN_ACCOUNT_PUBKEY = process.argv[6];
  */
 const SECRET_KEY = process.argv[7];
 /**
- * This will be K2 url being used by the task node, possible values are 'https://k2-testnet.koii.live' | 'https://k2-devnet.koii.live' | 'http://localhost:8899'
+ * This will be K2 url being used by the task node, possible values are 'https://testnet.koii.network' | 'https://k2-devnet.koii.live' | 'http://localhost:8899'
  */
-const K2_NODE_URL = process.argv[8] || 'https://k2-testnet.koii.live';
+const K2_NODE_URL = process.argv[8] || 'https://testnet.koii.network';
 /**
  * This will be public task node endpoint (Or local if it doesn't have any) of the task node running this task.
  */
@@ -120,6 +96,7 @@ const _server = app.listen(EXPRESS_PORT, () => {
 
 const taskNodeAdministered = !!TASK_ID;
 const BASE_ROOT_URL = `http://localhost:${TASK_NODE_PORT}/namespace-wrapper`;
+let connection;
 
 class NamespaceWrapper {
   #db;
@@ -129,7 +106,6 @@ class NamespaceWrapper {
   #testingDistributionList;
 
   constructor() {
-    console.log('taskNodeAdministered', taskNodeAdministered);
     if (taskNodeAdministered) {
       this.initializeDB();
     } else {
@@ -143,9 +119,6 @@ class NamespaceWrapper {
     try {
       if (taskNodeAdministered) {
         const path = await this.getTaskLevelDBPath();
-        // console.log('path', path);
-        // if(this.fs.existsSync(path))
-        //   this.#db = new Datastore({ filename: path, autoload: true });
         this.#db = Datastore.create(path);
       } else {
         this.#db = Datastore.create('./localKOIIDB.db');
@@ -392,10 +365,11 @@ class NamespaceWrapper {
   // async signEth(transaction) {
   //   return await genericHandler('signEth', transaction);
   // }
-  async getTaskState() {
+  async getTaskState(options) {
     if (taskNodeAdministered) {
-      const response = await genericHandler('getTaskState');
+      const response = await genericHandler('getTaskState', options);
       if (response.error) {
+        console.log('Error in getting task state', response.error);
         return null;
       }
       return response;
@@ -523,17 +497,9 @@ class NamespaceWrapper {
     }
   }
 
-  async nodeSelectionDistributionList() {
+  async payoutTrigger(round) {
     if (taskNodeAdministered) {
-      return await genericHandler('nodeSelectionDistributionList');
-    } else {
-      return this.#testingStakingSystemAccount.publicKey.toBase58();
-    }
-  }
-
-  async payoutTrigger() {
-    if (taskNodeAdministered) {
-      return await genericHandler('payloadTrigger');
+      return await genericHandler('payloadTrigger', round);
     } else {
       console.log(
         'Payout Trigger only handles possitive flows (Without audits)',
@@ -563,420 +529,6 @@ class NamespaceWrapper {
         this.#testingStakingSystemAccount.publicKey.toBase58()
       ] = Buffer.from(JSON.stringify(distributionList));
       return true;
-    }
-  }
-
-  async createDataStorageWallet() {
-    const newAccount = new Keypair();
-    // console.log('newAccount', newAccount.publicKey.toBase58());
-    const createSubmitterAccTransaction = new Transaction().add(
-      SystemProgram.createAccount({
-        fromPubkey: new PublicKey(MAIN_ACCOUNT_PUBKEY),
-        newAccountPubkey: newAccount.publicKey,
-        lamports:
-          0.15 * LAMPORTS_PER_SOL +
-          (await connection.getMinimumBalanceForRentExemption(100)) +
-          10000, //Adding 10,000 extra lamports for padding
-        space: 100,
-        programId: new PublicKey('Koiitask22222222222222222222222222222222222'),
-      }),
-    );
-    const confirmation = await this.sendAndConfirmTransactionWrapper(
-      createSubmitterAccTransaction,
-      [newAccount],
-    );
-    console.log('confirmation', confirmation);
-    fs.writeFileSync(
-      (await this.getBasePath()) + '/dataStorageWallet.json',
-      JSON.stringify(Array.from(newAccount.secretKey)),
-    );
-    return newAccount;
-  }
-
-  async getStorageWallet() {
-    const filePath = (await this.getBasePath()) + '/dataStorageWallet.json';
-
-    if (fs.existsSync(filePath)) {
-      const dataStorageWallet = await fs.readFileSync(
-        (await this.getBasePath()) + '/dataStorageWallet.json',
-      );
-      return Keypair.fromSecretKey(
-        Uint8Array.from(JSON.parse(dataStorageWallet)),
-      );
-    } else {
-      const newAccount = await this.createDataStorageWallet();
-      return newAccount;
-    }
-  }
-
-  // async uploadCustomData(customData, round) {
-  //   const TASK_INSTRUCTION_LAYOUTS = Object.freeze({
-  //     UploadDistributionList: {
-  //       //Upload Distribution complex flow, seperate script
-  //       index: 11,
-  //       layout: BufferLayout.struct([
-  //         BufferLayout.u8('instruction'),
-  //         BufferLayout.blob(512, 'instruction_data'),
-  //         BufferLayout.ns64('round'),
-  //       ]),
-  //     },
-  //   });
-  //   const CHUNKNUM_BYTE_COUNT = 2; // u16 int, which chunk
-  //   const CHUNKSIZE_BYTE_COUNT = 2; // u16 int, how big are chunks
-  //   const mainAccountKey = await this.getMainAccountPubkey();
-  //   if (!mainAccountKey) {
-  //     throw new Error('Main system account not found');
-  //   }
-
-  //   console.log('MAIN SYSTEM PUBKEY', mainAccountKey);
-
-  //   console.log('DISTRIBUTION OBJECT', customData);
-
-  //   console.log('Round value passed', round);
-
-  //   const buf = Buffer.from(JSON.stringify(customData));
-  //   const data = buf;
-  //   console.log('ProgramId to use:', SystemProgram.programId);
-
-  //   console.log('Data contains', data.length, 'bytes');
-
-  //   const storageWalletAccount = await this.getStorageWallet();
-
-  //   // split our data across a number of calls
-
-  //   const remainingByteCount = 512;
-
-  //   const dataByteCount =
-  //     remainingByteCount - (CHUNKNUM_BYTE_COUNT + CHUNKSIZE_BYTE_COUNT);
-
-  //   const numBytes = data.length;
-  //   const chunks = makeChunks.makeChunks(data, dataByteCount);
-  //   console.log('CHUNKS LENGTH', chunks.length);
-
-  //   console.log('Data will be uploaded over', chunks.length, 'calls');
-
-  //   const { feeCalculator } = await connection.getRecentBlockhash();
-  //   const costOfAccountRent =
-  //     await connection.getMinimumBalanceForRentExemption(numBytes);
-
-  //   const costOfAccountTran = 2 * feeCalculator.lamportsPerSignature;
-  //   let costOfAccountUpload = 0;
-
-  //   for (let i = 0; i < chunks.length; i++) {
-  //     const chunkCost = 2 * feeCalculator.lamportsPerSignature; // two signers, the payer and the new account
-  //     costOfAccountUpload += chunkCost;
-  //   }
-
-  //   const total = costOfAccountRent + costOfAccountTran + costOfAccountUpload;
-
-  //   console.log(
-  //     'EST FINAL TOTAL -- ',
-  //     total,
-  //     'lamports (',
-  //     total / LAMPORTS_PER_SOL,
-  //     ')',
-  //   );
-
-  //   const bal = await connection.getBalance(new PublicKey(mainAccountKey));
-
-  //   if (bal < total) {
-  //     console.error(
-  //       'WARNING, your balance',
-  //       bal,
-  //       'is less than the estimate',
-  //       total,
-  //     );
-  //     return null;
-  //   }
-
-  //   await this.sleep(1000); //To make sure the above account is created before uploading data
-
-  //   const balBeforeUpload = await connection.getBalance(new PublicKey(mainAccountKey));
-
-  //     // const encodedData =  encodeData.encodeData(chunks[0]);
-  //     // const instruction = new TransactionInstruction({
-  //     //   keys: [
-  //     //     { pubkey: storageWalletAccount.publicKey, isSigner: false, isWritable: true },
-  //     //   ],
-  //     //   programId: SystemProgram.programId,
-  //     //   data: chunks[0],
-  //     // });
-
-  //     // const transaction = new Transaction().add(instruction);
-  //     // const txnSignature = await this.sendAndConfirmTransactionWrapper(
-  //     //   transaction,
-  //     //   [storageWalletAccount],
-  //     // );
-  //     const len =  chunks[0].length;
-  //     console.log('chunk length', len);
-  //     if (len < 512) {
-  //       // Instruction data must be of 512 bytes so padding with null buffer
-  //       const rem = 512 - len;
-  //       const a = Buffer.from(new Array(rem).fill(0));
-  //       chunks[0] = Buffer.concat([ chunks[0], a]);
-  //     }
-  //     console.log('After the padding',chunks[0].length);
-  //     const encodedTransactionInstruction = encodeData.encodeData(
-  //       TASK_INSTRUCTION_LAYOUTS.UploadDistributionList,
-
-  //       {
-  //         instruction_data: chunks[0],
-  //         round: round,
-  //       },
-  //     );
-
-  //     const instruction = new TransactionInstruction({
-  //       keys: [
-  //         {
-  //           pubkey: new PublicKey('4WQ8CTgEknyRZKRUjgBVtNpv3EteqDA3W3PLncZGXQZP') /* */,
-  //           isSigner: false,
-  //           isWritable: false,
-  //         },
-  //         {
-  //           pubkey: storageWalletAccount.publicKey,
-  //           isSigner: true,
-  //           isWritable: true,
-  //         },
-  //       ], // add acc here after pk
-  //       programId: new PublicKey('Koiitask22222222222222222222222222222222222'),
-  //       data: encodedTransactionInstruction,
-  //     });
-
-  //     const transaction = new Transaction().add(instruction);
-  //     console.log("transaction given", transaction);
-  //     const mainStorageWallet = await fs.readFileSync(
-  //       '/Users/diszsid/.config/koii/id.json',
-  //     );
-  //     const mainKeyPair =  Keypair.fromSecretKey(
-  //       Uint8Array.from(JSON.parse(mainStorageWallet)),
-  //     );
-
-  //     const txnSignature = await sendAndConfirmTransaction(connection, transaction, [
-  //       mainKeyPair, storageWalletAccount,
-  //     ]);
-  //     console.log('txnSignature', txnSignature);
-  //     //console.log('CALLED AFTER TRANSACTION');
-  //     await this.sleep(100);
-
-  //   const balAfterUpload = await connection.getBalance(new PublicKey(mainAccountKey));
-  //   const costOfUpload = balBeforeUpload - balAfterUpload;
-  //   console.log(
-  //     'Total cost was',
-  //     costOfUpload,
-  //     'lamports (',
-  //     costOfUpload / LAMPORTS_PER_SOL,
-  //     ')',
-  //   );
-  //   // TODO: Verify Retry Failed Transactions (logic changed)
-
-  //   console.log('ROUND VY', round);
-  //   await this.sleep(10000);
-  //   const isDistributionListValid = await this.fetchUploadedstorage(
-  //   );
-  //   // if (!isDistributionListValid) {
-  //   //   console.log('Distribution List is not uploaded successfully');
-  //   //   for (let i = 0; i < 5; i++) {
-  //   //     console.log(`Retrying upload distribution list for ${i} time(s) `);
-  //   //     const result = await this.retryFailedTransactions(
-  //   //       dataByteCount,
-  //   //       chunks,
-  //   //       this.mainSystemAccount,
-  //   //       distributionListAccount,
-  //   //       '' + round,
-  //   //     );
-  //   //     if (result == true) {
-  //   //       await sleep(10000);
-  //   //       const isValid = await this.fetchUploadedstorage(
-  //   //       );
-  //   //       if (isValid == true) break;
-  //   //     }
-  //   //   }
-  //   // }
-  //   // const result = await this.fetchUploadedstorage(
-  //   // );
-  //   console.log('result', isDistributionListValid);
-  //   return isDistributionListValid;
-  // }
-
-  async uploadCustomData(distributionListDataBlob, round) {
-    const distributionAccountKeyPair = await this.getStorageWallet();
-    console.log('DISTRIBUTION OBJECT', distributionListDataBlob);
-
-    console.log('Round value passed', round);
-
-    const buf = Buffer.from(JSON.stringify(distributionListDataBlob));
-    const data = buf;
-    console.log('ProgramId to use:', DEFAULT_PROGRAM_ID);
-
-    console.log('Data contains', data.length, 'bytes');
-
-    const distributionListAccount = distributionAccountKeyPair;
-
-    // split our data across a number of calls
-
-    const remainingByteCount = 512;
-
-    const dataByteCount =
-      remainingByteCount - (CHUNKNUM_BYTE_COUNT + CHUNKSIZE_BYTE_COUNT);
-
-    const numBytes = data.length;
-    const chunks = makeChunks.makeChunks(data, dataByteCount);
-    console.log('CHUNKS LENGTH', chunks.length);
-
-    console.log('Data will be uploaded over', chunks.length, 'calls');
-
-    const { feeCalculator } = await connection.getRecentBlockhash();
-    const costOfAccountRent =
-      await connection.getMinimumBalanceForRentExemption(numBytes);
-
-    const costOfAccountTran = 2 * feeCalculator.lamportsPerSignature;
-    let costOfAccountUpload = 0;
-
-    for (let i = 0; i < chunks.length; i++) {
-      const chunkCost = 2 * feeCalculator.lamportsPerSignature; // two signers, the payer and the new account
-      costOfAccountUpload += chunkCost;
-    }
-    console.log({ costOfAccountUpload });
-    const total = costOfAccountRent + costOfAccountTran + costOfAccountUpload;
-
-    console.log(
-      'EST FINAL TOTAL -- ',
-      total,
-      'lamports (',
-      total / LAMPORTS_PER_SOL,
-      ')',
-    );
-
-    const bal = await connection.getBalance(new PublicKey(MAIN_ACCOUNT_PUBKEY));
-
-    if (bal < total) {
-      console.error(
-        'WARNING, your balance',
-        bal,
-        'is less than the estimate',
-        total,
-      );
-      return null;
-    }
-
-    await this.sleep(1000); //To make sure the above account is created before uploading data
-
-    const balBeforeUpload = await connection.getBalance(
-      new PublicKey(MAIN_ACCOUNT_PUBKEY),
-    );
-
-    for (let i = 0; i < chunks.length; i++) {
-      const data = chunks[i];
-      const dataStructureU16 = BufferLayout.u16();
-      const buffChunkNum = Buffer.alloc(CHUNKNUM_BYTE_COUNT);
-      dataStructureU16.encode(i, buffChunkNum);
-
-      const buffChunkSize = Buffer.alloc(CHUNKSIZE_BYTE_COUNT);
-      dataStructureU16.encode(dataByteCount, buffChunkSize);
-
-      let instruction_data = Buffer.concat([buffChunkNum, buffChunkSize, data]);
-      const len = instruction_data.length;
-      if (len < 512) {
-        // Instruction data must be of 512 bytes so padding with null buffer
-        const rem = 512 - len;
-        const a = Buffer.from(new Array(rem).fill(0));
-        instruction_data = Buffer.concat([instruction_data, a]);
-      }
-      const encodedTransactionInstruction = encodeData.encodeData(
-        TASK_INSTRUCTION_LAYOUTS.UploadDistributionList,
-
-        {
-          instruction_data: instruction_data,
-          round: round,
-        },
-      );
-
-      const instruction = new TransactionInstruction({
-        keys: [
-          {
-            pubkey: new PublicKey(TASK_ID) /* */,
-            isSigner: false,
-            isWritable: false,
-          },
-          {
-            pubkey: distributionListAccount.publicKey,
-            isSigner: true,
-            isWritable: true,
-          },
-        ], // add acc here after pk
-        programId: new PublicKey(DEFAULT_PROGRAM_ID),
-        data: encodedTransactionInstruction,
-      });
-
-      const transaction = new Transaction().add(instruction);
-      await this.sendAndConfirmTransactionWrapper(transaction, [
-        distributionListAccount,
-      ]);
-      //console.log('CALLED AFTER TRANSACTION');
-      await this.sleep(100);
-    }
-
-    const balAfterUpload = await connection.getBalance(
-      new PublicKey(MAIN_ACCOUNT_PUBKEY),
-    );
-    const costOfUpload = balBeforeUpload - balAfterUpload;
-    console.log(
-      'Total cost was',
-      costOfUpload,
-      'lamports (',
-      costOfUpload / LAMPORTS_PER_SOL,
-      ')',
-    );
-    // TODO: Verify Retry Failed Transactions (logic changed)
-
-    console.log('ROUND VY', round);
-    await this.sleep(10000);
-    return await this.validateUpload(distributionListAccount.publicKey, round);
-  }
-
-  async validateUpload(storageWalletKey, round) {
-    let accountInfo = await connection.getAccountInfo(
-      new PublicKey(storageWalletKey),
-    );
-    if (!accountInfo) {
-      console.log(`${publicKey} doesn't contain any distribution list data`);
-      return false;
-    }
-    const d = JSON.parse(accountInfo.data + '');
-    console.log({ d });
-    const i = Buffer.from(d[round][TASK_ID]).indexOf(0x00);
-    const t = Buffer.from(d[round][TASK_ID]).slice(0, i);
-
-    const origData = new TextDecoder().decode(t);
-    try {
-      const b = JSON.parse(origData);
-      console.log('Data received from K2', b);
-    } catch (err) {
-      console.log('ERROR', err);
-      return false;
-    }
-  }
-
-  async sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
-  async fetchUploadedstorage() {
-    let accountInfo = null;
-    try {
-      accountInfo = await connection.getAccountInfo(
-        new PublicKey(await this.getStorageWallet()),
-      );
-      if (!accountInfo) {
-        console.log(`${publicKey} doesn't contain any distribution list data`);
-        return false;
-      }
-      const d = JSON.parse(accountInfo.data + '');
-      console.log({ d });
-      return true;
-    } catch (e) {
-      console.error(e);
-      return false;
     }
   }
 
@@ -1067,12 +619,6 @@ class NamespaceWrapper {
     }
   }
 
-  // Wrapper for selection of node to prepare a distribution list
-
-  async nodeSelectionDistributionList(round) {
-    return await genericHandler('nodeSelectionDistributionList', round);
-  }
-
   async getDistributionList(publicKey, round) {
     if (taskNodeAdministered) {
       const response = await genericHandler(
@@ -1093,10 +639,34 @@ class NamespaceWrapper {
     }
   }
 
+  async getTaskSubmissionInfo(round, forcefetch = false) {
+    if (taskNodeAdministered) {
+      const taskSubmissionInfo = await genericHandler(
+        "getTaskSubmissionInfo",
+        round,
+        forcefetch,
+      );
+      if (!taskSubmissionInfo || taskSubmissionInfo.error) {
+        return null;
+      }
+      return taskSubmissionInfo;
+    } else {
+      return this.#testingTaskState.submissions[round];
+    }
+  }
+
   async validateAndVoteOnNodes(validate, round) {
     console.log('******/  IN VOTING /******');
-    const taskAccountDataJSON = await this.getTaskState();
-
+    let taskAccountDataJSON = null;
+    try {
+      taskAccountDataJSON = await this.getTaskSubmissionInfo(round);
+    } catch (error) {
+      console.error('Error in getting submissions for the round', error);
+    }
+    if (taskAccountDataJSON == null) {
+      console.log('No submissions found for the round', round);
+      return;
+    }
     // console.log(
     //   `Fetching the submissions of round ${round}`,
     //   taskAccountDataJSON.submissions[round],
@@ -1109,34 +679,35 @@ class NamespaceWrapper {
       const keys = Object.keys(submissions);
       const values = Object.values(submissions);
       const size = values.length;
-      const numberOfChecks = Math.min(5, size);
+       // console.log('Submissions from last round: ', keys, values, size);
+       const numberOfChecks = Math.min(5, size);
 
-      let uniqueIndices = new Set();
-
-      // Populate uniqueIndices with unique random numbers
-      while (uniqueIndices.size < numberOfChecks) {
-        const randomIndex = Math.floor(Math.random() * size);
-        uniqueIndices.add(randomIndex);
-      }
-
+       let uniqueIndices = new Set();
+ 
+       // Populate uniqueIndices with unique random numbers
+       while (uniqueIndices.size < numberOfChecks) {
+         const randomIndex = Math.floor(Math.random() * size);
+         uniqueIndices.add(randomIndex);
+       }
+ 
       let isValid;
       const submitterAccountKeyPair = await this.getSubmitterAccount();
       const submitterPubkey = submitterAccountKeyPair.publicKey.toBase58();
       for (let index of uniqueIndices) {
+
         let candidatePublicKey = keys[index];
-        console.log('FOR CANDIDATE KEY', candidatePublicKey);
+        // console.log('FOR CANDIDATE KEY', candidatePublicKey);
         let candidateKeyPairPublicKey = new PublicKey(keys[index]);
         if (candidatePublicKey == submitterPubkey) {
           console.log('YOU CANNOT VOTE ON YOUR OWN SUBMISSIONS');
         } else {
           try {
-            // console.log(
-            //   'SUBMISSION VALUE TO CHECK',
-            //   values[index].submission_value,
-            // );
+            console.log(
+              'SUBMISSION VALUE TO CHECK',
+              values[index].submission_value,
+            );
             isValid = await validate(values[index].submission_value, round);
-            console.log(`Voting ${isValid} to ${candidatePublicKey}`);
-
+            // console.log(`Voting ${isValid} to ${candidatePublicKey}`);
             if (isValid) {
               // check for the submissions_audit_trigger , if it exists then vote true on that otherwise do nothing
               const submissions_audit_trigger =
@@ -1178,83 +749,106 @@ class NamespaceWrapper {
     }
   }
 
-  async validateAndVoteOnDistributionList(validateDistribution, round) {
+  async getTaskDistributionInfo(round) {
+    if (taskNodeAdministered) {
+      const taskDistributionInfo = await genericHandler(
+        'getTaskDistributionInfo',
+        round,
+      );
+      if (!taskDistributionInfo || taskDistributionInfo.error) {
+        return null;
+      }
+      return taskDistributionInfo;
+    } else {
+      return this.#testingTaskState.distribution_rewards_submission[round];
+    }
+  }
+
+  async validateAndVoteOnDistributionList(validateDistribution, round, isPreviousRoundFailed = false) {
     // await this.checkVoteStatus();
     console.log('******/  IN VOTING OF DISTRIBUTION LIST /******');
+    let tasknodeVersionSatisfied = false;
+    const taskNodeVersion = await this.getTaskNodeVersion();
+    if (semver.gte(taskNodeVersion, "1.11.19")) {
+      tasknodeVersionSatisfied = true;
+    } 
+    let taskAccountDataJSON = null;
     try {
-      const taskAccountDataJSON = await this.getTaskState();
+      taskAccountDataJSON = await this.getTaskDistributionInfo(round);
+    } catch (error) {
+      console.error('Error in getting distributions for the round', error);
+    }
+    if (taskAccountDataJSON == null) {
+      console.log('No distribution submissions found for the round', round);
+      return;
+    }
+    console.log(
+      `Fetching the Distribution submissions of round ${round}`,
+      taskAccountDataJSON.distribution_rewards_submission[round],
+    );
+    const submissions =
+    taskAccountDataJSON?.distribution_rewards_submission[round];
+    if (
+      submissions == null ||
+      submissions == undefined ||
+      submissions.length == 0
+    ) {
+
+      console.log(`No submisssions found in round ${round}`);
+      return `No submisssions found in round ${round}`;
+    } else {
+      const keys = Object.keys(submissions);
+      const values = Object.values(submissions);
+      const size = values.length;
       console.log(
-        `Fetching the Distribution submissions of round ${round}`,
-        taskAccountDataJSON.distribution_rewards_submission[round],
+        'Distribution Submissions from last round: ',
+        keys,
+        values,
+        size,
       );
-      const submissions =
-        taskAccountDataJSON.distribution_rewards_submission[round];
-      if (submissions == null) {
-        console.log(`No submisssions found in round ${round}`);
-        return `No submisssions found in round ${round}`;
-      } else {
-        const keys = Object.keys(submissions);
-        const values = Object.values(submissions);
-        const size = values.length;
-        console.log(
-          'Distribution Submissions from last round: ',
-          keys,
-          values,
-          size,
-        );
-        let isValid;
-        const submitterAccountKeyPair = await this.getSubmitterAccount();
-        const submitterPubkey = submitterAccountKeyPair.publicKey.toBase58();
+      let isValid;
+      const submitterAccountKeyPair = await this.getSubmitterAccount();
+      const submitterPubkey = submitterAccountKeyPair.publicKey.toBase58();
+      const selectedNode = await this.nodeSelectionDistributionList(
+        round,
+        isPreviousRoundFailed,
+      );
+      console.log('SELECTED NODE FOR AUDIT', selectedNode);
+      if (selectedNode == submitterPubkey) {
+        console.log('YOU CANNOT VOTE ON YOUR OWN DISTRIBUTION SUBMISSIONS');
+        return;
+      }
 
-        for (let i = 0; i < size; i++) {
-          let candidatePublicKey = keys[i];
-          console.log('FOR CANDIDATE KEY', candidatePublicKey);
-          let candidateKeyPairPublicKey = new PublicKey(keys[i]);
-          if (candidatePublicKey == submitterPubkey) {
-            console.log('YOU CANNOT VOTE ON YOUR OWN DISTRIBUTION SUBMISSIONS');
-          } else {
-            try {
+      for (let i = 0; i < size; i++) {
+        let candidatePublicKey = keys[i];
+        console.log('FOR CANDIDATE KEY', candidatePublicKey);
+        let candidateKeyPairPublicKey = new PublicKey(keys[i]);
+          try {
+            // console.log(
+            //   'DISTRIBUTION SUBMISSION VALUE TO CHECK',
+            //   values[i].submission_value,
+            // );
+            isValid = await validateDistribution(
+              values[i].submission_value,
+              round,
+              );
+            if (isValid) {
+              // check for the submissions_audit_trigger , if it exists then vote true on that otherwise do nothing
+              const distributions_audit_trigger =
+                taskAccountDataJSON.distributions_audit_trigger[round];
               console.log(
-                'DISTRIBUTION SUBMISSION VALUE TO CHECK',
-                values[i].submission_value,
+                'SUBMIT DISTRIBUTION AUDIT TRIGGER',
+                distributions_audit_trigger,
               );
-              isValid = await validateDistribution(
-                values[i].submission_value,
-                round,
-              );
-              console.log(`Voting ${isValid} to ${candidatePublicKey}`);
-
-              if (isValid) {
-                // check for the submissions_audit_trigger , if it exists then vote true on that otherwise do nothing
-                const distributions_audit_trigger =
-                  taskAccountDataJSON.distributions_audit_trigger[round];
-                console.log(
-                  'SUBMIT DISTRIBUTION AUDIT TRIGGER',
-                  distributions_audit_trigger,
-                );
-                // console.log(
-                //   "CANDIDATE PUBKEY CHECK IN AUDIT TRIGGER",
-                //   distributions_audit_trigger[candidatePublicKey]
-                // );
-                if (
-                  distributions_audit_trigger &&
-                  distributions_audit_trigger[candidatePublicKey]
-                ) {
-                  console.log('VOTING TRUE ON DISTRIBUTION AUDIT');
-                  const response = await this.distributionListAuditSubmission(
-                    candidateKeyPairPublicKey,
-                    isValid,
-                    submitterAccountKeyPair,
-                    round,
-                  );
-                  console.log(
-                    'RESPONSE FROM DISTRIBUTION AUDIT FUNCTION',
-                    response,
-                  );
-                }
-              } else if (isValid == false) {
-                // Call auditSubmission function and isValid is passed as false
-                console.log('RAISING AUDIT / VOTING FALSE ON DISTRIBUTION');
+              // console.log(
+              //   "CANDIDATE PUBKEY CHECK IN AUDIT TRIGGER",
+              //   distributions_audit_trigger[candidatePublicKey]
+              // );
+              if (
+                distributions_audit_trigger &&
+                distributions_audit_trigger[candidatePublicKey]
+              ) {
+                console.log('VOTING TRUE ON DISTRIBUTION AUDIT');
                 const response = await this.distributionListAuditSubmission(
                   candidateKeyPairPublicKey,
                   isValid,
@@ -1266,14 +860,37 @@ class NamespaceWrapper {
                   response,
                 );
               }
-            } catch (err) {
-              console.log('ERROR IN ELSE CONDITION FOR DISTRIBUTION', err);
+            } else if (isValid == false && tasknodeVersionSatisfied) {
+              // Call auditSubmission function and isValid is passed as false
+              console.log('RAISING AUDIT / VOTING FALSE ON DISTRIBUTION');
+              const response = await this.distributionListAuditSubmission(
+                candidateKeyPairPublicKey,
+                isValid,
+                submitterAccountKeyPair,
+                round,
+              );
+              console.log(
+                'RESPONSE FROM DISTRIBUTION AUDIT FUNCTION',
+                response,
+              );
             }
+          } catch (err) {
+            console.log('ERROR IN ELSE CONDITION FOR DISTRIBUTION', err);
           }
         }
+    }
+  } 
+  
+  async getTaskNodeVersion() {
+    if (taskNodeAdministered) {
+      try {
+        return await genericHandler("getTaskNodeVersion");
+      } catch (error) {
+        console.error("Error getting task node version", error);
+        return;
       }
-    } catch (error) {
-      console.log('ERROR IN validateAndVoteOnDistributionList', err);
+    } else {
+      return "1.11.19";
     }
   }
   async getTaskLevelDBPath() {
@@ -1294,6 +911,237 @@ class NamespaceWrapper {
       return './';
     }
   }
+
+  async getAverageSlotTime() {
+    if (taskNodeAdministered) {
+      try {
+        return await genericHandler('getAverageSlotTime');
+      } catch (error) {
+        console.error('Error getting average slot time', error);
+        return 400;
+      }
+    } else {
+      return 400;
+    }
+  }
+
+  async nodeSelectionDistributionList(round, isPreviousFailed) {
+    let taskAccountDataJSON = null;
+    try {
+      taskAccountDataJSON = await this.getTaskSubmissionInfo(round, true);
+    } catch (error) {
+      console.error('Task submission not found', error);
+      return;
+    }
+
+    if (taskAccountDataJSON == null) {
+      console.error('Task state not found');
+      return;
+    }
+    // console.log('EXPECTED ROUND', round);
+
+    const submissions = taskAccountDataJSON.submissions[round];
+    if (submissions == null) {
+      console.log('No submisssions found in N-1 round');
+      return 'No submisssions found in N-1 round';
+    } else {
+      // getting last 3 submissions for the rounds
+      let keys;
+      const latestRounds = [round, round - 1, round - 2].filter(r => r >= 0);
+
+      const promises = latestRounds.map(async r => {
+        if (r == round) {
+          return new Set(Object.keys(submissions));
+        } else {
+          let roundSubmissions = null;
+          try {
+            roundSubmissions = await this.getTaskSubmissionInfo(r, true);
+            if (roundSubmissions && roundSubmissions.submissions[r]) {
+              return new Set(Object.keys(roundSubmissions.submissions[r]));
+            }
+          } catch (error) {
+            console.error('Error in getting submissions for the round', error);
+          }
+          return new Set();
+        }
+      });
+
+      const keySets = await Promise.all(promises);
+
+      // Find the keys present in all the rounds
+      keys =
+        keySets.length > 0
+          ? [...keySets[0]].filter(key => keySets.every(set => set.has(key)))
+          : [];
+      if (keys.length == 0) {
+        console.log('No common keys found in last 3 rounds');
+
+        keys = Object.keys(submissions);
+      }
+      console.log('KEYS', keys.length);
+
+      const values = Object.values(submissions);
+      let size = keys.length;
+      console.log('Submissions from N-2  round: ', size);
+
+      // Check the keys i.e if the submitter shall be excluded or not
+
+      try {
+        const distributionData = await this.getTaskDistributionInfo(round);
+        const audit_record = distributionData?.distributions_audit_record;
+        if (audit_record && audit_record[round] == 'PayoutFailed') {
+          console.log('ROUND DATA', audit_record[round]);
+          console.log(
+            'SUBMITTER LIST',
+            distributionData.distribution_rewards_submission[round],
+          );
+          const submitterList =
+            distributionData.distribution_rewards_submission[round];
+          const submitterKeys = Object.keys(submitterList);
+          console.log('SUBMITTER KEYS', submitterKeys);
+          const submitterSize = submitterKeys.length;
+          console.log('SUBMITTER SIZE', submitterSize);
+
+          for (let j = 0; j < submitterSize; j++) {
+            console.log('SUBMITTER KEY CANDIDATE', submitterKeys[j]);
+            const id = keys.indexOf(submitterKeys[j]);
+            console.log('ID', id);
+            if (id != -1) {
+              keys.splice(id, 1);
+              values.splice(id, 1);
+              size--;
+            }
+          }
+
+          // console.log('KEYS FOR HASH CALC', keys.length);
+        }
+      } catch (error) {
+        console.log('Error in getting distribution data', error);
+      }
+
+      // calculating the digest
+
+      const ValuesString = JSON.stringify(values);
+
+      const hashDigest = createHash('sha256')
+        .update(ValuesString)
+        .digest('hex');
+
+      console.log('HASH DIGEST', hashDigest);
+
+      // function to calculate the score
+      const calculateScore = (str = '') => {
+        return str.split('').reduce((acc, val) => {
+          return acc + val.charCodeAt(0);
+        }, 0);
+      };
+
+      // function to compare the ASCII values
+
+      const compareASCII = (str1, str2) => {
+        const firstScore = calculateScore(str1);
+        const secondScore = calculateScore(str2);
+        return Math.abs(firstScore - secondScore);
+      };
+
+      // loop through the keys and select the one with higest score
+
+      const selectedNode = {
+        score: 0,
+        pubkey: '',
+      };
+      let score = 0;
+      if (isPreviousFailed) {
+        let leastScore = -Infinity;
+        let secondLeastScore = -Infinity;
+        for (let i = 0; i < size; i++) {
+          const candidateSubmissionJson = {};
+          candidateSubmissionJson[keys[i]] = values[i];
+          const candidateSubmissionString = JSON.stringify(
+            candidateSubmissionJson,
+          );
+          const candidateSubmissionHash = createHash('sha256')
+            .update(candidateSubmissionString)
+            .digest('hex');
+          const candidateScore = compareASCII(
+            hashDigest,
+            candidateSubmissionHash,
+          );
+          if (candidateScore > leastScore) {
+            secondLeastScore = leastScore;
+            leastScore = candidateScore;
+          } else if (candidateScore > secondLeastScore) {
+            secondLeastScore = candidateScore;
+            selectedNode.score = candidateScore;
+            selectedNode.pubkey = keys[i];
+          }
+        }
+      } else {
+        for (let i = 0; i < size; i++) {
+          const candidateSubmissionJson = {};
+          candidateSubmissionJson[keys[i]] = values[i];
+          const candidateSubmissionString = JSON.stringify(
+            candidateSubmissionJson,
+          );
+          const candidateSubmissionHash = createHash('sha256')
+            .update(candidateSubmissionString)
+            .digest('hex');
+          const candidateScore = compareASCII(
+            hashDigest,
+            candidateSubmissionHash,
+          );
+          // console.log('CANDIDATE SCORE', candidateScore);
+          if (candidateScore > score) {
+            score = candidateScore;
+            selectedNode.score = candidateScore;
+            selectedNode.pubkey = keys[i];
+          }
+        }
+      }
+
+      console.log('SELECTED NODE OBJECT', selectedNode);
+      return selectedNode.pubkey;
+    }
+  }
+
+  async selectAndGenerateDistributionList(
+    submitDistributionList,
+    round,
+    isPreviousRoundFailed,
+  ) {
+
+    console.log('SelectAndGenerateDistributionList called');
+    const selectedNode = await this.nodeSelectionDistributionList(
+      round,
+      isPreviousRoundFailed,
+    );
+    console.log('Selected Node', selectedNode);
+    const submitPubKey = await this.getSubmitterAccount();
+    if (
+      selectedNode == undefined ||
+      selectedNode == '' ||
+      submitPubKey == undefined
+    )
+      return;
+
+    if (selectedNode == submitPubKey?.publicKey.toBase58()) {
+      await submitDistributionList(round);
+      const taskState = await this.getTaskState({});
+      if (taskState == null) {
+        console.error('Task state not found');
+        return;
+      }
+      const avgSlotTime = await this.getAverageSlotTime();
+      if (avgSlotTime == null) {
+        console.error('Avg slot time not found');
+        return;
+      }
+      setTimeout(async () => {
+        await this.payoutTrigger(round);
+      }, (taskState.audit_window + taskState.submission_window) * avgSlotTime);
+    }
+  }
+
   getMainAccountPubkey() {
     if (taskNodeAdministered) {
       return MAIN_ACCOUNT_PUBKEY;
@@ -1316,12 +1164,19 @@ async function genericHandler(...args) {
       return null;
     }
   } catch (err) {
-    console.error(`Error in genericHandler: "${args[0]}"`, err.message);
-    console.error(err?.response?.data);
-    return { error: err };
+    const responseData = err?.response?.data?.message;
+    if ((args[0] === 'getTaskSubmissionInfo' || args[0] === 'getTaskDistributionInfo') && 
+    responseData && typeof responseData === 'string' && responseData.includes('Task does not have any')) {
+      console.log(`Error in genericHandler: "${args[0]}"`, err.message);
+      console.log(err?.response?.data);
+    }else{
+      console.error(`Error in genericHandler: "${args[0]}"`, err.message);
+      console.error(err?.response?.data);
+      return { error: err };
+    }
   }
 }
-let connection;
+
 const namespaceWrapper = new NamespaceWrapper();
 if (taskNodeAdministered) {
   namespaceWrapper.getRpcUrl().then(rpcUrl => {
@@ -1336,7 +1191,7 @@ module.exports = {
   TASK_ID, // This will be the PORT on which the this task is expected to run the express server coming from the task node running this task. As all communication via the task node and this task will be done on this port.
   MAIN_ACCOUNT_PUBKEY, // This will be the secret used to authenticate with task node running this task.
   SECRET_KEY, // This will be the secret used by the task to authenticate with task node running this task.
-  K2_NODE_URL, // This will be K2 url being used by the task node, possible values are 'https://k2-testnet.koii.live' | 'https://k2-devnet.koii.live' | 'http://localhost:8899'
+  K2_NODE_URL, // This will be K2 url being used by the task node, possible values are 'https://testnet.koii.network' | 'https://k2-devnet.koii.live' | 'http://localhost:8899'
   SERVICE_URL, // This will be public task node endpoint (Or local if it doesn't have any) of the task node running this task.
   STAKE, // This will be stake of the task node running this task, can be double checked with the task state and staking public key.
   TASK_NODE_PORT, // This will be the port used by task node as the express server port, so it can be used by the task for the communication with the task node
