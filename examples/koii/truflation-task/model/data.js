@@ -98,21 +98,8 @@ class Data {
     await this.create(item);
     const searchPattern = `scrape:${round}:`;
 
-    // Construct the regular expression dynamically
-    const regexPattern = new RegExp(`^${searchPattern}`);
-    const itemListRaw = await this.db.find({ id: regexPattern });
-    itemListRaw.forEach(item => {
-      console.log(`ID: ${item.id}`);
-      console.log(`Timestamp: ${item.data.timestamp}`);
-      console.log('Location Summary:');
-      item.data.locationSummary.forEach(locationItem => {
-        console.log(`- Location: ${locationItem.location}`);
-        for (const [carType, carPrice] of Object.entries(locationItem.data)) {
-          console.log(`  Car Type: ${carType}, Car Price: ${carPrice}`);
-        }
-      });
-      console.log('---'); // Separator for better readability
-    });
+    await this.printResults(searchPattern);
+
   }
 
   /**
@@ -128,9 +115,15 @@ class Data {
     console.log('has round', options.round);
     const searchPattern = `scrapeCid:${options.round}:`;
 
+   await this.printResults(searchPattern);
+    return itemListRaw;
+  }
+
+  async printResults(searchPattern) {
+    
     // Construct the regular expression dynamically
     const regexPattern = new RegExp(`^${searchPattern}`);
-    itemListRaw = await this.db.find({ id: regexPattern });
+    const itemListRaw = await this.db.find({ id: regexPattern });
     itemListRaw.forEach(item => {
       console.log(`ID: ${item.id}`);
       console.log(`Timestamp: ${item.data.timestamp}`);
@@ -143,7 +136,6 @@ class Data {
       });
       console.log('---'); // Separator for better readability
     });
-    return itemListRaw;
   }
 }
 
