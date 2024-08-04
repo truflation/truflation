@@ -1,6 +1,6 @@
 import datetime
 from truflation.data.connector import ConnectorSql
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import cast, select, String, Float, Integer, DateTime
 from sqlalchemy import Column
 from sqlalchemy.sql import func
@@ -61,7 +61,7 @@ class Metadata:
     def write_all(self, table, data):
         with self.connector.engine.connect() as conn:
             with Session(conn) as session:
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc).replace(tzinfo=None)
                 for k, v in data.items():
                     l = None
                     if isinstance(v, int):

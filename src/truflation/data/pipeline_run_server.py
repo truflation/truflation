@@ -13,7 +13,7 @@ from fastapi import FastAPI, Request
 import uvicorn
 
 from truflation.data.connector import cache_
-import pipeline_run_direct
+from truflation.data import pipeline_run_direct
 
 """
 Issues in pipeline_run_server.py:

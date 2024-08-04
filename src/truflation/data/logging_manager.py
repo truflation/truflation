@@ -1,6 +1,6 @@
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from loguru import logger
 
 class Logger:
@@ -16,7 +16,7 @@ class Logger:
         os.makedirs(self.log_dir_path, exist_ok=True)
 
         # Get the current date
-        current_date = datetime.utcnow().date()
+        current_date = datetime.now(timezone.utc).replace(tzinfo=None).date()
 
         # Concatenate the directory path with the log file name
         self.log_file = os.path.join(self.log_dir_path, current_date.strftime('%Y-%m-%d') + '.log')

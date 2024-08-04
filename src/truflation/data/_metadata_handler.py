@@ -1,6 +1,6 @@
 import os
 import json
-import datetime
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 from sqlalchemy.exc import OperationalError, NoSuchTableError
 from sqlalchemy import create_engine, select, desc, MetaData, Table, Column, VARCHAR, DATETIME
@@ -203,7 +203,7 @@ class _MetadataHandler:
                     update_query = _metadata_table.update().where(_metadata_table.c.table_name == table_name).where(_metadata_table.c._key == key).values(
                         value = value,
                         value_type = value_type,
-                        updated_at = datetime.datetime.utcnow()
+                        updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
                     )
                     conn.execute(update_query)
                     conn.commit()
@@ -215,8 +215,8 @@ class _MetadataHandler:
                         _key = key,
                         value = value,
                         value_type = value_type,
-                        created_at = datetime.datetime.utcnow(),
-                    updated_at = datetime.datetime.utcnow()
+                        created_at = datetime.now(timezone.utc).replace(tzinfo=None),
+                        updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
                     )
                     conn.execute(insert_query)
                     conn.commit()
