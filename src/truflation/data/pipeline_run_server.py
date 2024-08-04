@@ -40,7 +40,7 @@ async def load_path(file_path_list: List[str] | str,
     )
 
 app = FastAPI()
-args = docopt(__doc__)
+args = {}
 
 @app.get("/hello-world")
 async def hello_world():
@@ -59,6 +59,7 @@ async def test(output: str, request: Request):
     return cache_.get(output)
 
 if __name__ == '__main__':
+    args = docopt(__doc__)
     port_string = args.get('--port')
     uvicorn.run(
         app, host='0.0.0.0',

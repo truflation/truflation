@@ -94,4 +94,5 @@ class SourceDetails:
         self.args = args
         self.transformer = transformer # if transformer else lambda x: x
         self.transformer_kwargs = transformer_kwargs if transformer_kwargs is not None else dict()
-        self.kwargs = kwargs if kwargs is not None else dict()
+        self.kwargs = kwargs
+
