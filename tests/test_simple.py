@@ -9,6 +9,7 @@ import truflation.data.validator
 import truflation.data.metadata
 from truflation.data.pipeline import Pipeline
 import truflation.data.pipeline_coupler
+import truflation.data.pipeline_run_server
 
 # import examples.csv_example.my_pipeline_details
 # import examples.csv_example.my_pipeline_details as csv_pipeline_details
