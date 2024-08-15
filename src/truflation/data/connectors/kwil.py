@@ -79,7 +79,7 @@ class BlockchainInteraction:
                     pass
                 await asyncio.sleep(0.2)
 class ConnectorKwil(Connector):
-    def __init__(self, *args, **kwargs):
+    def __init__(self,  *args, version='0.6.3', **kwargs):
         super().__init__()
         self.executor = CommandExecutor('kwil-cli')
         self.blockchain = BlockchainInteraction(self.executor)
@@ -88,7 +88,7 @@ class ConnectorKwil(Connector):
         self.executable_path = self._get_executable_path()
         self.round = 6
         ic(self.version())
-        if self.version()['Version'] != '0.6.3':
+        if self.version()['Version'] != version:
             raise ValueError('invalid version')
 
     def _get_executable_path(self):
@@ -223,8 +223,11 @@ class ConnectorKwil(Connector):
         package_name = truflation.data
         if data_filename is None:
             data_filename = 'schemas/kwil/schema.development.kf'
-        package_directory = os.path.dirname(package_name.__file__)
-        data_filepath = os.path.join(package_directory, data_filename)
+        if data_filename[:2] == "./":
+            data_filepath=data_filename
+        else:
+            package_directory = os.path.dirname(package_name.__file__)
+            data_filepath = os.path.join(package_directory, data_filename)
         ic(data_filepath)
         return self.execute_command_json(
             'database', 'deploy', '--path', data_filepath,
