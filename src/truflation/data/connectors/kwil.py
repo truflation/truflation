@@ -88,7 +88,7 @@ class ConnectorKwil(Connector):
         self.executable_path = self._get_executable_path()
         self.round = 6
         ic(self.version())
-        if self.version()['Version'] != version:
+        if version is not None and self.version()['Version'] != version:
             raise ValueError('invalid version')
 
     def _get_executable_path(self):
