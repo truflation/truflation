@@ -1,18 +1,21 @@
 const { Web3Storage, File } = require('web3.storage');
 const { Connection, PublicKey } = require('@_koi/web3.js');
 const { namespaceWrapper, TASK_ID } = require('../_koiiNode/koiiNode');
-const { SpheronClient, ProtocolEnum } = require('@spheron/storage');
+const {KoiiStorageClient} = require('@_koii/storage-task-sdk');
 const axios = require('axios');
 const { writeFileSync } = require('fs');
 class Distribution {
-  async submitDistributionList(round) {
+  submitDistributionList = async round => {
     // This function just upload your generated distribution List and do the transaction for that
 
     console.log('SubmitDistributionList called');
 
     try {
       const distributionList = await this.generateDistributionList(round);
-
+      if (Object.keys(distributionList).length === 0) {
+        console.log('NO DISTRIBUTION LIST GENERATED');
+        return;
+      }
       const decider = await namespaceWrapper.uploadDistributionList(
         distributionList,
         round,
@@ -29,11 +32,12 @@ class Distribution {
     }
   }
 
-  async auditDistribution(roundNumber) {
+  async auditDistribution(roundNumber, isPreviousRoundFailed) {
     console.log('auditDistribution called with round', roundNumber);
     await namespaceWrapper.validateAndVoteOnDistributionList(
       this.validateDistribution,
       roundNumber,
+      isPreviousRoundFailed
     );
   }
 
@@ -207,81 +211,96 @@ class Distribution {
       let distributionList = {};
       let distributionCandidates = [];
       let unfinishedRoundsData = {};
-      if (!isAuditing) {
-        const storageWallet = await namespaceWrapper.getStorageWallet();
-        const averageData = await this.computeAverages(round);
-        const getPreviousSubmissionData =
-          await this.getPreviousSubmissionWallet();
-        let prevData;
-        if (getPreviousSubmissionData.curr_storage_wallet === '') {
-          prevData = '';
-        } else {
-          const uploadableRound = this.getUploadingRound(
-            getPreviousSubmissionData.curr_distribution_round,
-          );
-          console.log('getPreviousSubmissionData', getPreviousSubmissionData);
-          prevData = await namespaceWrapper.getDistributionList(
-            getPreviousSubmissionData.curr_storage_wallet,
-            uploadableRound,
-          );
-          prevData = JSON.parse(prevData);
-          prevData = JSON.parse(prevData);
-          console.log('prevData', prevData);
-          prevData = prevData['avgData'];
-          unfinishedRoundsData = await this.getUnfinishedRoundsData(prevData);
-        }
 
-        console.log('getPreviousSubmissionWallet', getPreviousSubmissionData);
-        const ipfsUploadableData = {};
-        ipfsUploadableData['prevIpfsCid'] = prevData;
-        ipfsUploadableData['curr_data'] = {};
-        ipfsUploadableData['curr_data'][round] = averageData;
-        console.log(
-          'unfinishedRoundsData Keys',
-          Object.keys(unfinishedRoundsData).length,
+      // if (!isAuditing) {
+      //   const storageWallet = await namespaceWrapper.getStorageWallet();
+      //   const averageData = await this.computeAverages(round);
+      //   const getPreviousSubmissionData =
+      //     await this.getPreviousSubmissionWallet();
+      //   let prevData;
+      //   if (getPreviousSubmissionData.curr_storage_wallet === '') {
+      //     prevData = '';
+      //   } else {
+      //     const uploadableRound = this.getUploadingRound(
+      //       getPreviousSubmissionData.curr_distribution_round,
+      //     );
+      //     console.log('getPreviousSubmissionData', getPreviousSubmissionData);
+      //     prevData = await namespaceWrapper.getDistributionList(
+      //       getPreviousSubmissionData.curr_storage_wallet,
+      //       uploadableRound,
+      //     );
+      //     prevData = JSON.parse(prevData);
+      //     prevData = JSON.parse(prevData);
+      //     console.log('prevData', prevData);
+      //     prevData = prevData['avgData'];
+      //     unfinishedRoundsData = await this.getUnfinishedRoundsData(prevData);
+      //   }
+
+      //   console.log('getPreviousSubmissionWallet', getPreviousSubmissionData);
+      //   const ipfsUploadableData = {};
+      //   ipfsUploadableData['prevIpfsCid'] = prevData;
+      //   ipfsUploadableData['curr_data'] = {};
+      //   ipfsUploadableData['curr_data'][round] = averageData;
+      //   console.log(
+      //     'unfinishedRoundsData Keys',
+      //     Object.keys(unfinishedRoundsData).length,
+      //   );
+      //   console.log('unfinishedRoundsData', unfinishedRoundsData);
+      //   if (Object.keys(unfinishedRoundsData).length !== 0) {
+      //     const unfinishedRoundKeys = Object.keys(unfinishedRoundsData);
+      //     for (
+      //       let unfinishedRoundIndex = 0;
+      //       unfinishedRoundIndex < unfinishedRoundKeys.length;
+      //       unfinishedRoundIndex++
+      //     ) {
+      //       console.log('unfinishedRoundIndex', unfinishedRoundIndex);
+      //       const unfinishedRound = unfinishedRoundKeys[unfinishedRoundIndex];
+      //       console.log(
+      //         'ipfsUploadableData[curr_data][unfinishedRound]',
+      //         ipfsUploadableData['curr_data'][unfinishedRound],
+      //       );
+      //       console.log(
+      //         'unfinishedRoundsData[unfinishedRound]',
+      //         unfinishedRoundsData[unfinishedRound],
+      //       );
+      //       if (!ipfsUploadableData['curr_data'][unfinishedRound]) {
+      //         ipfsUploadableData['curr_data'][unfinishedRound] =
+      //           unfinishedRoundsData[unfinishedRound];
+      //       }
+      //     }
+      //   }
+      //   ipfsUploadableData['uninitializedRounds'] =
+      //     getPreviousSubmissionData.uninitializedRounds;
+      //   const cid = await this.uploadToIPFS(ipfsUploadableData);
+      //   const uploadableData = {};
+      //   uploadableData['avgData'] = cid;
+      //   // uploadableData['prevRoundStorageWallet'] = getPreviousSubmissionData.curr_storage_wallet;
+      //   let uploadableRound = this.getUploadingRound(round);
+      //   console.log('uploadableRound', uploadableRound);
+      //   await namespaceWrapper.uploadCustomData(
+      //     uploadableData,
+      //     uploadableRound,
+      //   );
+      //   // adding the storage wallet to the distribution list
+      //   distributionList[storageWallet.publicKey.toBase58()] = 0;
+      // }
+
+      let taskAccountDataJSON = null;
+      let taskStakeListJSON = null;
+      try {
+        taskAccountDataJSON = await namespaceWrapper.getTaskSubmissionInfo(
+          round,
+          true
         );
-        console.log('unfinishedRoundsData', unfinishedRoundsData);
-        if (Object.keys(unfinishedRoundsData).length !== 0) {
-          const unfinishedRoundKeys = Object.keys(unfinishedRoundsData);
-          for (
-            let unfinishedRoundIndex = 0;
-            unfinishedRoundIndex < unfinishedRoundKeys.length;
-            unfinishedRoundIndex++
-          ) {
-            console.log('unfinishedRoundIndex', unfinishedRoundIndex);
-            const unfinishedRound = unfinishedRoundKeys[unfinishedRoundIndex];
-            console.log(
-              'ipfsUploadableData[curr_data][unfinishedRound]',
-              ipfsUploadableData['curr_data'][unfinishedRound],
-            );
-            console.log(
-              'unfinishedRoundsData[unfinishedRound]',
-              unfinishedRoundsData[unfinishedRound],
-            );
-            if (!ipfsUploadableData['curr_data'][unfinishedRound]) {
-              ipfsUploadableData['curr_data'][unfinishedRound] =
-                unfinishedRoundsData[unfinishedRound];
-            }
-          }
-        }
-        ipfsUploadableData['uninitializedRounds'] =
-          getPreviousSubmissionData.uninitializedRounds;
-        const cid = await this.uploadToIPFS(ipfsUploadableData);
-        const uploadableData = {};
-        uploadableData['avgData'] = cid;
-        // uploadableData['prevRoundStorageWallet'] = getPreviousSubmissionData.curr_storage_wallet;
-        let uploadableRound = this.getUploadingRound(round);
-        console.log('uploadableRound', uploadableRound);
-        await namespaceWrapper.uploadCustomData(
-          uploadableData,
-          uploadableRound,
-        );
-        // adding the storage wallet to the distribution list
-        distributionList[storageWallet.publicKey.toBase58()] = 0;
+      } catch (error) {
+        console.error('ERROR IN FETCHING TASK SUBMISSION DATA', error);
+        return distributionList;
+      }
+      if (taskAccountDataJSON == null) {
+        console.error('ERROR IN FETCHING TASK SUBMISSION DATA');
+        return distributionList;
       }
 
-      let taskAccountDataJSON = await namespaceWrapper.getTaskState();
-      if (taskAccountDataJSON == null) taskAccountDataJSON = _dummyTaskState;
       const submissions = taskAccountDataJSON.submissions[round];
       const submissions_audit_trigger =
         taskAccountDataJSON.submissions_audit_trigger[round];
@@ -292,7 +311,14 @@ class Distribution {
         const keys = Object.keys(submissions);
         const values = Object.values(submissions);
         const size = values.length;
-        console.log('Submissions from last round: ', keys, values, size);
+        // console.log('Submissions from last round: ', keys, values, size);
+        taskStakeListJSON = await namespaceWrapper.getTaskState({
+          is_stake_list_required: true,
+        });
+        if (taskStakeListJSON == null) {
+          console.error('ERROR IN FETCHING TASK STAKING LIST');
+          return distributionList;
+        }
 
         // Logic for slashing the stake of the candidate who has been audited and found to be false
         for (let i = 0; i < size; i++) {
@@ -301,16 +327,16 @@ class Distribution {
             submissions_audit_trigger &&
             submissions_audit_trigger[candidatePublicKey]
           ) {
-            console.log(
-              'distributions_audit_trigger votes ',
-              submissions_audit_trigger[candidatePublicKey].votes,
-            );
+            // console.log(
+            //   'distributions_audit_trigger votes ',
+            //   submissions_audit_trigger[candidatePublicKey].votes,
+            // );
             const votes = submissions_audit_trigger[candidatePublicKey].votes;
             if (votes.length === 0) {
               // slash 70% of the stake as still the audit is triggered but no votes are casted
               // Note that the votes are on the basis of the submission value
               // to do so we need to fetch the stakes of the candidate from the task state
-              const stake_list = taskAccountDataJSON.stake_list;
+              const stake_list = taskStakeListJSON.stake_list;
               const candidateStake = stake_list[candidatePublicKey];
               const slashedStake = candidateStake * 0.7;
               distributionList[candidatePublicKey] = -slashedStake;
@@ -322,11 +348,11 @@ class Distribution {
                 else numOfVotes--;
               }
 
-              if (numOfVotes < 0) {
+              if (numOfVotes < 0 && taskStakeListJSON) {
                 // slash 70% of the stake as the number of false votes are more than the number of true votes
                 // Note that the votes are on the basis of the submission value
                 // to do so we need to fetch the stakes of the candidate from the task state
-                const stake_list = taskAccountDataJSON.stake_list;
+                const stake_list = taskStakeListJSON.stake_list;
                 const candidateStake = stake_list[candidatePublicKey];
                 const slashedStake = candidateStake * 0.7;
                 distributionList[candidatePublicKey] = -slashedStake;
@@ -347,7 +373,7 @@ class Distribution {
       // Here it is assumed that all the nodes doing valid submission gets the same reward
 
       const reward = Math.floor(
-        taskAccountDataJSON.bounty_amount_per_round /
+        taskStakeListJSON.bounty_amount_per_round /
           distributionCandidates.length,
       );
       console.log('REWARD RECEIVED BY EACH NODE', reward);
@@ -372,42 +398,44 @@ class Distribution {
     // Write your logic for the validation of submission value here and return a boolean value in response
     // this logic can be same as generation of distribution list function and based on the comparision will final object , decision can be made
 
-    // try {
-    //   console.log('Distribution list Submitter', distributionListSubmitter);
-    //   const rawDistributionList = await namespaceWrapper.getDistributionList(
-    //     distributionListSubmitter,
-    //     round,
-    //   );
-    //   let fetchedDistributionList;
-    //   if (rawDistributionList == null) {
-    //     fetchedDistributionList = _dummyDistributionList;
-    //   } else {
-    //     fetchedDistributionList = JSON.parse(rawDistributionList);
-    //   }
-    //   // const returnedList = await namespaceWrapper.getAverageDataFromPubKey(pubKeyReturned, round);
-    //   console.log('FETCHED DISTRIBUTION LIST', fetchedDistributionList);
-    //   const generateDistributionList = await this.generateDistributionList(
-    //     round,
-    //     _dummyTaskState,
-    //     true,
-    //   );
+    try {
+      console.log('Distribution list Submitter', distributionListSubmitter);
+      const rawDistributionList = await namespaceWrapper.getDistributionList(
+        distributionListSubmitter,
+        round,
+      );
+      let fetchedDistributionList;
+      if (rawDistributionList == null) {
+        return true;
+      } else {
+        fetchedDistributionList = JSON.parse(rawDistributionList);
+      }
+      // const returnedList = await namespaceWrapper.getAverageDataFromPubKey(pubKeyReturned, round);
+      console.log('FETCHED DISTRIBUTION LIST', fetchedDistributionList);
+      const generateDistributionList = await this.generateDistributionList(
+        round,
+        _dummyTaskState,
+        true,
+      );
 
-    //   // compare distribution list
-
-    //   const parsed = fetchedDistributionList;
-    //   console.log(
-    //     'compare distribution list',
-    //     parsed,
-    //     generateDistributionList,
-    //   );
-    //   const result = await this.shallowEqual(parsed, generateDistributionList);
-    //   console.log('RESULT', result);
-    //   return result;
-    // } catch (err) {
-    //   console.log('ERROR IN VALIDATING DISTRIBUTION', err);
-    //   return false;
-    // }
-    return true;
+      // compare distribution list
+      if(Object.keys(generateDistributionList).length === 0) {
+        console.log('UNABLE TO GENERATE DISTRIBUTION LIST');
+        return true;
+      }
+      const parsed = fetchedDistributionList;
+      console.log(
+        'compare distribution list',
+        parsed,
+        generateDistributionList,
+      );
+      const result = await this.shallowEqual(parsed, generateDistributionList);
+      console.log('RESULT', result);
+      return result;
+    } catch (err) {
+      console.log('ERROR IN VALIDATING DISTRIBUTION', err);
+      return true;
+    }
   };
 
   async shallowEqual(parsed, generateDistributionList) {
@@ -435,9 +463,7 @@ class Distribution {
   }
 
   async uploadToIPFS(data) {
-    const client = new SpheronClient({
-      token: process.env.Spheron_Storage,
-    });
+    const client = new KoiiStorageClient(undefined,undefined,false);
     const listFilePath = await this.makeFileObjects(data);
     // const cid = await client.put(files);
     // console.log('stored files with cid:', cid);
@@ -446,23 +472,19 @@ class Distribution {
       '***************STORING FILES***************',
       listFilePath,
     );
-
-    let currentlyUploaded = 0;
-
-    const { cid } = await client.upload(listFilePath, {
-      protocol: ProtocolEnum.IPFS,
-      name: 'test',
-      onUploadInitiated: uploadId => {
-        console.log(`Upload with id ${uploadId} started...`);
-      },
-      onChunkUploaded: (uploadedSize, totalSize) => {
-        currentlyUploaded += uploadedSize;
-        console.log(`Uploaded ${currentlyUploaded} of ${totalSize} Bytes.`);
-      },
-    });
-
+    const userStaking = await namespaceWrapper.getSubmitterAccount();
+    try{
+    const response = await client.uploadFile(listFilePath,userStaking);
+    const cid = response.cid;
     console.log(`CID: ${cid}`);
     return cid;
+    }catch (error) {
+      if (error.message === 'Invalid Task ID') {
+          console.error('Error: Invalid Task ID');
+      } else {
+          console.error('An unexpected error occurred:', error);
+      }
+  }
   }
 
   async makeFileObjects(obj) {
@@ -496,7 +518,7 @@ class Distribution {
     try {
       const prev_round_data = await axios.get(
         // `https://${prevData}.ipfs.w3s.link/data.json`,
-        `https://${prevData}.ipfs.dweb.link/data.json`,
+        `https://${prevData}.ipfs.sphn.link/data.json`,
       );
       console.log('prev round data', prev_round_data.data);
       if (

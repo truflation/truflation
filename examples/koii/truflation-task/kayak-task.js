@@ -4,10 +4,20 @@ const { Web3Storage } = require('web3.storage');
 const Data = require('./model/data');
 const dotenv = require('dotenv');
 const { default: axios } = require('axios');
+const {KoiiStorageClient} = require('@_koii/storage-task-sdk');
 dotenv.config();
 const cron = require('node-cron');
 const moment = require('moment');
+const { CID } = require('multiformats/cid');
 
+function isValidCID(cid) {
+  try {
+    CID.parse(cid);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
 /**
  * KayakTask is a class that handles the Kayak crawler and validator
  *
@@ -71,7 +81,8 @@ class KayakTask {
       await this.adapter.locationDb.getItem({ id: 'locationData' })
     )[0].data;
 
-    console.log('locationURLs', locationURLs);
+    // console.log('locationURLs', locationURLs);
+    await this.crawlLocations(locationURLs);
     this.startCronOnEvenMinute(locationURLs);
   }
 
@@ -102,7 +113,7 @@ class KayakTask {
 
     // console.log('oneCrawlData', oneCrawlData);
     await this.adapter.locationDb.storeOneScrape(oneCrawlData);
-    console.log('storing scrape on IPFS');
+    // console.log('storing scrape on IPFS');
     await this.adapter.storeScrapeOnIPFS(oneCrawlData);
     // const testing = await this.adapter.locationDb.getListing({round: 574});
     // console.log("Testing the fetch of ******",testing);
@@ -237,18 +248,37 @@ module.exports = KayakTask;
  * @param {*} cid
  * @returns promise<JSON>
  */
-const getJSONFromCID = async cid => {
-  return new Promise((resolve, reject) => {
-    let url = `https://${cid}.ipfs.dweb.link/data.json`;
-    // console.log('making call to ', url)
-    axios.get(url).then(response => {
-      if (response.status !== 200) {
-        console.log('error', response);
-        reject(response);
-      } else {
-        // console.log('response', response)
-        resolve(response.data);
+const getJSONFromCID = async (
+  cid,
+  fileName,
+) => {
+  const validateCID = isValidCID(cid)
+  if (!validateCID) {
+    console.log(`Invalid CID: ${cid}`);
+    return null;
+  }
+  const urllist = [
+    `https://${cid}.ipfs.w3s.link/${fileName}`
+  ];
+  try {
+    const client = new KoiiStorageClient(undefined, undefined, false);
+    const blob = await client.getFile(cid, fileName);
+    const text = await blob.text(); // Convert Blob to text
+    const data = JSON.parse(text); // Parse text to JSON
+    return data;
+  }  catch (error) {
+    console.log(`Error fetching file from Koii IPFS: ${error.message}`);
+  }
+  for (const url of urllist) {
+    console.log(`Trying URL: ${url}`);
+    try {
+      const response = await axios.get(url);
+      if (response.status === 200) {
+        return response.data;
       }
-    });
-  });
+    } catch (error) {
+    }
+  }
+  console.log("Attempted all IPFS sites failed");
+  return null; 
 };

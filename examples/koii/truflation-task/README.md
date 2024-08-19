@@ -1,3 +1,11 @@
+# Archive Notice
+
+This repository has been archived and is no longer maintained. It is kept for historical purposes only.
+
+The code is moved to [Truflation](https://github.com/truflation/truflation/tree/dev/koii/examples/koii)
+
+# Old Readme
+
 # K2-Task-Template
 
 Tasks run following a periodic structure of 'rounds':
