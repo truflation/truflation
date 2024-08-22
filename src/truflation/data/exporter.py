@@ -13,6 +13,8 @@ from sqlalchemy import types
         misc identifiers -- like country, position, name, color, source, et cetera
     value -- a value with consistent type, such as double or string
     created_at -- a datetime object indicated when this data was added to the database
+
+    todo: add primary keys and indexes
 '''
 
 
