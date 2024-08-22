@@ -3,7 +3,7 @@ import logging
 import pandas
 from truflation.data.export_details import ExportDetails
 from truflation.data.logging_manager import Logger
-from sqlalchemy import types
+from sqlalchemy import types, text
 
 '''
   Dev Notes
@@ -89,8 +89,44 @@ class Exporter:
                     export_details,
                     df_new_data
                 )
+        self.ensure_primary_key_and_indexes(export_details)
 
         return df_new_data
+
+    @staticmethod
+    def ensure_primary_key_and_indexes(export_details: ExportDetails):
+        """
+        Ensures that the primary key and indexes are created if they do not exist.
+
+        param:
+          export_details: ExportDetails: database details
+        """
+        sql_alchemy_uri = f'mariadb+pymysql://{export_details.username}:{export_details.password}@{export_details.host}:{export_details.port}/{export_details.db}'
+        engine = create_engine(sql_alchemy_uri)
+
+        with engine.connect() as connection:
+            # Add primary key if not exists
+            connection.execute(text(f"""
+                ALTER TABLE {export_details.table}
+                ADD PRIMARY KEY (date, created_at) 
+                IF NOT EXISTS;
+            """))
+
+            # Add index on date if not exists
+            connection.execute(text(f"""
+                CREATE INDEX idx_date 
+                ON {export_details.table} (date) 
+                IF NOT EXISTS;
+            """))
+
+            # Add index on created_at if not exists
+            connection.execute(text(f"""
+                CREATE INDEX idx_created_at 
+                ON {export_details.table} (created_at) 
+                IF NOT EXISTS;
+            """))
+
+
 
     @staticmethod
     def export_dump(export_details: ExportDetails, df: pandas.DataFrame) -> None:
