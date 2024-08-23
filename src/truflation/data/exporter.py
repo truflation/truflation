@@ -3,7 +3,7 @@ import logging
 import pandas
 from truflation.data.export_details import ExportDetails
 from truflation.data.logging_manager import Logger
-from sqlalchemy import types, text
+from sqlalchemy import types, text, create_engine
 
 '''
   Dev Notes
@@ -48,6 +48,10 @@ class Exporter:
         else:
             df_local['created_at'] = pandas.to_datetime(df_local['created_at'])
 
+
+        if 'id' not in df_local.columns:
+            df_local['id'] = None  # Placeholder for the auto-incrementing id
+
         # Read in remote database as dataframe
         df_remote = export_details.read()
 
@@ -81,7 +85,8 @@ class Exporter:
                     dtype={
                         # 'created_at': types.DateTime(precision=6),
                     'date': types.Date(),
-                        'created_at': types.DATETIME()
+                    'created_at': types.DATETIME(),
+                    'id': types.INTEGER()
                 },
                 )
             else:
@@ -89,14 +94,14 @@ class Exporter:
                     export_details,
                     df_new_data
                 )
-        self.ensure_primary_key_and_indexes(export_details)
+        self.ensure_primary_key(export_details)
 
         return df_new_data
 
     @staticmethod
-    def ensure_primary_key_and_indexes(export_details: ExportDetails):
+    def ensure_primary_key(export_details: ExportDetails):
         """
-        Ensures that the primary key and indexes are created if they do not exist.
+        Ensures that the primary key (auto-incrementing id) are created if they do not exist.
 
         param:
           export_details: ExportDetails: database details
@@ -105,28 +110,12 @@ class Exporter:
         engine = create_engine(sql_alchemy_uri)
 
         with engine.connect() as connection:
-            # Add primary key if not exists
+            # Add auto-incrementing primary key if not exists
             connection.execute(text(f"""
                 ALTER TABLE {export_details.table}
-                ADD PRIMARY KEY (date, created_at) 
+                ADD COLUMN id INT AUTO_INCREMENT PRIMARY KEY 
                 IF NOT EXISTS;
             """))
-
-            # Add index on date if not exists
-            connection.execute(text(f"""
-                CREATE INDEX idx_date 
-                ON {export_details.table} (date) 
-                IF NOT EXISTS;
-            """))
-
-            # Add index on created_at if not exists
-            connection.execute(text(f"""
-                CREATE INDEX idx_created_at 
-                ON {export_details.table} (created_at) 
-                IF NOT EXISTS;
-            """))
-
-
 
     @staticmethod
     def export_dump(export_details: ExportDetails, df: pandas.DataFrame) -> None:
