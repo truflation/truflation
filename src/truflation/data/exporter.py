@@ -103,18 +103,15 @@ class Exporter:
           df_new_data: Pandas.DataFrame: dataframe to export
         """
 
-        # sql_alchemy_uri = f'mariadb+pymysql://{export_details.username}:{export_details.password}@{export_details.host}:{export_details.port}/{export_details.db}'
         engine = create_engine(export_details.url)
-
-
-        # check if primary key exists
-
 
 
         with engine.connect() as connection:
             with connection.begin():
+                # check if primary key exists
                 result = connection.execute(text(f"SHOW INDEX FROM {export_details.key} WHERE Key_name = 'PRIMARY'")).fetchone();
                 if result == None:
+                    # add primary key using all columns
                     column_names = df_new_data.columns.tolist()
                     add_primary_key_query = text(f"""
                         ALTER TABLE {export_details.key}
