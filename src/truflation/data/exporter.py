@@ -96,25 +96,32 @@ class Exporter:
     @staticmethod
     def ensure_primary_key(export_details: ExportDetails, df_new_data: pandas.DataFrame) -> None:
         """
-        Ensures that the primary key (auto-incrementing id) are created if they do not exist.
+        Ensures that the primary key is created if they do not exist.
 
         param:
           export_details: ExportDetails: database details
           df_new_data: Pandas.DataFrame: dataframe to export
         """
-        sql_alchemy_uri = f'mariadb+pymysql://{export_details.username}:{export_details.password}@{export_details.host}:{export_details.port}/{export_details.db}'
-        engine = create_engine(sql_alchemy_uri)
+
+        # sql_alchemy_uri = f'mariadb+pymysql://{export_details.username}:{export_details.password}@{export_details.host}:{export_details.port}/{export_details.db}'
+        engine = create_engine(export_details.url)
+
+
+        # check if primary key exists
+
+
 
         with engine.connect() as connection:
             with connection.begin():
-                column_names = df_new_data.columns.tolist()
-
-                add_primary_key_query = text(f"""
-                    ALTER TABLE {export_details.table}
-                    ADD PRIMARY KEY ({column_names});
-                    IF NOT EXISTS
-                """)
-                connection.execute(add_primary_key_query)
+                result = connection.execute(text(f"SHOW INDEX FROM {export_details.key} WHERE Key_name = 'PRIMARY'")).fetchone();
+                if result == None:
+                    column_names = df_new_data.columns.tolist()
+                    add_primary_key_query = text(f"""
+                        ALTER TABLE {export_details.key}
+                        ADD PRIMARY KEY ({','.join(column_names)})
+                    """)
+                            
+                    connection.execute(add_primary_key_query)
 
     @staticmethod
     def export_dump(export_details: ExportDetails, df: pandas.DataFrame) -> None:
