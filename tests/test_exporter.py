@@ -12,9 +12,8 @@ load_dotenv()
 class TestMySQLPrimaryKey(unittest.TestCase):
 
     @classmethod
-    def setUpClass(cls):  
-        cls.url = os.getenv('CONNECTOR')
-        cls.connector = ConnectorSql(cls.url)
+    def setUpClass(cls):
+        cls.connector = ConnectorSql(os.getenv('CONNECTOR'))
         cls.engine = cls.connector.engine
 
         # Create a test table
@@ -46,7 +45,6 @@ class TestMySQLPrimaryKey(unittest.TestCase):
             key='test_table',
             replace=True
         )
-        export_details.url = self.url
 
         # Simulate export to the MySQL database
         exporter = Exporter()

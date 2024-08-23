@@ -102,23 +102,15 @@ class Exporter:
           export_details: ExportDetails: database details
           df_new_data: Pandas.DataFrame: dataframe to export
         """
-
-        engine = create_engine(export_details.url)
-
-
-        with engine.connect() as connection:
-            with connection.begin():
-                # check if primary key exists
-                result = connection.execute(text(f"SHOW INDEX FROM {export_details.key} WHERE Key_name = 'PRIMARY'")).fetchone();
-                if result == None:
-                    # add primary key using all columns
-                    column_names = df_new_data.columns.tolist()
-                    add_primary_key_query = text(f"""
-                        ALTER TABLE {export_details.key}
-                        ADD PRIMARY KEY ({','.join(column_names)})
-                    """)
-                            
-                    connection.execute(add_primary_key_query)
+        engine = export_details.writer
+        result = engine.execute([f"SHOW INDEX FROM {export_details.key} WHERE Key_name = 'PRIMARY'"])
+        if result == None:
+            # add primary key using all columns
+            column_names = df_new_data.columns.tolist()             
+            engine.execute([f"""
+                ALTER TABLE {export_details.key}
+                ADD PRIMARY KEY ({','.join(column_names)})
+            """])
 
     @staticmethod
     def export_dump(export_details: ExportDetails, df: pandas.DataFrame) -> None:
