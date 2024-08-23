@@ -12,8 +12,6 @@ from sqlalchemy import types, text, create_engine, inspect
         misc identifiers -- like country, position, name, color, source, et cetera
     value -- a value with consistent type, such as double or string
     created_at -- a datetime object indicated when this data was added to the database
-
-    todo: add primary keys and indexes
 '''
 
 
@@ -46,10 +44,6 @@ class Exporter:
             df_local['created_at'] = pandas.to_datetime(datetime.datetime.utcnow())
         else:
             df_local['created_at'] = pandas.to_datetime(df_local['created_at'])
-
-
-        if 'id' not in df_local.columns:
-            df_local['id'] = None  # Placeholder for the auto-incrementing id
 
         # Read in remote database as dataframe
         df_remote = export_details.read()
