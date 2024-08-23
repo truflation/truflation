@@ -11,27 +11,20 @@ load_dotenv()
 class TestMySQLPrimaryKey(unittest.TestCase):
 
     @classmethod
-    def setUpClass(self):        
+    def setUpClass(cls):        
         sql_alchemy_uri = os.getenv('CONNECTOR')
-        self.engine = create_engine(sql_alchemy_uri)
+        cls.engine = create_engine(sql_alchemy_uri)
         
         # Create a test table
-        with self.engine.connect() as connection:
-            connection.execute(text(f"""
-                CREATE TABLE IF NOT EXISTS test_table (
-                value DOUBLE,
-                date DATE,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            )
+        with cls.engine.connect() as connection:
+            connection.execute(text("CREATE TABLE IF NOT EXISTS test_table (value DOUBLE, date DATE, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"))
 
     @classmethod
-    def tearDownClass(self):
+    def tearDownClass(cls):
         # Drop the test table after tests are done
-        with self.engine.connect() as connection:
+        with cls.engine.connect() as connection:
             connection.execute(text('DROP TABLE IF EXISTS test_table'))
-        self.engine.dispose()
+        cls.engine.dispose()
 
     def test_export_with_primary_key(self):
         # Create a sample dataframe
@@ -53,6 +46,8 @@ class TestMySQLPrimaryKey(unittest.TestCase):
         exporter = Exporter()
         df_new_data = exporter.export(export_details, df)
 
+        print(f'new data {df_new_data}')
+
         # Verify that the data was inserted correctly
         with self.engine.connect() as connection:
             result = connection.execute(text('SELECT * FROM test_table')).fetchall()
@@ -66,7 +61,7 @@ class TestMySQLPrimaryKey(unittest.TestCase):
         # Verify that the primary key constraint is applied
         with self.engine.connect() as connection:
             result = connection.execute(
-                text(f"""SHOW INDEX FROM test_table WHERE Key_name = 'PRIMARY'""")
+                text("SHOW INDEX FROM test_table WHERE Key_name = 'PRIMARY'")
             ).fetchone()
             self.assertIsNotNone(result)
 
