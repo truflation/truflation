@@ -3,7 +3,7 @@ import logging
 import pandas
 from truflation.data.export_details import ExportDetails
 from truflation.data.logging_manager import Logger
-from sqlalchemy import types, text, create_engine
+from sqlalchemy import types, text, create_engine, inspect
 
 '''
   Dev Notes
@@ -76,6 +76,7 @@ class Exporter:
             df_local['date'] = pandas.to_datetime(df_local['date'])  # make sure the 'date' column is in datetime format
 
         if not dry_run and not df_new_data.empty:
+
             # Insert
             if export_details.create_table is None:
                 export_details.write(
@@ -85,8 +86,7 @@ class Exporter:
                     dtype={
                         # 'created_at': types.DateTime(precision=6),
                     'date': types.Date(),
-                    'created_at': types.DATETIME(),
-                    'id': types.INTEGER()
+                    'created_at': types.DATETIME()
                 },
                 )
             else:
@@ -94,12 +94,14 @@ class Exporter:
                     export_details,
                     df_new_data
                 )
-        self.ensure_primary_key(export_details)
+
+            # Ensure primary key is set
+            self.ensure_primary_key(export_details, df_new_data)
 
         return df_new_data
 
     @staticmethod
-    def ensure_primary_key(export_details: ExportDetails):
+    def ensure_primary_key(export_details: ExportDetails, df_local: pandas.DataFrame,):
         """
         Ensures that the primary key (auto-incrementing id) are created if they do not exist.
 
@@ -110,12 +112,14 @@ class Exporter:
         engine = create_engine(sql_alchemy_uri)
 
         with engine.connect() as connection:
-            # Add auto-incrementing primary key if not exists
-            connection.execute(text(f"""
+            column_names = df_local.columns.tolist()
+
+            add_primary_key_query = text(f"""
                 ALTER TABLE {export_details.table}
-                ADD COLUMN id INT AUTO_INCREMENT PRIMARY KEY 
-                IF NOT EXISTS;
-            """))
+                ADD PRIMARY KEY ({column_names});
+                IF NOT EXISTS
+            """)
+            connection.execute(add_primary_key_query)
 
     @staticmethod
     def export_dump(export_details: ExportDetails, df: pandas.DataFrame) -> None:
