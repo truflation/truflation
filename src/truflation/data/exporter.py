@@ -2,7 +2,7 @@ import datetime
 import pandas
 from truflation.data.export_details import ExportDetails
 from truflation.data.logging_manager import Logger
-from sqlalchemy import types, text, create_engine, inspect
+from sqlalchemy import types, text, create_engine
 
 '''
   Dev Notes
