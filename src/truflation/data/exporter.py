@@ -106,14 +106,15 @@ class Exporter:
         engine = create_engine(sql_alchemy_uri)
 
         with engine.connect() as connection:
-            column_names = df_new_data.columns.tolist()
+            with connection.begin():
+                column_names = df_new_data.columns.tolist()
 
-            add_primary_key_query = text(f"""
-                ALTER TABLE {export_details.table}
-                ADD PRIMARY KEY ({column_names});
-                IF NOT EXISTS
-            """)
-            connection.execute(add_primary_key_query)
+                add_primary_key_query = text(f"""
+                    ALTER TABLE {export_details.table}
+                    ADD PRIMARY KEY ({column_names});
+                    IF NOT EXISTS
+                """)
+                connection.execute(add_primary_key_query)
 
     @staticmethod
     def export_dump(export_details: ExportDetails, df: pandas.DataFrame) -> None:

@@ -18,12 +18,14 @@ class TestMySQLPrimaryKey(unittest.TestCase):
         # Create a test table
         with cls.engine.connect() as connection:
             connection.execute(text("CREATE TABLE IF NOT EXISTS test_table (value DOUBLE, date DATE, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"))
+            connection.commit()
 
     @classmethod
     def tearDownClass(cls):
         # Drop the test table after tests are done
         with cls.engine.connect() as connection:
             connection.execute(text('DROP TABLE IF EXISTS test_table'))
+            connection.commit()
         cls.engine.dispose()
 
     def test_export_with_primary_key(self):
@@ -44,9 +46,7 @@ class TestMySQLPrimaryKey(unittest.TestCase):
 
         # Simulate export to the MySQL database
         exporter = Exporter()
-        df_new_data = exporter.export(export_details, df)
-
-        print(f'new data {df_new_data}')
+        exporter.export(export_details, df)
 
         # Verify that the data was inserted correctly
         with self.engine.connect() as connection:
