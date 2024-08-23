@@ -1,5 +1,4 @@
 import datetime
-import logging
 import pandas
 from truflation.data.export_details import ExportDetails
 from truflation.data.logging_manager import Logger
@@ -101,18 +100,19 @@ class Exporter:
         return df_new_data
 
     @staticmethod
-    def ensure_primary_key(export_details: ExportDetails, df_local: pandas.DataFrame,):
+    def ensure_primary_key(export_details: ExportDetails, df_new_data: pandas.DataFrame) -> None:
         """
         Ensures that the primary key (auto-incrementing id) are created if they do not exist.
 
         param:
           export_details: ExportDetails: database details
+          df_new_data: Pandas.DataFrame: dataframe to export
         """
         sql_alchemy_uri = f'mariadb+pymysql://{export_details.username}:{export_details.password}@{export_details.host}:{export_details.port}/{export_details.db}'
         engine = create_engine(sql_alchemy_uri)
 
         with engine.connect() as connection:
-            column_names = df_local.columns.tolist()
+            column_names = df_new_data.columns.tolist()
 
             add_primary_key_query = text(f"""
                 ALTER TABLE {export_details.table}
