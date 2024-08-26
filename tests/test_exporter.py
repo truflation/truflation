@@ -71,45 +71,19 @@ class TestMySQLPrimaryKey(unittest.TestCase):
             ).fetchone()
             self.assertIsNotNone(result) # the primary key exists so next time the pipeline should ignore the primary key check
 
-    def test_apply_primary_key_to_timeseries(self):
+
+    def test_update_table_with_null_created_at(self):
         
-        dlist = []
-        # get all tables that doesn't have primary key
-        with self.engine.connect() as connection:
-            result = connection.execute(
-                text(f"""
-                    SELECT tab.table_name AS table_name
-                    FROM information_schema.tables tab
-                    LEFT JOIN information_schema.table_constraints tco
-                        ON (tab.table_schema = tco.table_schema
-                            AND tab.table_name = tco.table_name
-                            AND tco.constraint_type = 'PRIMARY KEY')
-                    WHERE
-                        tab.table_schema = 'timeseries'
-                        AND tco.constraint_type IS NULL
-                        AND tab.table_type = 'BASE TABLE'
-                     LIMIT 10
-                """)
-            ).fetchall()
-            dlist = [item[0] for item in list(result)]
-        
-        # Simulate export to the MySQL database
+        export_details = ExportDetails(
+            name='test_update_created_at',
+            connector=self.connector,
+            key='edu_psu_housing',
+            replace=True
+        )
+
         exporter = Exporter()
+        exporter.update_null_created_at(export_details)   
 
-        for table in dlist:
-            with self.engine.connect() as connection:
-                result = connection.execute(text(f"SELECT column_name FROM information_schema.columns WHERE table_schema = 'timeseries' and table_name='{table}'")).fetchall()
-                export_details = ExportDetails(
-                    name='test_add_primary_key',
-                    connector=self.connector,
-                    key=table,
-                    replace=True
-                )
-
-                data = {}
-                for item in result:
-                    data[item[0]] = []
-                exporter.export(export_details, pd.DataFrame(data))
 
 if __name__ == '__main__':
     unittest.main()

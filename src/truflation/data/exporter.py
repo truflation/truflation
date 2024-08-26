@@ -109,6 +109,23 @@ class Exporter:
                 ALTER TABLE `{export_details.key}`
                 ADD PRIMARY KEY ({','.join(df_columns)})
             """])
+    
+    def update_null_created_at(self, export_details: ExportDetails):
+        """
+        Updates the 'created_at' field in the table where the value is null,
+        setting it to the datetime of the 'date' field.
+
+        param:
+          export_details: ExportDetails: database details
+        """
+        engine = export_details.writer
+        engine.execute([f"""
+                UPDATE {export_details.key}
+                SET created_at = CAST(date AS DATETIME)
+                WHERE created_at IS NULL;
+            """])
+        
+        self.logging_manager.log_info(f"Updated 'created_at' for rows where it was NULL in table {export_details.key}.")
 
     @staticmethod
     def export_dump(export_details: ExportDetails, df: pandas.DataFrame) -> None:
