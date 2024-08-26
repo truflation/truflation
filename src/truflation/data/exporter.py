@@ -2,7 +2,7 @@ import datetime
 import pandas
 from truflation.data.export_details import ExportDetails
 from truflation.data.logging_manager import Logger
-from sqlalchemy import types, text, create_engine
+from sqlalchemy import types, text, create_engine, Numeric
 
 '''
   Dev Notes
@@ -89,27 +89,25 @@ class Exporter:
                 )
 
             # Ensure primary key is set
-            self.ensure_primary_key(export_details, df_new_data)
+            self.ensure_primary_key(export_details, df_new_data.select_dtypes(exclude='double').columns.tolist())
 
         return df_new_data
 
     @staticmethod
-    def ensure_primary_key(export_details: ExportDetails, df_new_data: pandas.DataFrame) -> None:
+    def ensure_primary_key(export_details: ExportDetails, df_columns: list) -> None:
         """
         Ensures that the primary key is created if they do not exist.
 
         param:
           export_details: ExportDetails: database details
-          df_new_data: Pandas.DataFrame: dataframe to export
+          df_columns: list: columns list
         """
         engine = export_details.writer
-        result = engine.execute([f"SHOW INDEX FROM {export_details.key} WHERE Key_name = 'PRIMARY'"])
-        if result == None:
-            # add primary key using all columns
-            column_names = df_new_data.columns.tolist()             
+        result = engine.execute([f"SHOW INDEX FROM `{export_details.key}` WHERE Key_name = 'PRIMARY'"])
+        if result == None:         
             engine.execute([f"""
-                ALTER TABLE {export_details.key}
-                ADD PRIMARY KEY ({','.join(column_names)})
+                ALTER TABLE `{export_details.key}`
+                ADD PRIMARY KEY ({','.join(df_columns)})
             """])
 
     @staticmethod

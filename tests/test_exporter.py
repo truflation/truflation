@@ -30,8 +30,7 @@ class TestMySQLPrimaryKey(unittest.TestCase):
         cls.connector.engine.dispose()
 
     def test_export_with_primary_key(self):
-
-                # Create a sample dataframe
+        # Create a sample dataframe
         data = {
             'value': [10.5, 20.7, 30.2],
             'date': ['2023-01-01', '2023-01-02', '2023-01-03']
@@ -45,6 +44,13 @@ class TestMySQLPrimaryKey(unittest.TestCase):
             key='test_table',
             replace=True
         )
+
+        # Verify that the primary key constraint exists
+        with self.engine.connect() as connection:
+            result = connection.execute(
+                text("SHOW INDEX FROM test_table WHERE Key_name = 'PRIMARY'")
+            ).fetchone()
+            self.assertIsNone(result) # the primary key doesn't exists
 
         # Simulate export to the MySQL database
         exporter = Exporter()
@@ -63,7 +69,47 @@ class TestMySQLPrimaryKey(unittest.TestCase):
             result = connection.execute(
                 text("SHOW INDEX FROM test_table WHERE Key_name = 'PRIMARY'")
             ).fetchone()
-            self.assertIsNotNone(result)
+            self.assertIsNotNone(result) # the primary key exists so next time the pipeline should ignore the primary key check
+
+    def test_apply_primary_key_to_timeseries(self):
+        
+        dlist = []
+        # get all tables that doesn't have primary key
+        with self.engine.connect() as connection:
+            result = connection.execute(
+                text(f"""
+                    SELECT tab.table_name AS table_name
+                    FROM information_schema.tables tab
+                    LEFT JOIN information_schema.table_constraints tco
+                        ON (tab.table_schema = tco.table_schema
+                            AND tab.table_name = tco.table_name
+                            AND tco.constraint_type = 'PRIMARY KEY')
+                    WHERE
+                        tab.table_schema = 'timeseries'
+                        AND tco.constraint_type IS NULL
+                        AND tab.table_type = 'BASE TABLE'
+                     LIMIT 10
+                """)
+            ).fetchall()
+            dlist = [item[0] for item in list(result)]
+        
+        # Simulate export to the MySQL database
+        exporter = Exporter()
+
+        for table in dlist:
+            with self.engine.connect() as connection:
+                result = connection.execute(text(f"SELECT column_name FROM information_schema.columns WHERE table_schema = 'timeseries' and table_name='{table}'")).fetchall()
+                export_details = ExportDetails(
+                    name='test_add_primary_key',
+                    connector=self.connector,
+                    key=table,
+                    replace=True
+                )
+
+                data = {}
+                for item in result:
+                    data[item[0]] = []
+                exporter.export(export_details, pd.DataFrame(data))
 
 if __name__ == '__main__':
     unittest.main()
