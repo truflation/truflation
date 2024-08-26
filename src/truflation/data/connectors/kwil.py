@@ -1,6 +1,8 @@
 """
 Kwil connector
 """
+import asyncio
+
 import re
 import os
 import uuid
@@ -12,15 +14,15 @@ import subprocess
 import tempfile
 import pandas as pd
 from icecream import ic
-import asyncio
+
 import aiohttp
-import logging
+from loguru import logger
+from eth_utils import to_checksum_address
+from dotenv import load_dotenv
 
 import truflation.data
 from truflation.data.connector import Connector, add_connector_factory
-from eth_utils import to_checksum_address
 
-from dotenv import load_dotenv
 load_dotenv()
 ic(os.environ)
 EXECUTABLE_NAME = 'kwil-cli'
@@ -75,7 +77,7 @@ class BlockchainInteraction:
                         result = await response.json()
                         return result
                 except aiohttp.ClientError as e:
-                    logging.error(f'An error occured while querying transaction: {str(e)}')
+                    logger.error(f'An error occured while querying transaction: {str(e)}')
                     pass
                 await asyncio.sleep(0.2)
 class ConnectorKwil(Connector):
@@ -201,10 +203,11 @@ class ConnectorKwil(Connector):
         df.rename(columns={'date_value': 'date'}, inplace=True)
         df['created_at'] = pd.to_datetime(df['created_at'].astype(int))
         df.drop(columns=['id'], inplace=True)
-        df['value'] = round(
-            df['value'].astype(int) / 10 ** self.round,
-            self.round
-        )
+        if 'value' in df.columns:
+            df['value'] = round(
+                df['value'].astype(int) / 10 ** self.round,
+                self.round
+            )
         return df
 
     def fix_data_write(self, df):
@@ -213,7 +216,9 @@ class ConnectorKwil(Connector):
             df = df.reset_index()
         df.rename(columns={'date': 'date_value'}, inplace=True)
         df['id'] = df.apply(lambda row: uuid.uuid4(), axis=1)
-        df['value'] = round(df['value'] * 10**self.round, self.round).astype(int)
+        if 'value' in df.columns:
+            df['value'] = round(
+                df['value'] * 10**self.round, self.round).astype(int)
         df['created_at'] = df['created_at'].astype(int)
         ic(df)
         ic(df.dtypes)
@@ -245,6 +250,22 @@ class ConnectorKwil(Connector):
             '-a',
             'add_admin_owner'
         ] + self._get_db_arg(dbid)))
+
+    def database_execute(self, dbid: str, action: str, params: dict):
+        args = [
+            'database',
+            'execute'
+        ] + [
+            f'${key}:{value}'
+            for key, value in params.items()
+        ] + [
+            '-a',
+            action
+        ] +  self._get_db_arg(dbid)
+
+        return self.execute_command_json(
+            *args
+        )
 
     def query_tx(self, txid):
         return self.execute_command_json(
