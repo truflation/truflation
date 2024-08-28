@@ -1,8 +1,8 @@
 import unittest
 import os
 import pandas as pd
-from sqlalchemy import text
-from truflation.data.connector import ConnectorSql
+from sqlalchemy import text, create_engine
+from truflation.data.connector import get_database_handle, connector_factory
 from truflation.data.exporter import Exporter, ExportDetails
 from dotenv import load_dotenv
 
@@ -13,11 +13,12 @@ class TestMySQLPrimaryKey(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.connector = ConnectorSql(os.getenv('CONNECTOR'))
+        cls.db_handle = get_database_handle()
+        cls.connector = connector_factory(cls.db_handle)
         cls.engine = cls.connector.engine
 
         # Create a test table
-        with cls.connector.engine.connect() as connection:
+        with cls.engine.connect() as connection:
             connection.execute(text("CREATE TABLE IF NOT EXISTS test_table (value DOUBLE, date DATE, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"))
             connection.commit()
 
@@ -78,7 +79,6 @@ class TestMySQLPrimaryKey(unittest.TestCase):
             name='test_update_created_at',
             connector=self.connector,
             key='edu_psu_housing',
-            replace=True
         )
 
         exporter = Exporter()

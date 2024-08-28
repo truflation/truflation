@@ -2,6 +2,7 @@ import datetime
 import pandas
 from truflation.data.export_details import ExportDetails
 from truflation.data.logging_manager import Logger
+from truflation.data.connector import get_database_handle
 from sqlalchemy import types, text, create_engine, Numeric
 
 '''
@@ -55,6 +56,10 @@ class Exporter:
         # If remote exists, reconcile and receive the data needing to be added
         reconcile = self.reconcile_dataframes if export_details.reconcile is None else export_details.reconcile
         df_new_data = reconcile(df_remote, df_local) if df_remote is not None and not df_remote.empty else df_local
+
+
+        print(f'truflation.data {export_details}')
+
         if not df_new_data.empty:
             self.logging_manager.log_info(
                 f'exporting {export_details.name} to {export_details.key}'
@@ -64,6 +69,9 @@ class Exporter:
             self.logging_manager.log_debug(
                 f'no new data - {export_details.name} to {export_details.key}'
             )
+
+            # Ensure primary key is set only for existing tables
+            self.ensure_primary_key(export_details, df_new_data.select_dtypes(exclude='double').columns.tolist())
 
         if 'date' in df_local:
             df_local['date'] = pandas.to_datetime(df_local['date'])  # make sure the 'date' column is in datetime format
@@ -88,7 +96,7 @@ class Exporter:
                     df_new_data
                 )
 
-            # Ensure primary key is set
+            # Ensure primary key is set only for existing tables
             self.ensure_primary_key(export_details, df_new_data.select_dtypes(exclude='double').columns.tolist())
 
         return df_new_data
@@ -102,13 +110,20 @@ class Exporter:
           export_details: ExportDetails: database details
           df_columns: list: columns list
         """
-        engine = export_details.writer
-        result = engine.execute([f"SHOW INDEX FROM `{export_details.key}` WHERE Key_name = 'PRIMARY'"])
-        if result == None:         
-            engine.execute([f"""
-                ALTER TABLE `{export_details.key}`
-                ADD PRIMARY KEY ({','.join(df_columns)})
-            """])
+
+        db_handle = get_database_handle()
+        engine = create_engine(db_handle)
+
+        with engine.connect() as connection:
+            table_exists = connection.execute(text(f"SHOW TABLES LIKE '%{export_details.key}%'")).fetchone()
+            if table_exists != None:
+                result = connection.execute(text(f"SHOW INDEX FROM `{export_details.key}` WHERE Key_name = 'PRIMARY'")).fetchone()
+                if result == None:         
+                    connection.execute(text(f"""
+                        ALTER TABLE `{export_details.key}`
+                        ADD PRIMARY KEY ({','.join(df_columns)})
+                    """))
+            connection.commit()
     
     def update_null_created_at(self, export_details: ExportDetails):
         """
@@ -118,13 +133,17 @@ class Exporter:
         param:
           export_details: ExportDetails: database details
         """
-        engine = export_details.writer
-        engine.execute([f"""
-                UPDATE {export_details.key}
-                SET created_at = CAST(date AS DATETIME)
-                WHERE created_at IS NULL;
-            """])
-        
+        db_handle = get_database_handle()
+        engine = create_engine(db_handle)
+
+        with engine.connect() as connection:
+            connection.execute(text(f"""
+                    UPDATE {export_details.key}
+                    SET created_at = CAST(date AS DATETIME)
+                    WHERE created_at IS NULL;
+                """))
+            connection.commit()
+
         self.logging_manager.log_info(f"Updated 'created_at' for rows where it was NULL in table {export_details.key}.")
 
     @staticmethod
