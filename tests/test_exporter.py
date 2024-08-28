@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+@unittest.skipIf('DB_USER' not in os.environ, "skipping test")
 class TestMySQLPrimaryKey(unittest.TestCase):
 
     @classmethod
