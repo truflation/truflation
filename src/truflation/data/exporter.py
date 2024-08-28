@@ -69,7 +69,7 @@ class Exporter:
             )
 
             # Ensure primary key is set only for existing tables
-            self.ensure_primary_key(export_details, df_new_data.select_dtypes(exclude='double').columns.tolist())
+            self.ensure_primary_key(export_details)
 
         if 'date' in df_local:
             df_local['date'] = pandas.to_datetime(df_local['date'])  # make sure the 'date' column is in datetime format
@@ -95,18 +95,17 @@ class Exporter:
                 )
 
             # Ensure primary key is set only for existing tables
-            self.ensure_primary_key(export_details, df_new_data.select_dtypes(exclude='double').columns.tolist())
+            self.ensure_primary_key(export_details)
 
         return df_new_data
 
     @staticmethod
-    def ensure_primary_key(export_details: ExportDetails, df_columns: list) -> None:
+    def ensure_primary_key(export_details: ExportDetails) -> None:
         """
         Ensures that the primary key is created if they do not exist.
 
         param:
           export_details: ExportDetails: database details
-          df_columns: list: columns list
         """
 
         db_handle = get_database_handle()
