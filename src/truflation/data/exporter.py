@@ -121,7 +121,7 @@ class Exporter:
                 if result == None:         
                     connection.execute(text(f"""
                         ALTER TABLE `{export_details.key}`
-                        ADD PRIMARY KEY ({','.join(df_columns)})
+                        ADD COLUMN id VARBINARY(16) DEFAULT unhex(replace(uuid(),'-','')) NOT NULL PRIMARY KEY
                     """))
             connection.commit()
     
