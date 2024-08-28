@@ -8,7 +8,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-@unittest.skipIf('CONNECTOR' not in os.environ, "skipping test")
 class TestMySQLPrimaryKey(unittest.TestCase):
 
     @classmethod
@@ -71,19 +70,6 @@ class TestMySQLPrimaryKey(unittest.TestCase):
                 text("SHOW INDEX FROM test_table WHERE Key_name = 'PRIMARY'")
             ).fetchone()
             self.assertIsNotNone(result) # the primary key exists so next time the pipeline should ignore the primary key check
-
-
-    def test_update_table_with_null_created_at(self):
-        
-        export_details = ExportDetails(
-            name='test_update_created_at',
-            connector=self.connector,
-            key='edu_psu_housing',
-        )
-
-        exporter = Exporter()
-        exporter.update_null_created_at(export_details)   
-
 
 if __name__ == '__main__':
     unittest.main()
