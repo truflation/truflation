@@ -58,8 +58,6 @@ class Exporter:
         df_new_data = reconcile(df_remote, df_local) if df_remote is not None and not df_remote.empty else df_local
 
 
-        print(f'truflation.data {export_details}')
-
         if not df_new_data.empty:
             self.logging_manager.log_info(
                 f'exporting {export_details.name} to {export_details.key}'
