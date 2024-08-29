@@ -15,7 +15,7 @@ import gspread
 from gspread_pandas import Spread, Client
 import requests
 from playwright.sync_api import sync_playwright
-
+from playwright_stealth import stealth_sync
 from truflation.data.logging_manager import Logger
 
 
@@ -43,10 +43,11 @@ def playw_browser():
                     'server': os.environ.get('PROXY_SERVER'),
                     'username': os.environ.get('PROXY_USERNAME'),
                     'password': os.environ.get('PROXY_PASSWORD')
-                }
+                },
+                'headless': True
             }
             ic('#### using proxy server with playwright ####')
-        playw_browser.browser = playw_browser.playwright.firefox.launch(
+        playw_browser.browser = playw_browser.playwright.chromium.launch(
             **launch_params
         )
         playw_browser.count += 1
@@ -510,27 +511,34 @@ class ConnectorRest(Connector):
             self,
             url, *args, **kwargs) -> Any:
         self.logging_manager.log_info(f'Fetching data from URL: {url}')
-        
+        ic(kwargs)
         if self.playwright:
             try:
-                if self.no_cache:
+                if kwargs.get('no_cache', self.no_cache):
                     with sync_playwright() as p:
-                        browser_type = p.firefox
-                        browser = browser_type.launch()
-                        self.page = browser.new_page()
+                        browser_type = p.chromium
+                        browser = browser_type.launch(headless=True)
+                        context = browser.new_context(
+                            user_agent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+                        )
+                        self.page = context.new_page()
+                        stealth_sync(self.page)
                         response = self.page.goto(
+                            url
+                        )
+                        self.logging_manager.log_info('Data fetched using Playwright no cache.')
+                        return self.process_response(response)
+                else:
+                    with playw_browser().new_context(
+                            user_agent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+                    ) as context:
+                        page = context.new_page()
+                        stealth_sync(page)
+                        response = page.goto(
                             url
                         )
                         self.logging_manager.log_info('Data fetched using Playwright.')
                         return self.process_response(response)
-
-                with playw_browser().new_context() as context:
-                    page = context.new_page()
-                    response = page.goto(
-                        url
-                    )
-                    self.logging_manager.log_info('Data fetched using Playwright.')
-                    return self.process_response(response)
             except Exception as e:
                 self.logging_manager.log_error(f'Error fetching data using Playwright: {e}')
 
