@@ -124,7 +124,7 @@ class Exporter:
         return df
 
     @staticmethod
-    def reconcile_dataframes(df_base: pandas.DataFrame, df_incoming: pandas.DataFrame, rounding:int = 6) -> pandas.DataFrame :
+    def reconcile_dataframes(df_base: pandas.DataFrame, df_incoming: pandas.DataFrame, rounding:int = 12) -> pandas.DataFrame :
         """
         Retrieve a dataframe that contains the rows needed to update df_base with the values from df_incoming
 
