@@ -726,7 +726,10 @@ class ConnectorExcel(Connector):
             # df = pd.read_excel(source, engine='openpyxl', **kwargs) # use for xlsx files (default?)
         else:
             self.logging_manager.log_debug('Detected .xlsx file format.')
-            df = pd.read_excel(source, dtype_backend='pyarrow', **kwargs)
+            df = pd.read_excel(
+                source, engine='openpyxl', 
+                dtype_backend='pyarrow', 
+                **kwargs)
 
         # print(f'df received: \n{df}')
         # print(f'\n\ncolumns: \n: {df.columns}')
