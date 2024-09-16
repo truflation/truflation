@@ -124,22 +124,30 @@ class Exporter:
         return df
 
     @staticmethod
-    def reconcile_dataframes(df_base: pandas.DataFrame, df_incoming: pandas.DataFrame, rounding:int = 12) -> pandas.DataFrame :
+    def reconcile_dataframes(df_base: pandas.DataFrame, df_incoming: pandas.DataFrame, rounding: int = 6) -> pandas.DataFrame:
         """
-        Retrieve a dataframe that contains the rows needed to update df_base with the values from df_incoming
+        Retrieve a dataframe that contains the rows needed to update df_base with the values from df_incoming.
 
-        param:
-          df_base: Pandas.DataFrame: dataframe to add to
-          df_incoming: Pandas.DataFrame: dataframe to add
+        Parameters:
+            df_base (pandas.DataFrame): DataFrame to update
+            df_incoming (pandas.DataFrame): Incoming DataFrame with new data
+            rounding (int): Number of decimal places to round numeric columns for comparison (default=6)
+        
+        Returns:
+            pandas.DataFrame: A DataFrame containing rows that need to be added to df_base
         """
 
-        # Merge
-        # ensure date columns are in datetime format
+        # Reset index if 'date' is used as an index
         if df_incoming.index.name == 'date':
-            df_incoming = df_incoming.reset_index() # reset index if date is being used as index
+            df_incoming = df_incoming.reset_index()
+        if df_base.index.name == 'date':
+            df_base = df_base.reset_index()
+
+        # Convert 'date' columns to datetime
         df_base['date'] = pandas.to_datetime(df_base['date'])
         df_incoming['date'] = pandas.to_datetime(df_incoming['date'])
 
+        # Exclude 'created_at' from merge identifiers
         identifiers = [x for x in df_base.columns if x not in ['created_at']]
 
         try:
@@ -149,25 +157,22 @@ class Exporter:
                 how='left',
                 indicator=True
             )
-            df_new_data = df_new_data[
-                df_new_data['_merge']=='left_only'
-            ].drop('_merge', axis=1)
+            # Filter rows that are only in df_incoming (left_only)
+            df_new_data = df_new_data[df_new_data['_merge'] == 'left_only'].drop('_merge', axis=1)
         except ValueError as e:
             self.logging_manager.log_exception(df_base.info())
             self.logging_manager.log_exception(df_incoming.info())
             raise e
 
+        # Drop 'index' if it exists after the merge
         if 'index' in df_new_data.columns:
             df_new_data = df_new_data.drop(columns=['index'])
-        # drop duplicates
-        columns = list(df_new_data.columns.values)
-        columns_filtered = [
-            item for item in columns \
-            if item != 'created_at'
-        ]
-        df_new_data = df_new_data.sort_values(columns, ascending=True).drop_duplicates(
-            subset=columns_filtered
-        )
+
+        # Drop duplicates
+        columns_filtered = [col for col in df_new_data.columns if col != 'created_at']
+        df_new_data = df_new_data.sort_values(df_new_data.columns.tolist(), ascending=True).drop_duplicates(subset=columns_filtered)
+
+        # Set index to 'date' and ensure columns match df_base
         df_new_data = df_new_data[df_base.columns].set_index(['date'])
         return df_new_data
 
