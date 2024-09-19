@@ -1,9 +1,9 @@
 import datetime
-import logging
 import pandas
 from truflation.data.export_details import ExportDetails
 from truflation.data.logging_manager import Logger
-from sqlalchemy import types
+from truflation.data.connector import get_database_handle
+from sqlalchemy import types, text, create_engine, Numeric
 
 '''
   Dev Notes
@@ -64,6 +64,8 @@ class Exporter:
         # If remote exists, reconcile and receive the data needing to be added
         reconcile = self.reconcile_dataframes if export_details.reconcile is None else export_details.reconcile
         df_new_data = reconcile(df_remote, df_local) if df_remote is not None and not df_remote.empty else df_local
+
+
         if not df_new_data.empty:
             self.logging_manager.log_info(
                 f'exporting {export_details.name} to {export_details.key}'
@@ -74,10 +76,14 @@ class Exporter:
                 f'no new data - {export_details.name} to {export_details.key}'
             )
 
+            # Ensure primary key is set only for existing tables
+            self.ensure_primary_key(export_details)
+
         if 'date' in df_local:
             df_local['date'] = pandas.to_datetime(df_local['date'])  # make sure the 'date' column is in datetime format
 
         if not dry_run and not df_new_data.empty:
+
             # Insert
             if export_details.create_table is None:
                 export_details.write(
@@ -87,7 +93,7 @@ class Exporter:
                     dtype={
                         # 'created_at': types.DateTime(precision=6),
                     'date': types.Date(),
-                        'created_at': types.DATETIME()
+                    'created_at': types.DATETIME()
                 },
                 )
             else:
@@ -96,8 +102,34 @@ class Exporter:
                     df_new_data
                 )
 
+            # Ensure primary key is set only for existing tables
+            self.ensure_primary_key(export_details)
+
         return df_new_data
 
+    @staticmethod
+    def ensure_primary_key(export_details: ExportDetails) -> None:
+        """
+        Ensures that the primary key is created if they do not exist.
+
+        param:
+          export_details: ExportDetails: database details
+        """
+
+        db_handle = get_database_handle()
+        engine = create_engine(db_handle)
+
+        with engine.connect() as connection:
+            table_exists = connection.execute(text(f"SHOW TABLES LIKE '%{export_details.key}%'")).fetchone()
+            if table_exists != None:
+                result = connection.execute(text(f"SHOW INDEX FROM `{export_details.key}` WHERE Key_name = 'PRIMARY'")).fetchone()
+                if result == None:         
+                    connection.execute(text(f"""
+                        ALTER TABLE `{export_details.key}`
+                        ADD COLUMN id VARCHAR(32) DEFAULT replace(uuid(),'-','') NOT NULL PRIMARY KEY
+                    """))
+            connection.commit()
+    
     @staticmethod
     def export_dump(export_details: ExportDetails, df: pandas.DataFrame) -> None:
         """
