@@ -15,6 +15,14 @@ from sqlalchemy import types
     created_at -- a datetime object indicated when this data was added to the database
 '''
 
+def round_value(value, base):
+    if value is not None and isinstance(value, float) and value != 0.0:
+        base_round = base
+        while abs(value) <= 10 ** - base_round:
+            base_round += 3
+
+        return round(value, base_round)
+    return value
 
 class Exporter:
     """
@@ -151,8 +159,8 @@ class Exporter:
         identifiers = [x for x in df_base.columns if x not in ['created_at']]
 
         try:
-            df_new_data = df_incoming.round(rounding).merge(
-                df_base[identifiers].round(rounding),
+            df_new_data = df_incoming.applymap(lambda x: round_value(x, rounding)).merge(
+                df_base[identifiers].apply(lambda x: round_value(x, rounding)),
                 on=identifiers,
                 how='left',
                 indicator=True
