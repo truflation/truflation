@@ -67,9 +67,10 @@ if __name__ == '__main__':
     args = docopt(__doc__)
     port_string = args.get('--port')
 
-    if os.getenv('SENTRY_ENVIRONMENT') == 'production':
+    sentry_dsn = os.getenv('SENTRY_DSN')
+    if sentry_dsn is not None:
         sentry_sdk.init(
-            dsn="https://3cd6f73e3e74c407db4c879519297db9@o4507655688880128.ingest.us.sentry.io/4507824420093952",
+            dsn=sentry_dsn,
             traces_sample_rate=0.2,
             profiles_sample_rate=0.2
         )
