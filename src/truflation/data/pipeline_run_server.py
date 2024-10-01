@@ -9,11 +9,16 @@ Arguments:
 
 from typing import List
 from docopt import docopt
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
-import uvicorn
-
 from truflation.data.connector import cache_
 from truflation.data import pipeline_run_direct
+
+import os
+import uvicorn
+import sentry_sdk
+
+load_dotenv()
 
 """
 Issues in pipeline_run_server.py:
@@ -61,6 +66,14 @@ async def test(output: str, request: Request):
 if __name__ == '__main__':
     args = docopt(__doc__)
     port_string = args.get('--port')
+
+    if os.getenv('SENTRY_ENVIRONMENT') == 'production':
+        sentry_sdk.init(
+            dsn="https://3cd6f73e3e74c407db4c879519297db9@o4507655688880128.ingest.us.sentry.io/4507824420093952",
+            traces_sample_rate=0.2,
+            profiles_sample_rate=0.2
+        )
+
     uvicorn.run(
         app, host='0.0.0.0',
         port=8000 if port_string is None else int(port_string)
