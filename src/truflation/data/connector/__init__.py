@@ -16,53 +16,46 @@ from .db_handle import get_database_handle
 
 cache_ = Cache()
 
-# todo -- I think we should have a dedicated Connector for Excel, just as we do for csv
-# I like have abstraction for http links, but I find it troublesome for its potential misinterpretation
 def connector_factory(connector_type: str) -> Optional[Connector]:
-    if connector_type.startswith('cache'):
-        return cache_.connector()
-    if connector_type.startswith('object'):
-        return ConnectorDirect()
-    if connector_type == 'excel':
-        return ConnectorExcel()
-    if connector_type == 'csv':
-        return ConnectorCsv()
-    if connector_type.startswith('csv:'):
-        path_root = connector_type.split(':', 1)[1]
-        return ConnectorCsv(path_root=path_root)
-    if connector_type.startswith('gsheet'):
-        if connector_type.startswith('gsheet:'):
-            path_root = connector_type.split(':', 1)[1]
-            return ConnectorGoogleSheets(path_root=path_root)
-        return ConnectorGoogleSheets()
-    if connector_type.startswith('json'):
-        if connector_type.startswith('json:'):
-            path_root = connector_type.split(':', 1)[1]
-            return ConnectorJson(path_root=path_root)
-        return ConnectorJson()
-    if connector_type.startswith('playwright+http'):
-        # return ConnectorRest(source_location, playwright=True)
-        return ConnectorRest(playwright=True)
-    if connector_type.startswith('rest+http'):
-        return ConnectorRest()
-    if connector_type.startswith('http'):
-        return ConnectorRest(json=False)
-    if connector_type.startswith('csv+http'):
-        return ConnectorRest(csv=True)
-    if connector_type.startswith('sqlite') or \
-            connector_type.startswith('postgresql') or \
-            connector_type.startswith('mysql') or \
-            connector_type.startswith('mariadb') or \
-            connector_type.startswith('oracle') or \
-            connector_type.startswith('mssql') or \
-            connector_type.startswith('sqlalchemy') or \
-            connector_type.startswith('gsheets') or \
-            connector_type.startswith('pybigquery'):
+    # Dictionary mapping for simple cases
+    connector_mapping = {
+        'excel': ConnectorExcel,
+        'rest+http': ConnectorRest,
+        'pandas_datareader': ConnectorPandasDataReader,
+        'cache': cache_.connector,
+        'object': ConnectorDirect,
+    }
+    
+    # Return connectors directly from the mapping
+    if connector_type in connector_mapping:
+        return connector_mapping[connector_type]()
+
+    # Handle prefixes
+    prefix_mapping = {
+        'gsheet': lambda path: ConnectorGoogleSheets(path_root=path),
+        'csv': lambda path: ConnectorCsv(path_root=path),
+        'json': lambda path: ConnectorJson(path_root=path),
+        'playwright+http': lambda _: ConnectorRest(playwright=True),
+        'http': lambda _: ConnectorRest(json=False),
+        'csv+http': lambda _: ConnectorRest(csv=True),
+    }
+
+    for prefix, factory in prefix_mapping.items():
+        if connector_type.startswith(prefix):
+            if ':' in connector_type:
+                path_root = connector_type.split(':', 1)[1]
+                return factory(path_root)
+            return factory(None)
+
+    # SQL connectors handling
+    sql_prefixes = ['sqlite', 'postgresql', 'mysql', 'mariadb', 'oracle', 'mssql', 'sqlalchemy', 'pybigquery']
+    if any(connector_type.startswith(prefix) for prefix in sql_prefixes):
         return ConnectorSql(connector_type)
-    if connector_type.startswith('pandas_datareader'):
-        return ConnectorPandasDataReader()
+
+    # Try external connector factories
     for factory in connector_factory_list:
         result = factory(connector_type)
-        if result is not None:
+        if result:
             return result
+
     return None
