@@ -17,7 +17,8 @@ import aiohttp
 import logging
 
 import truflation.data
-from truflation.data.connector import Connector, add_connector_factory
+from truflation.data.connector import add_connector_factory
+from truflation.data.connectors.base import Connector
 from eth_utils import to_checksum_address
 
 from dotenv import load_dotenv
