@@ -1,6 +1,6 @@
 import pytest
 from unittest import mock
-from truflation.data.connectors.rest_to_csv import RestToCsvConnector
+from truflation.data.connector import RestToCsvConnector
 
 @pytest.mark.asyncio
 async def test_fetch_data_from_rest():

@@ -3,8 +3,7 @@ import logging
 import shutil
 from tdda.constraints import discover_df, verify_df
 from truflation.data.task import Task
-from truflation.data.connector import connector_factory
-from truflation.data.connector import Connector
+from truflation.data.connector import connector_factory, Connector
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
