@@ -126,7 +126,7 @@ class ConnectorKwil(Connector):
 
     def version(self):
         version_string = self.execute_command('version')
-        pattern = r"([\w\s/]+):\s+(.+)"
+        pattern = r"([\w\s/]+):\s+([^\r\n]+)"
         matches = re.findall(pattern, version_string)
         return {key.strip(): value.strip() for key, value in matches}
 
