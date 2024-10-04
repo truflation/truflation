@@ -13,9 +13,8 @@ from sqlalchemy import text, select
 
 from dotenv import load_dotenv
 from icecream import ic
-from truflation.data.connector import connector_factory
+from truflation.data.connector import connector_factory, get_database_handle
 from truflation.data.source_details import SourceDetails
-from truflation.data.connector import get_database_handle
 from truflation.data.signer import Signer
 
 load_dotenv()

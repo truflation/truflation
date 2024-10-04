@@ -10,7 +10,6 @@ from dotenv import load_dotenv
 from icecream import ic
 load_dotenv()
 
-import truflation.data.connectors.kwil as kwil
 from truflation.data.connector import connector_factory
 KWIL_USER = os.environ['KWIL_USER']
 DB_NAME = 'foo5'

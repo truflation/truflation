@@ -17,7 +17,9 @@ import aiohttp
 import logging
 
 import truflation.data
-from truflation.data.connector import Connector, add_connector_factory
+from .factory import add_connector_factory
+from .base import Connector
+
 from eth_utils import to_checksum_address
 
 from dotenv import load_dotenv
@@ -124,7 +126,7 @@ class ConnectorKwil(Connector):
 
     def version(self):
         version_string = self.execute_command('version')
-        pattern = r"([\w\s/]+):\s+(.+)"
+        pattern = r"([\w\s/]+):\s+([^\r\n]+)"
         matches = re.findall(pattern, version_string)
         return {key.strip(): value.strip() for key, value in matches}
 
@@ -138,7 +140,7 @@ class ConnectorKwil(Connector):
     def read_all(self, *args, **kwargs) -> pd.DataFrame | None:
         if len(args) == 0:
             raise Exception("need to specify source")
-        if not ':' in args[0]:
+        if ':' not in args[0]:
             raise Exception('need db and table')
         (dbid, table) = args[0].split(':')
         result = self.query(
@@ -154,12 +156,11 @@ class ConnectorKwil(Connector):
         ic(args)
         ic(kwargs)
         filename = kwargs.get('key', None)
-        if_exists = kwargs.get('if_exists', 'none')
         if filename is None and len(args) > 0:
             filename = args[0]
         if filename is None:
             raise Exception("need to specify source")
-        if not ':' in filename:
+        if ':' not in filename:
             raise Exception('need db and table')
         (dbid, table) = filename.split(':')
         ic(dbid, table, data)
