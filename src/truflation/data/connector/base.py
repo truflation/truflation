@@ -50,7 +50,7 @@ class Connector:
             data,
             *args, **kwargs
     ) -> None:
-        for i in self.write_chunk(
+        for _ in self.write_chunk(
                 data
         ):
             pass

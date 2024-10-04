@@ -156,12 +156,11 @@ class ConnectorKwil(Connector):
         ic(args)
         ic(kwargs)
         filename = kwargs.get('key', None)
-        if_exists = kwargs.get('if_exists', 'none')
         if filename is None and len(args) > 0:
             filename = args[0]
         if filename is None:
             raise Exception("need to specify source")
-        if not ':' in filename:
+        if ':' not in filename:
             raise Exception('need db and table')
         (dbid, table) = filename.split(':')
         ic(dbid, table, data)

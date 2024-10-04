@@ -52,7 +52,7 @@ class ConnectorCsv(Connector):
         if os.access(filename, os.R_OK):
             try:
                 df = pd.read_csv(filename, dtype_backend='pyarrow', **kwargs)
-                self.logging_manager.log_info(f'CSV data successfully read from file.')
+                self.logging_manager.log_info('CSV data successfully read from file.')
                 return df
             except Exception as e:
                 self.logging_manager.log_error(f'Error reading CSV data from file: {e}')
