@@ -7,7 +7,7 @@ from icecream import ic
 from playwright.sync_api import sync_playwright
 from playwright_stealth import stealth_sync
 from typing import Any
-from truflation.data.connectors.base import Connector
+from .base import Connector
 
 
 def playw_browser():

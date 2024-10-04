@@ -1,5 +1,5 @@
 from typing import Any
-from truflation.data.connectors.base import Connector
+from .base import Connector
 
 class ConnectorDirect(Connector):
     """ used for reading in DataFrames, dictionaries, json files directly as objects. Can not be written to???

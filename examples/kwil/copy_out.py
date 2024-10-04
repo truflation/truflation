@@ -14,9 +14,7 @@ import pandas as pd
 from truflation.data.pipeline_details import PipeLineDetails
 from truflation.data.source_details import SourceDetails
 from truflation.data.export_details import ExportDetails
-from truflation.data.connector import get_database_handle
-from truflation.data.connector import connector_factory
-from truflation.data.connectors.kwil import ConnectorKwil
+from truflation.data.connector import get_database_handle, connector_factory, ConnectorKwil
 
 load_dotenv()
 logger = logging.getLogger(__name__)

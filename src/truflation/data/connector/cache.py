@@ -1,4 +1,4 @@
-from truflation.data.connectors.base import Connector
+from .base import Connector
 
 class ConnectorCache(Connector):
     def __init__(self, cache, default_key=None):

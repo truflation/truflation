@@ -1,6 +1,6 @@
 import pandas as pd
 from typing import Optional
-from truflation.data.connectors.base import Connector
+from .base import Connector
 
 
 class ConnectorExcel(Connector):

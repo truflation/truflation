@@ -1,14 +1,20 @@
-"""
-Connector factory
-"""
-
-import os
 from typing import Optional
-
-from truflation.data.connectors import Connector, ConnectorGoogleSheets, ConnectorPandasDataReader, ConnectorSql,ConnectorCsv,ConnectorJson,ConnectorExcel,ConnectorDirect, Cache, ConnectorRest
+from .base import Connector
+from .cache import Cache, ConnectorCache
+from .csv import ConnectorCsv
+from .direct import ConnectorDirect
+from .excel import ConnectorExcel
+from .gsheet import ConnectorGoogleSheets
+from .json import ConnectorJson
+from .kwil import ConnectorKwil
+from .pandas_datareader import ConnectorPandasDataReader
+from .rest_to_csv import RestToCsvConnector
+from .rest import ConnectorRest
+from .sql import ConnectorSql
+from .factory import connector_factory_list, add_connector_factory
+from .db_handle import get_database_handle
 
 cache_ = Cache()
-connector_factory_list = []
 
 # todo -- I think we should have a dedicated Connector for Excel, just as we do for csv
 # I like have abstraction for http links, but I find it troublesome for its potential misinterpretation
@@ -60,15 +66,3 @@ def connector_factory(connector_type: str) -> Optional[Connector]:
         if result is not None:
             return result
     return None
-
-def add_connector_factory(factory_function) -> None:
-    connector_factory_list.append(factory_function)
-
-def get_database_handle(db_type='mariadb+pymysql'):
-    DB_USER = os.environ.get('DB_USER', None)
-    DB_PASSWORD = os.environ.get('DB_PASSWORD', None)
-    DB_HOST = os.environ.get('DB_HOST', '127.0.0.1')
-    DB_PORT = int(os.environ.get('DB_PORT', None))
-    DB_NAME = os.environ.get('DB_NAME', None)
-
-    return f'{db_type}://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'

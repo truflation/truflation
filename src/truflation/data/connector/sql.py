@@ -1,10 +1,10 @@
 
 import pandas as pd
+import sqlalchemy
 
 from typing import Any, Iterator, List, Optional
-from truflation.data.connectors.base import Connector
+from .base import Connector
 
-import sqlalchemy
 from sqlalchemy.sql import text
 from sqlalchemy import create_engine, Table, MetaData
 

@@ -4,7 +4,7 @@ import pandas as pd
 
 from pathlib import Path
 from typing import Optional
-from truflation.data.connectors.base import Connector
+from .base import Connector
 
 
 class ConnectorCsv(Connector):

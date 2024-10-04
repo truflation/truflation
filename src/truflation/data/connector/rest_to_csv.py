@@ -4,7 +4,7 @@ Rest To CSV connector
 
 import requests
 import pandas as pd
-from truflation.data.connectors.base import Connector
+from .base import Connector
 
 class RestToCsvConnector(Connector):
     def __init__(self, rest_url, csv_path):

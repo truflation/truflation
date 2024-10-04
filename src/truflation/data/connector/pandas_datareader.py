@@ -2,7 +2,7 @@ import pandas as pd
 import pandas_datareader.data as web
 
 from typing import Optional
-from truflation.data.connectors.base import Connector
+from .base import Connector
 
 
 class ConnectorPandasDataReader(Connector):

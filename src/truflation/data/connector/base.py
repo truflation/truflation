@@ -4,11 +4,7 @@ Base Connector
 
 import os
 from typing import Iterator, Any
-import logging
 from truflation.data.logging_manager import Logger
-
-
-logger = logging.getLogger(__name__)
 
 class Connector:
     """
