@@ -140,7 +140,7 @@ class ConnectorKwil(Connector):
     def read_all(self, *args, **kwargs) -> pd.DataFrame | None:
         if len(args) == 0:
             raise Exception("need to specify source")
-        if not ':' in args[0]:
+        if ':' not in args[0]:
             raise Exception('need db and table')
         (dbid, table) = args[0].split(':')
         result = self.query(
