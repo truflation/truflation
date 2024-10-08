@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 from .base import Connector
 from .cache import Cache, ConnectorCache
@@ -45,7 +46,7 @@ def connector_factory(connector_type: str) -> Optional[Connector]:
             if ':' in connector_type:
                 path_root = connector_type.split(':', 1)[1]
                 return factory(path_root)
-            return factory(None)
+            return factory(os.getcwd())
 
     # SQL connectors handling
     sql_prefixes = ['sqlite', 'postgresql', 'mysql', 'mariadb', 'oracle', 'mssql', 'sqlalchemy', 'pybigquery']

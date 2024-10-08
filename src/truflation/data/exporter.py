@@ -159,7 +159,7 @@ class Exporter:
         identifiers = [x for x in df_base.columns if x not in ['created_at']]
 
         try:
-            df_new_data = df_incoming.applymap(lambda x: round_value(x, rounding)).merge(
+            df_new_data = df_incoming.map(lambda x: round_value(x, rounding)).merge(
                 df_base[identifiers].apply(lambda x: round_value(x, rounding)),
                 on=identifiers,
                 how='left',
