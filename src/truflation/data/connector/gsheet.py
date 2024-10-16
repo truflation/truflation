@@ -104,6 +104,7 @@ class ConnectorGoogleSheets(Connector):
         replace = kwargs.get('if_exists', 'replace') == 'replace'
         if replace:
             self.logging_manager.log_info('Replacing existing sheet with new data.')
+            df.index = df.index.astype(str)
             spread.df_to_sheet(df.astype(str), replace=replace)
         else:
             dims = spread.get_sheet_dims()
@@ -111,4 +112,5 @@ class ConnectorGoogleSheets(Connector):
             logger.debug(dims)
             start_row = dims[0] + 1 if dims[0] > 1 else 1
             self.logging_manager.log_info(f'Appending data to sheet starting from row {start_row}.')
+            df.index = df.index.astype(str)
             spread.df_to_sheet(df.astype(str), start=(start_row, 1), headers=dims[0] < 2)
