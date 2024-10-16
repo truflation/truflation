@@ -101,10 +101,6 @@ class ConnectorGoogleSheets(Connector):
     def write_all(self, df, *args, **kwargs):
         key = kwargs.get('key', self.default_key)
         spread = Spread(key, create_spread=True)
-
-        if self.path_root:
-            spread.move(self.path_root, create=True)
-            
         replace = kwargs.get('if_exists', 'replace') == 'replace'
         if replace:
             self.logging_manager.log_info('Replacing existing sheet with new data.')
