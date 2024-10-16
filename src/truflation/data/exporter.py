@@ -158,6 +158,10 @@ class Exporter:
         # Exclude 'created_at' from merge identifiers
         identifiers = [x for x in df_base.columns if x not in ['created_at']]
 
+        # Convert 'value' to have same types
+        df_base['value'] = df_base['value'].astype(object)
+        df_incoming['value'] = df_incoming['value'].astype(object)
+
         try:
             df_new_data = df_incoming.map(lambda x: round_value(x, rounding)).merge(
                 df_base[identifiers].apply(lambda x: round_value(x, rounding)),
@@ -168,8 +172,6 @@ class Exporter:
             # Filter rows that are only in df_incoming (left_only)
             df_new_data = df_new_data[df_new_data['_merge'] == 'left_only'].drop('_merge', axis=1)
         except ValueError as e:
-            self.logging_manager.log_exception(df_base.info())
-            self.logging_manager.log_exception(df_incoming.info())
             raise e
 
         # Drop 'index' if it exists after the merge
