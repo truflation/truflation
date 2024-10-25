@@ -1,5 +1,4 @@
 import logging
-import gspread
 import pandas as pd
 
 from typing import Optional
@@ -54,62 +53,28 @@ class ConnectorGoogleSheets(Connector):
         Returns:
             pd.DataFrame or None: The data read from the Google Sheets document, or None if the document is not found.
         """
-        if self.client is None:
-            url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/export'
-            self.logging_manager.log_info(f'Fetching data from Google Sheets URL: {url}')
-            try:
-                df = pd.read_excel(url, dtype_backend='pyarrow', **kwargs)
-                df.columns.values[1] = "value"
-                df.rename(columns={'Date': 'date'}, inplace=True)
-                return df
-            except Exception as e:
-                self.logging_manager.log_error(f'Error fetching data from Google Sheets URL: {url}. Error: {e}')
-                return None
+        url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/export'
+        self.logging_manager.log_info(f'Fetching data from Google Sheets URL: {url}')
         try:
-            self.logging_manager.log_info('Fetching data from Google Sheets using gspread...')
-            spread = Spread(sheet_id)
-            columns_numeric = kwargs.get('columns_numeric', [])
-            columns_float = kwargs.get('columns_float', [])
-            columns_int = kwargs.get('columns_int', [])
-            try:
-                df = spread.sheet_to_df(unformatted_columns=columns_numeric + columns_float + columns_int)
-            except AttributeError:
-                df = spread.sheet_to_df()
-            if df.index.name == 'date':
-                df.reset_index(inplace=True)
-            # TODO: pass types from outside
-            for column in df.columns:
-                if column in kwargs.get('columns_date', []):
-                    df[column] = pd.to_datetime(df[column])
-                if column in columns_numeric:
-                    df[column] = pd.to_numeric(df[column])
-                if column in columns_float:
-                    df[column] = df[column].astype(float)
-                if column in columns_int:
-                    df[column] = df[column].astype(int)
+            df = pd.read_excel(url, dtype_backend='pyarrow', **kwargs)
+            df.columns.values[1] = "value"
+            df.rename(columns={'Date': 'date'}, inplace=True)
             return df
-
-        except gspread.exceptions.SpreadsheetNotFound as e:
-            self.logging_manager.log_error(f'Google Sheets spreadsheet not found for ID: {sheet_id}. Error: {e}')
-            return None
-        except gspread.exceptions.APIError as e:
-            self.logging_manager.log_error(f'API error while accessing Google Sheets with ID: {sheet_id}. Error: {e}')
-            raise
         except Exception as e:
-            self.logging_manager.log_error(f'Unexpected error occurred while reading Google Sheets: {e}')
-            raise
+            self.logging_manager.log_error(f'Error fetching data from Google Sheets URL: {url}. Error: {e}')
+            return None
+       
     def write_all(self, df, *args, **kwargs):
         key = kwargs.get('key', self.default_key)
         spread = Spread(key, create_spread=True)
-        spread.move(self.path_root, create=True)
         replace = kwargs.get('if_exists', 'replace') == 'replace'
+        df.index = df.index.astype(str)
         if replace:
             self.logging_manager.log_info('Replacing existing sheet with new data.')
             spread.df_to_sheet(df.astype(str), replace=replace)
         else:
             dims = spread.get_sheet_dims()
             self.logging_manager.log_debug(f'Sheet dimensions: {dims}')
-            logger.debug(dims)
             start_row = dims[0] + 1 if dims[0] > 1 else 1
             self.logging_manager.log_info(f'Appending data to sheet starting from row {start_row}.')
             spread.df_to_sheet(df.astype(str), start=(start_row, 1), headers=dims[0] < 2)
