@@ -48,7 +48,8 @@ def ingest(module_list: list, config: dict):
             raise Exception("get_details not found in supplied module,")
 
     logging.debug(pipeline_details_list)
-    [ Pipeline(detail).ingest() for detail in pipeline_details_list ]
+    for detail in pipeline_details_list:
+        Pipeline(detail).ingest()
 
 def main(module_list: list, cron_schedule=None):
     """
