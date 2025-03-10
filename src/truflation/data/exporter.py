@@ -53,7 +53,7 @@ class Exporter:
 
         # create created at for df if none exists (new data)
         if 'created_at' not in df_local:
-            df_local['created_at'] = pandas.to_datetime(datetime.datetime.now(datetime.timezone.utc)).replace(tzinfo=None)
+            df_local['created_at'] = pandas.to_datetime(datetime.now(timezone.utc)).replace(tzinfo=None)
         else:
             df_local['created_at'] = localize_date(df_local['created_at'])
 
@@ -127,7 +127,7 @@ class Exporter:
         if df is None or 'created_at' not in df:
             return df
         # create mask for timestamps greater than now
-        date_time_now = datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        date_time_now = datetime.now(timezone.utc).replace(tzinfo=None)
         df['created_at'] = localize_date(df['created_at'])
         mask = df['created_at'] > date_time_now
         # Update those rows
@@ -190,7 +190,7 @@ class Exporter:
 
     # todo -- consider making this take in only a dataframe
     # todo -- review, as this was ChatGPT originated
-    def get_frozen_data(self, export_details: ExportDetails, frozen_datetime: datetime.datetime = None) -> pandas.DataFrame:
+    def get_frozen_data(self, export_details: ExportDetails, frozen_datetime: datetime = None) -> pandas.DataFrame:
         """
         Get a dataframe from a database with the most recent date-value pairs such that:
             1. all dates at or before frozen_datetime must contain created_at values before or equal to frozen_datetime
@@ -203,7 +203,7 @@ class Exporter:
         """
 
         # define frozen_date and frozen_datetime
-        frozen_datetime = datetime.datetime.now(timezone.utc) if frozen_datetime is None else frozen_datetime
+        frozen_datetime = datetime.now(timezone.utc) if frozen_datetime is None else frozen_datetime
         frozen_date = frozen_datetime.date()
 
         df = export_details.read()
