@@ -25,7 +25,7 @@ def round_value(value, base):
     return value
 
 def localize_date(dt: pandas.DataFrame):
-    return pandas.to_datetime(dt).tz_localize(None)
+    return pandas.to_datetime(dt, errors="coerce").dt.tz_localize(None)
 
 class Exporter:
     """
