@@ -50,9 +50,9 @@ class Exporter:
 
         # create created at for df if none exists (new data)
         if 'created_at' not in df_local:
-            df_local['created_at'] = pandas.to_datetime(datetime.datetime.utcnow())
+            df_local['created_at'] = pandas.to_datetime(datetime.datetime.now(datetime.timezone.utc)).replace(tzinfo=None)
         else:
-            df_local['created_at'] = pandas.to_datetime(df_local['created_at'])
+            df_local['created_at'] = pandas.to_datetime(df_local['created_at']).replace(tzinfo=None)
 
         # Read in remote database as dataframe
         df_remote = export_details.read()
@@ -75,7 +75,7 @@ class Exporter:
             )
 
         if 'date' in df_local:
-            df_local['date'] = pandas.to_datetime(df_local['date'])  # make sure the 'date' column is in datetime format
+            df_local['date'] = pandas.to_datetime(df_local['date']).replace(tzinfo=None)  # make sure the 'date' column is in datetime format
 
         if not dry_run and not df_new_data.empty:
             # Insert
@@ -124,8 +124,8 @@ class Exporter:
         if df is None or 'created_at' not in df:
             return df
         # create mask for timestamps greater than now
-        date_time_now = datetime.datetime.utcnow()
-        df['created_at'] = pandas.to_datetime(df['created_at'])
+        date_time_now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        df['created_at'] = pandas.to_datetime(df['created_at']).replace(tzinfo=None)
         mask = df['created_at'] > date_time_now
         # Update those rows
         df.loc[mask, 'created_at'] = date_time_now
@@ -152,8 +152,8 @@ class Exporter:
             df_base = df_base.reset_index()
 
         # Convert 'date' columns to datetime
-        df_base['date'] = pandas.to_datetime(df_base['date'])
-        df_incoming['date'] = pandas.to_datetime(df_incoming['date'])
+        df_base['date'] = pandas.to_datetime(df_base['date']).replace(tzinfo=None)
+        df_incoming['date'] = pandas.to_datetime(df_incoming['date']).replace(tzinfo=None)
 
         # Exclude 'created_at' from merge identifiers
         identifiers = [x for x in df_base.columns if x not in ['created_at']]
