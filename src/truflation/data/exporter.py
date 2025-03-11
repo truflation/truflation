@@ -25,7 +25,11 @@ def round_value(value, base):
     return value
 
 def localize_date(dt: pandas.Series):
-    return pandas.to_datetime(dt, errors="coerce").dt.tz_localize(None)
+    """Convert datetime column to naive format (removes timezone) and ensures proper datetime type."""
+    dt = pandas.to_datetime(dt, errors="coerce")  # Convert to datetime first
+    if dt.dt.tz is not None:
+        dt = dt.dt.tz_localize(None)  # Ensure timezone is removed
+    return dt
 
 class Exporter:
     """
