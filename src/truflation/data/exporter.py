@@ -3,7 +3,7 @@ import logging
 import pandas
 from truflation.data.export_details import ExportDetails
 from truflation.data.logging_manager import Logger
-from sqlalchemy import types
+from sqlalchemy import create_engine, types
 
 '''
   Dev Notes
@@ -24,7 +24,7 @@ def round_value(value, base):
         return round(value, base_round)
     return value
 
-def localize_date(dt):
+def localize_date(dt: pandas.Series):
     return pandas.to_datetime(dt, errors="coerce").dt.tz_localize(None)
 
 class Exporter:
@@ -53,7 +53,7 @@ class Exporter:
 
         # create created at for df if none exists (new data)
         if 'created_at' not in df_local:
-            df_local['created_at'] = localize_date(datetime.now(timezone.utc))
+            df_local['created_at'] = pandas.to_datetime(datetime.now(timezone.utc)).tz_localize(None)
         else:
             df_local['created_at'] = localize_date(df_local['created_at'])
 
@@ -171,8 +171,8 @@ class Exporter:
             # Filter rows that are only in df_incoming (left_only)
             df_new_data = df_new_data[df_new_data['_merge'] == 'left_only'].drop('_merge', axis=1)
         except ValueError as e:
-            self.logging_manager.log_exception(df_base.info())
-            self.logging_manager.log_exception(df_incoming.info())
+            Exporter.logging_manager.log_exception(df_base.info())
+            Exporter.logging_manager.log_exception(df_incoming.info())
             raise e
 
         # Drop 'index' if it exists after the merge
@@ -231,35 +231,3 @@ class Exporter:
             df = df.drop(columns=['index'])
 
         return df
-
-
-# ChatGPT Snippet -- gets the most recent data
-# todo -- have a created at function that removes all
-'''# assuming df is your DataFrame and it has columns 'date', 'value', and 'created_at'
-df['date'] = pandas.to_datetime(df['date'])  # make sure the 'date' column is in datetime format
-df = df.sort_values('created_at', ascending=False).drop_duplicates('date').sort_index()
-'''
-
-
-# ChatGPT Snippet --- FrozenDate
-'''
-import pandas as pd
-
-# assuming df is your DataFrame and it has columns 'date', 'value', 'created_at', 'endOfDayTimestamp'
-
-df['date'] = pandas.to_datetime(df['date'])  # make sure the 'date' column is in datetime format
-
-# define your frozen_date and frozen_timestamp
-frozen_date = pandas.to_datetime('yyyy-mm-dd')  # replace with actual frozen date
-frozen_timestamp = 123456789.123456  # replace with actual frozen timestamp
-
-# create conditions for the filter
-cond_before_frozen_date = (df['date'] < frozen_date) & (df['created_at'] < frozen_timestamp)
-cond_after_frozen_date = (df['date'] > frozen_date) & (df['created_at'] < df['endOfDayTimestamp'])
-
-# apply the filter
-df = df[cond_before_frozen_date | cond_after_frozen_date]
-
-# reduce the DataFrame to only contain rows with the latest 'created_at'
-df = df.sort_values('created_at', ascending=False).drop_duplicates('date').sort_index()
-'''
