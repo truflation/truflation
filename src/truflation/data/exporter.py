@@ -24,7 +24,7 @@ def round_value(value, base):
         return round(value, base_round)
     return value
 
-def localize_date(dt: pandas.DataFrame):
+def localize_date(dt):
     return pandas.to_datetime(dt, errors="coerce").dt.tz_localize(None)
 
 class Exporter:
@@ -53,7 +53,7 @@ class Exporter:
 
         # create created at for df if none exists (new data)
         if 'created_at' not in df_local:
-            df_local['created_at'] = pandas.to_datetime(datetime.now(timezone.utc)).replace(tzinfo=None)
+            df_local['created_at'] = localize_date(datetime.now(timezone.utc))
         else:
             df_local['created_at'] = localize_date(df_local['created_at'])
 
