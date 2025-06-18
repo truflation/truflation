@@ -22,11 +22,12 @@ env = {"USE_METADATA_HANDLER": "1"}
 def handler():
     engine = create_engine('sqlite:///:memory:')
 
-    with mock.patch.dict(os.environ , env), \
+    with mock.patch.dict(os.environ, env), \
          mock.patch("os.path.exists", return_value=True), \
-         mock.patch("builtins.open", mock.mock_open(read_data=mock_frequency)):
-         
-         handler = _MetadataHandler(engine=engine)
+         mock.patch("builtins.open", mock.mock_open(read_data=mock_frequency)), \
+         mock.patch("truflation.data._metadata_handler.Logger"):
+
+        handler = _MetadataHandler(engine=engine)
 
     yield handler
 

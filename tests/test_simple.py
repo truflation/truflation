@@ -97,7 +97,7 @@ class TestSimple(unittest.TestCase):
         r = ConnectorRest(
             playwright=True
         )
-        b = r.read_all('http://ergast.com/api/f1/2004/1/results.json')
+        b = r.read_all('https://api.jolpi.ca/ergast/f1//2004/1/results.json')
 
 
 class TestMetadataWrite(unittest.TestCase):
