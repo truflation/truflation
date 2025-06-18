@@ -5,12 +5,12 @@ import requests
 
 from icecream import ic
 from playwright.sync_api import sync_playwright
-from playwright_stealth import stealth_sync
+from playwright_stealth import Stealth
 from typing import Any
 from .base import Connector
 
 
-def playw_browser():
+def playw_browser(): 
     if playw_browser.count >= 50 :
         playw_browser.count = 0
         playw_browser.browser.close()
@@ -51,6 +51,7 @@ class ConnectorRest(Connector):
         self.csv = kwargs.get('csv', False)
         self.no_cache = kwargs.get('no_cache', False)
         self.page = None
+        self.stealth = Stealth()
 
     def read_all(
             self,
@@ -60,14 +61,13 @@ class ConnectorRest(Connector):
         if self.playwright:
             try:
                 if kwargs.get('no_cache', self.no_cache):
-                    with sync_playwright() as p:
+                    with self.stealth.use_sync(sync_playwright()) as p:
                         browser_type = p.chromium
                         browser = browser_type.launch(headless=True)
                         context = browser.new_context(
                             user_agent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
                         )
                         self.page = context.new_page()
-                        stealth_sync(self.page)
                         response = self.page.goto(
                             url
                         )
@@ -78,7 +78,7 @@ class ConnectorRest(Connector):
                             user_agent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
                     ) as context:
                         page = context.new_page()
-                        stealth_sync(page)
+                        self.stealth.apply_stealth_sync(page)
                         response = page.goto(
                             url
                         )
