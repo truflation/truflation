@@ -67,10 +67,11 @@ class ExportDetails(Task):
             return None
 
     def write(self, data: pd.DataFrame, **kwargs):
-        kwargs['key'] = self.key
-        kwargs['if_exists'] = 'replace' if self.replace else 'append'
+        combined_kwargs = {**getattr(self, 'kwargs', {}), **kwargs}
+        combined_kwargs['key'] = self.key
+        combined_kwargs['if_exists'] = 'replace' if self.replace else 'append'
         if data is not None:
-            return self.writer.write_all(data, **kwargs)
+            return self.writer.write_all(data, **combined_kwargs)
         return None
 
 
