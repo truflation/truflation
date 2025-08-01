@@ -123,10 +123,6 @@ if __name__ == '__main__':
     if args.get('--cron') is None:
         load_path(file_path, None, config)
     else:
-        with open(args['--cron'], encoding='utf-8') as cronh:
-            cron_schedule = json.load(cronh)
-            load_path(file_path, cron_schedule, config)
-
         cron_arg = args['--cron']
         try:
             if os.path.exists(cron_arg):
