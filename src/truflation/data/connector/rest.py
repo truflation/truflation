@@ -5,7 +5,7 @@ import requests
 
 from icecream import ic
 from playwright.sync_api import sync_playwright
-from playwright_stealth import Stealth
+from playwright_stealth.stealth import Stealth
 from typing import Any
 from .base import Connector
 
