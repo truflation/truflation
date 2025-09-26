@@ -12,7 +12,6 @@ from .pandas_datareader import ConnectorPandasDataReader
 from .rest_to_csv import RestToCsvConnector
 from .rest import ConnectorRest
 from .sql import ConnectorSql
-from .trufnetwork import TNConnector
 from .factory import connector_factory_list, add_connector_factory
 from .db_handle import get_database_handle
 
@@ -25,8 +24,7 @@ def connector_factory(connector_type: str) -> Optional[Connector]:
         'rest+http': ConnectorRest,
         'pandas_datareader': ConnectorPandasDataReader,
         'cache': cache_.connector,
-        'object': ConnectorDirect,
-        'trufnetwork': TNConnector,
+        'object': ConnectorDirect
     }
     
     # Return connectors directly from the mapping
