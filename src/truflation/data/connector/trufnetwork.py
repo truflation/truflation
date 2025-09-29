@@ -9,7 +9,6 @@ from collections import deque
 from dotenv import load_dotenv
 
 from .base import Connector
-from .factory import add_connector_factory
 
 from trufnetwork_sdk_py.client import TNClient, STREAM_TYPE_PRIMITIVE, StreamDefinitionInput, RecordBatch, StreamLocatorInput
 from trufnetwork_sdk_py.utils import generate_stream_id
@@ -471,10 +470,8 @@ class TNConnector(Connector):
                     raise
 
 
-def connector_factory_function(connector_type: str) -> Connector | None:
+def tn_connector_factory_function(connector_type: str) -> Connector | None:
     if connector_type == 'trufnetwork':
         return TNConnector()
     return None
-
-add_connector_factory(connector_factory_function)
         
