@@ -14,9 +14,12 @@ from .rest import ConnectorRest
 from .sql import ConnectorSql
 from .factory import connector_factory_list, add_connector_factory
 from .db_handle import get_database_handle
-from .trufnetwork import tn_connector_factory_function
 
 cache_ = Cache()
+
+def _tn_factory():
+    from .trufnetwork import TNConnector
+    return TNConnector()
 
 def connector_factory(connector_type: str) -> Optional[Connector]:
     # Dictionary mapping for simple cases
@@ -55,8 +58,8 @@ def connector_factory(connector_type: str) -> Optional[Connector]:
         return ConnectorSql(connector_type)
     
     # init external connectors
-    add_connector_factory(tn_connector_factory_function)
-
+    if connector_type == "trufnetwork":
+        return _tn_factory()
 
     # Try external connector factories
     for factory in connector_factory_list:
