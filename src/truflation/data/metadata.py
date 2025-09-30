@@ -94,7 +94,7 @@ class Metadata:
             with Session(conn) as session:
                 stmt = select(MetadataTable).where(
                     MetadataTable.table == table
-                )
+                ).order_by(MetadataTable.created_at.asc())
                 result = session.execute(stmt)
                 for obj in result.scalars().all():
                     if obj.valuei is not None:
@@ -113,7 +113,7 @@ class Metadata:
             with Session(conn) as session:
                 stmt = select(MetadataTable).where(
                     MetadataTable.key == key
-                )
+                ).order_by(MetadataTable.created_at.asc())
                 result = session.execute(stmt)
                 for obj in result.scalars().all():
                     if obj.valuei is not None:
