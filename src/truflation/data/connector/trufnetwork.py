@@ -470,8 +470,3 @@ class TNConnector(Connector):
                     raise
 
 
-def tn_connector_factory_function(connector_type: str) -> Connector | None:
-    if connector_type == 'trufnetwork':
-        return TNConnector()
-    return None
-        

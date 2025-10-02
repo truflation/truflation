@@ -17,9 +17,13 @@ from .db_handle import get_database_handle
 
 cache_ = Cache()
 
+_tn_instance = None
 def _tn_factory():
-    from .trufnetwork import TNConnector
-    return TNConnector()
+    global _tn_instance
+    if _tn_instance is None:
+        from .trufnetwork import TNConnector
+        _tn_instance = TNConnector()
+    return _tn_instance
 
 def connector_factory(connector_type: str) -> Optional[Connector]:
     # Dictionary mapping for simple cases
