@@ -142,6 +142,7 @@ class Exporter:
     def reconcile_dataframes(df_base: pandas.DataFrame, df_incoming: pandas.DataFrame, rounding: int = 6) -> pandas.DataFrame:
         """
         Retrieve a dataframe that contains the rows needed to update df_base with the values from df_incoming.
+        Will only skip a row if its value matches the latest revision's value for that date.
 
         Parameters:
             df_base (pandas.DataFrame): DataFrame to update
@@ -162,18 +163,45 @@ class Exporter:
         df_base['date'] = localize_date(df_base['date'])
         df_incoming['date'] = localize_date(df_incoming['date'])
 
+        # Get the latest revision for each date in df_base
+        df_base_latest = df_base.sort_values('created_at', ascending=False).drop_duplicates(subset=['date'])
+
         # Exclude 'created_at' from merge identifiers
-        identifiers = [x for x in df_base.columns if x not in ['created_at']]
+        identifiers = [x for x in df_base_latest.columns if x not in ['created_at']]
 
         try:
+            # Merge with the latest revisions
             df_new_data = df_incoming.map(lambda x: round_value(x, rounding)).merge(
-                df_base[identifiers].apply(lambda x: round_value(x, rounding)),
+                df_base_latest[identifiers].apply(lambda x: round_value(x, rounding)),
                 on=identifiers,
                 how='left',
                 indicator=True
             )
-            # Filter rows that are only in df_incoming (left_only)
-            df_new_data = df_new_data[df_new_data['_merge'] == 'left_only'].drop('_merge', axis=1)
+            
+            # Filter rows that are in df_incoming and either:
+            # 1. Not in df_base_latest (left_only) OR
+            # 2. Have different values from the latest revision
+            df_new_data = df_new_data[
+                (df_new_data['_merge'] == 'left_only') |
+                (df_new_data['_merge'] == 'both')  # Keep rows that exist but might have different values
+            ].drop('_merge', axis=1)
+            
+            # Further filter to keep only rows where values differ
+            if not df_new_data.empty:
+                merge_cols = [col for col in identifiers if col != 'date']
+                df_new_data = df_new_data[
+                    ~df_new_data.apply(lambda row: (
+                        df_base_latest[
+                            (df_base_latest['date'] == row['date']) &
+                            all(df_base_latest[col] == row[col] for col in merge_cols)
+                        ]['value'].iloc[0] == row['value']
+                        if not df_base_latest[
+                            (df_base_latest['date'] == row['date']) &
+                            all(df_base_latest[col] == row[col] for col in merge_cols)
+                        ].empty else False
+                    ), axis=1)
+                ]
+            
         except ValueError as e:
             Exporter.logging_manager.log_exception(df_base.info())
             Exporter.logging_manager.log_exception(df_incoming.info())
