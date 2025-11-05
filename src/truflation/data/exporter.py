@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-import logging
 import pandas
 from truflation.data.export_details import ExportDetails
 from truflation.data.logging_manager import Logger
@@ -152,6 +151,10 @@ class Exporter:
         Returns:
             pandas.DataFrame: A DataFrame containing rows that need to be added to df_base
         """
+        # If there's no base data, everything incoming is new
+        if df_base is None or df_base.empty:
+            # preserve incoming structure
+            return df_incoming
 
         # Reset index if 'date' is used as an index
         if df_incoming.index.name == 'date':
@@ -163,60 +166,56 @@ class Exporter:
         df_base['date'] = localize_date(df_base['date'])
         df_incoming['date'] = localize_date(df_incoming['date'])
 
-        # Get the latest revision for each date in df_base
-        df_base_latest = df_base.sort_values('created_at', ascending=False).drop_duplicates(subset=['date'])
+        # Determine identifier columns (all columns except value and created_at)
+        df_base = df_base.copy()
+        id_cols = [c for c in df_base.columns if c not in ['value', 'created_at']]
 
-        # Exclude 'created_at' from merge identifiers
-        identifiers = [x for x in df_base_latest.columns if x not in ['created_at']]
+        # For each unique identifier combination keep the latest revision
+        df_base_latest = (
+            df_base.sort_values('created_at', ascending=False)
+                   .groupby(id_cols, as_index=False)
+                   .first()
+        )
 
+        # Round values for consistent comparison
+        df_incoming = df_incoming.copy()
+        if 'value' in df_incoming.columns and 'value' in df_base_latest.columns:
+            df_incoming['value'] = df_incoming['value'].map(lambda x: round_value(x, rounding))
+            df_base_latest['value'] = df_base_latest['value'].map(lambda x: round_value(x, rounding))
+
+        # Vectorized merge to compare incoming rows with latest stored values
+        merge_on = id_cols
+        base_for_merge = df_base_latest[merge_on + ['value']] if 'value' in df_base_latest.columns else df_base_latest[merge_on]
+
+        merged = df_incoming.merge(
+            base_for_merge,
+            on=merge_on,
+            how='left',
+            suffixes=('', '_base'),
+            indicator=True
+        )
+
+        # Keep incoming rows that are either new (no match) or have a different value
+        value_base_col = 'value_base' if 'value' in base_for_merge.columns else None
+        if value_base_col:
+            keep_mask = (merged['_merge'] == 'left_only') | (merged['value'] != merged[value_base_col])
+        else:
+            # If there's no value column in base (unlikely), treat left_only as new
+            keep_mask = (merged['_merge'] == 'left_only')
+
+        df_new_data = merged.loc[keep_mask, df_incoming.columns].copy()
+
+        # Ensure ordering and types match base columns where possible
         try:
-            # Merge with the latest revisions
-            df_new_data = df_incoming.map(lambda x: round_value(x, rounding)).merge(
-                df_base_latest[identifiers].apply(lambda x: round_value(x, rounding)),
-                on=identifiers,
-                how='left',
-                indicator=True
-            )
-            
-            # Filter rows that are in df_incoming and either:
-            # 1. Not in df_base_latest (left_only) OR
-            # 2. Have different values from the latest revision
-            df_new_data = df_new_data[
-                (df_new_data['_merge'] == 'left_only') |
-                (df_new_data['_merge'] == 'both')  # Keep rows that exist but might have different values
-            ].drop('_merge', axis=1)
-            
-            # Further filter to keep only rows where values differ
-            if not df_new_data.empty:
-                merge_cols = [col for col in identifiers if col != 'date']
-                df_new_data = df_new_data[
-                    ~df_new_data.apply(lambda row: (
-                        df_base_latest[
-                            (df_base_latest['date'] == row['date']) &
-                            all(df_base_latest[col] == row[col] for col in merge_cols)
-                        ]['value'].iloc[0] == row['value']
-                        if not df_base_latest[
-                            (df_base_latest['date'] == row['date']) &
-                            all(df_base_latest[col] == row[col] for col in merge_cols)
-                        ].empty else False
-                    ), axis=1)
-                ]
-            
-        except ValueError as e:
-            Exporter.logging_manager.log_exception(df_base.info())
-            Exporter.logging_manager.log_exception(df_incoming.info())
-            raise e
+            df_new_data = df_new_data[df_base.columns]
+        except Exception:
+            # if columns don't align exactly, just keep incoming columns
+            pass
 
-        # Drop 'index' if it exists after the merge
-        if 'index' in df_new_data.columns:
-            df_new_data = df_new_data.drop(columns=['index'])
+        # Set index to 'date' to match prior behaviour
+        if 'date' in df_new_data.columns:
+            df_new_data = df_new_data.set_index('date')
 
-        # Drop duplicates
-        columns_filtered = [col for col in df_new_data.columns if col != 'created_at']
-        df_new_data = df_new_data.sort_values(df_new_data.columns.tolist(), ascending=True).drop_duplicates(subset=columns_filtered)
-
-        # Set index to 'date' and ensure columns match df_base
-        df_new_data = df_new_data[df_base.columns].set_index(['date'])
         return df_new_data
 
 
