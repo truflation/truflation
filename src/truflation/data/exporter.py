@@ -171,11 +171,16 @@ class Exporter:
         id_cols = [c for c in df_base.columns if c not in ['value', 'created_at']]
 
         # For each unique identifier combination keep the latest revision
-        df_base_latest = (
-            df_base.sort_values('created_at', ascending=False)
-                   .groupby(id_cols, as_index=False)
-                   .first()
-        )
+        # Only sort by created_at if it exists in df_base
+        if 'created_at' in df_base.columns:
+            df_base_latest = (
+                df_base.sort_values('created_at', ascending=False)
+                       .groupby(id_cols, as_index=False)
+                       .first()
+            )
+        else:
+            # If no created_at, just drop duplicates keeping the last occurrence
+            df_base_latest = df_base.drop_duplicates(subset=id_cols, keep='last')
 
         # Round values for consistent comparison
         df_incoming = df_incoming.copy()
