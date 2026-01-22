@@ -8,7 +8,6 @@ from .excel import ConnectorExcel
 from .gsheet import ConnectorGoogleSheets
 from .json import ConnectorJson
 from .kwil import ConnectorKwil
-from .pandas_datareader import ConnectorPandasDataReader
 from .rest_to_csv import RestToCsvConnector
 from .rest import ConnectorRest
 from .sql import ConnectorSql
@@ -30,7 +29,6 @@ def connector_factory(connector_type: str) -> Optional[Connector]:
     connector_mapping = {
         'excel': ConnectorExcel,
         'rest+http': ConnectorRest,
-        'pandas_datareader': ConnectorPandasDataReader,
         'cache': cache_.connector,
         'object': ConnectorDirect
     }
