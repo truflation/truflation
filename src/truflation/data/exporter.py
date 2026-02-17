@@ -141,19 +141,12 @@ class Exporter:
     def reconcile_dataframes(df_base: pandas.DataFrame, df_incoming: pandas.DataFrame, rounding: int = 6) -> pandas.DataFrame:
         """
         Retrieve a dataframe that contains the rows needed to update df_base with the values from df_incoming.
-        Will only skip a row if its value matches the latest revision's value for that date.
-
-        Parameters:
-            df_base (pandas.DataFrame): DataFrame to update
-            df_incoming (pandas.DataFrame): Incoming DataFrame with new data
-            rounding (int): Number of decimal places to round numeric columns for comparison (default=6)
-        
-        Returns:
-            pandas.DataFrame: A DataFrame containing rows that need to be added to df_base
+        Will only skip a row if ALL data columns match (treating NA==NA as equal).
+        Compares all columns except identifiers and created_at.
         """
+
         # If there's no base data, everything incoming is new
         if df_base is None or df_base.empty:
-            # preserve incoming structure
             return df_incoming
 
         # Reset index if 'date' is used as an index
@@ -166,47 +159,104 @@ class Exporter:
         df_base['date'] = localize_date(df_base['date'])
         df_incoming['date'] = localize_date(df_incoming['date'])
 
-        # Determine identifier columns (all columns except value and created_at)
+        # Make copies to avoid modifying originals
         df_base = df_base.copy()
-        id_cols = [c for c in df_base.columns if c not in ['value', 'created_at']]
+        df_incoming = df_incoming.copy()
 
-        # For each unique identifier combination keep the latest revision
-        # Only sort by created_at if it exists in df_base
+        # Replace empty strings with NA FIRST (before determining column types)
+        # This prevents empty string columns from being misclassified
+        all_cols = list(df_base.columns)
+        for col in all_cols:
+            if col in df_base.columns:
+                df_base[col] = df_base[col].replace(['', ' ', 'nan', 'None'], pandas.NA)
+            if col in df_incoming.columns:
+                df_incoming[col] = df_incoming[col].replace(['', ' ', 'nan', 'None'], pandas.NA)
+
+        exclude_from_comparison = ['created_at']
+        
+        data_cols = []
+        for col in all_cols:
+            if col in exclude_from_comparison:
+                continue
+            
+            # Try to infer if column is numeric after NA replacement
+            try:
+                # If column can be converted to numeric (ignoring NAs), it's a data column
+                pandas.to_numeric(df_base[col], errors='coerce')
+                # Check if at least some non-NA values exist and are numeric
+                if pandas.api.types.is_numeric_dtype(df_base[col]) or \
+                   df_base[col].dtype in ['Int64', 'Float64', 'float64', 'int64', 'float32', 'int32']:
+                    data_cols.append(col)
+            except (ValueError, TypeError):
+                pass
+        
+        # Identifier columns: everything that's NOT a data column or excluded
+        id_cols = [c for c in all_cols if c not in data_cols and c not in exclude_from_comparison]
+
+        # Keep latest revision per identifier combination
         if 'created_at' in df_base.columns:
             df_base_latest = (
                 df_base.sort_values('created_at', ascending=False)
-                       .groupby(id_cols, as_index=False)
-                       .first()
+                    .groupby(id_cols, as_index=False, dropna=False)
+                    .first()
             )
         else:
-            # If no created_at, just drop duplicates keeping the last occurrence
             df_base_latest = df_base.drop_duplicates(subset=id_cols, keep='last')
 
-        # Round values for consistent comparison
-        df_incoming = df_incoming.copy()
-        if 'value' in df_incoming.columns and 'value' in df_base_latest.columns:
-            df_incoming['value'] = df_incoming['value'].map(lambda x: round_value(x, rounding))
-            df_base_latest['value'] = df_base_latest['value'].map(lambda x: round_value(x, rounding))
+        # Round numeric data columns for consistent comparison
+        for col in data_cols:
+            if col in df_incoming.columns and pandas.api.types.is_numeric_dtype(df_incoming[col]):
+                df_incoming[col] = df_incoming[col].map(lambda x: round_value(x, rounding) if pandas.notna(x) else x)
+            if col in df_base_latest.columns and pandas.api.types.is_numeric_dtype(df_base_latest[col]):
+                df_base_latest[col] = df_base_latest[col].map(lambda x: round_value(x, rounding) if pandas.notna(x) else x)
 
-        # Vectorized merge to compare incoming rows with latest stored values
-        merge_on = id_cols
-        base_for_merge = df_base_latest[merge_on + ['value']] if 'value' in df_base_latest.columns else df_base_latest[merge_on]
+        # Convert identifier columns to string for merge (handles NA in identifiers)
+        for col in id_cols:
+            if col in df_incoming.columns:
+                df_incoming[col] = df_incoming[col].astype('string')
+            if col in df_base_latest.columns:
+                df_base_latest[col] = df_base_latest[col].astype('string')
+
+        # Merge incoming with base data including all data columns
+        merge_cols = id_cols + [c for c in data_cols if c in df_base_latest.columns]
+        base_for_merge = df_base_latest[merge_cols]
 
         merged = df_incoming.merge(
             base_for_merge,
-            on=merge_on,
+            on=id_cols,
             how='left',
             suffixes=('', '_base'),
             indicator=True
         )
 
-        # Keep incoming rows that are either new (no match) or have a different value
-        value_base_col = 'value_base' if 'value' in base_for_merge.columns else None
-        if value_base_col:
-            keep_mask = (merged['_merge'] == 'left_only') | (merged['value'] != merged[value_base_col])
-        else:
-            # If there's no value column in base (unlikely), treat left_only as new
-            keep_mask = (merged['_merge'] == 'left_only')
+        # Check if any data column has changed
+        any_column_different = pandas.Series(False, index=merged.index)
+        
+        for col in data_cols:
+            col_base = f'{col}_base'
+            if col in merged.columns and col_base in merged.columns:
+                # Explicitly handle NA comparisons for this column
+                incoming_na = merged[col].isna()
+                base_na = merged[col_base].isna()
+                
+                # Both NA: treat as equal (no difference)
+                both_na = incoming_na & base_na
+                
+                # One NA: treat as different
+                one_na = incoming_na ^ base_na
+                
+                # Both non-NA: compare values
+                both_non_na = ~incoming_na & ~base_na
+                col_different = pandas.Series(False, index=merged.index)
+                col_different[both_non_na] = (
+                    merged.loc[both_non_na, col] != merged.loc[both_non_na, col_base]
+                )
+                
+                # Mark as different if one NA or values differ
+                any_column_different |= one_na | col_different
+        
+        # Keep rows where: new data (left_only) OR any column is different
+        keep_mask = (merged['_merge'] == 'left_only') | any_column_different
 
         df_new_data = merged.loc[keep_mask, df_incoming.columns].copy()
 
@@ -214,7 +264,6 @@ class Exporter:
         try:
             df_new_data = df_new_data[df_base.columns]
         except Exception:
-            # if columns don't align exactly, just keep incoming columns
             pass
 
         # Set index to 'date' to match prior behaviour
@@ -222,7 +271,6 @@ class Exporter:
             df_new_data = df_new_data.set_index('date')
 
         return df_new_data
-
 
     # todo -- consider making this take in only a dataframe
     # todo -- review, as this was ChatGPT originated
