@@ -162,36 +162,111 @@ class Exporter:
         # Make copies to avoid modifying originals
         df_base = df_base.copy()
         df_incoming = df_incoming.copy()
+        
+        # Store original dtypes from incoming (before any conversions)
+        # This is the "source of truth" for column types
+        incoming_original_dtypes = {col: df_incoming[col].dtype for col in df_incoming.columns}
 
-        # Replace empty strings with NA FIRST (before determining column types)
-        # This prevents empty string columns from being misclassified
+        # Convert pyarrow dtypes to regular pandas dtypes for consistent comparison
+        # PyArrow types can cause merge and comparison issues
+        for col in df_base.columns:
+            dtype_name = str(df_base[col].dtype)
+            if 'pyarrow' in dtype_name or 'Arrow' in dtype_name:
+                if 'string' in dtype_name:
+                    df_base[col] = df_base[col].astype('object')
+                elif 'double' in dtype_name or 'float' in dtype_name:
+                    df_base[col] = df_base[col].astype('float64')
+                elif 'int' in dtype_name:
+                    df_base[col] = df_base[col].astype('Int64')  # Nullable integer
+                elif 'timestamp' in dtype_name:
+                    df_base[col] = pandas.to_datetime(df_base[col])
+                    
+        for col in df_incoming.columns:
+            dtype_name = str(df_incoming[col].dtype)
+            if 'pyarrow' in dtype_name or 'Arrow' in dtype_name:
+                if 'string' in dtype_name:
+                    df_incoming[col] = df_incoming[col].astype('object')
+                elif 'double' in dtype_name or 'float' in dtype_name:
+                    df_incoming[col] = df_incoming[col].astype('float64')
+                elif 'int' in dtype_name:
+                    df_incoming[col] = df_incoming[col].astype('Int64')  # Nullable integer
+                elif 'timestamp' in dtype_name:
+                    df_incoming[col] = pandas.to_datetime(df_incoming[col])
+
+        # Standardize NA values across all columns FIRST
+        # Replace empty strings and string representations of NA with pandas.NA
         all_cols = list(df_base.columns)
         for col in all_cols:
             if col in df_base.columns:
-                df_base[col] = df_base[col].replace(['', ' ', 'nan', 'None'], pandas.NA)
+                df_base[col] = df_base[col].replace(['', ' ', 'nan', 'None', 'null'], pandas.NA)
             if col in df_incoming.columns:
-                df_incoming[col] = df_incoming[col].replace(['', ' ', 'nan', 'None'], pandas.NA)
+                df_incoming[col] = df_incoming[col].replace(['', ' ', 'nan', 'None', 'null'], pandas.NA)
 
         exclude_from_comparison = ['created_at']
         
         data_cols = []
+        id_cols = []
+        
         for col in all_cols:
             if col in exclude_from_comparison:
                 continue
             
-            # Try to infer if column is numeric after NA replacement
-            try:
-                # If column can be converted to numeric (ignoring NAs), it's a data column
-                pandas.to_numeric(df_base[col], errors='coerce')
-                # Check if at least some non-NA values exist and are numeric
-                if pandas.api.types.is_numeric_dtype(df_base[col]) or \
-                   df_base[col].dtype in ['Int64', 'Float64', 'float64', 'int64', 'float32', 'int32']:
-                    data_cols.append(col)
-            except (ValueError, TypeError):
-                pass
+            # Use original incoming dtype as source of truth
+            # This avoids issues where DB columns with all NA values have wrong dtype
+            original_dtype = incoming_original_dtypes.get(col)
+            
+            # Datetime/timestamp columns are always identifiers
+            is_datetime = pandas.api.types.is_datetime64_any_dtype(df_base[col])
+            if original_dtype and pandas.api.types.is_datetime64_any_dtype(original_dtype):
+                is_datetime = True
+            
+            if is_datetime:
+                id_cols.append(col)
+                continue
+            
+            # Check if column is numeric based on original incoming dtype
+            is_numeric = False
+            if original_dtype:
+                is_numeric = pandas.api.types.is_numeric_dtype(original_dtype)
+            else:
+                # Column not in incoming, check base
+                is_numeric = pandas.api.types.is_numeric_dtype(df_base[col])
+            
+            if is_numeric:
+                # Numeric column -> data column
+                data_cols.append(col)
+                continue
+            
+            # String/object columns - check if they contain numeric data
+            if pandas.api.types.is_string_dtype(df_base[col]) or pandas.api.types.is_object_dtype(df_base[col]):
+                # Check both dataframes for numeric values
+                has_numeric = False
+                try:
+                    numeric_test = pandas.to_numeric(df_base[col], errors='coerce')
+                    has_numeric = numeric_test.notna().any()
+                    
+                    # Also check incoming if present
+                    if not has_numeric and col in df_incoming.columns:
+                        numeric_test = pandas.to_numeric(df_incoming[col], errors='coerce')
+                        has_numeric = numeric_test.notna().any()
+                    
+                    if has_numeric:
+                        # String column with numeric values -> data column
+                        data_cols.append(col)
+                    else:
+                        # String column with no numeric values -> identifier
+                        id_cols.append(col)
+                except (ValueError, TypeError):
+                    # Can't convert -> identifier
+                    id_cols.append(col)
+                continue
+            
+            # Default: treat as identifier
+            id_cols.append(col)
         
-        # Identifier columns: everything that's NOT a data column or excluded
-        id_cols = [c for c in all_cols if c not in data_cols and c not in exclude_from_comparison]
+        # Safety check: must have at least one identifier column
+        if not id_cols:
+            raise ValueError(f"No identifier columns found! all_cols={all_cols}, data_cols={data_cols}, dtypes={df_base.dtypes.to_dict()}")
 
         # Keep latest revision per identifier combination
         if 'created_at' in df_base.columns:
@@ -209,13 +284,6 @@ class Exporter:
                 df_incoming[col] = df_incoming[col].map(lambda x: round_value(x, rounding) if pandas.notna(x) else x)
             if col in df_base_latest.columns and pandas.api.types.is_numeric_dtype(df_base_latest[col]):
                 df_base_latest[col] = df_base_latest[col].map(lambda x: round_value(x, rounding) if pandas.notna(x) else x)
-
-        # Convert identifier columns to string for merge (handles NA in identifiers)
-        for col in id_cols:
-            if col in df_incoming.columns:
-                df_incoming[col] = df_incoming[col].astype('string')
-            if col in df_base_latest.columns:
-                df_base_latest[col] = df_base_latest[col].astype('string')
 
         # Merge incoming with base data including all data columns
         merge_cols = id_cols + [c for c in data_cols if c in df_base_latest.columns]
@@ -239,9 +307,6 @@ class Exporter:
                 incoming_na = merged[col].isna()
                 base_na = merged[col_base].isna()
                 
-                # Both NA: treat as equal (no difference)
-                both_na = incoming_na & base_na
-                
                 # One NA: treat as different
                 one_na = incoming_na ^ base_na
                 
@@ -255,8 +320,7 @@ class Exporter:
                 # Mark as different if one NA or values differ
                 any_column_different |= one_na | col_different
         
-        # Keep rows where: new data (left_only) OR any column is different
-        keep_mask = (merged['_merge'] == 'left_only') | any_column_different
+        keep_mask = (merged['_merge'] == 'left_only')
 
         df_new_data = merged.loc[keep_mask, df_incoming.columns].copy()
 
