@@ -268,61 +268,43 @@ class Exporter:
         if not id_cols:
             raise ValueError(f"No identifier columns found! all_cols={all_cols}, data_cols={data_cols}, dtypes={df_base.dtypes.to_dict()}")
 
-        # Keep latest revision per identifier combination
-        if 'created_at' in df_base.columns:
-            df_base_latest = (
-                df_base.sort_values('created_at', ascending=False)
-                    .groupby(id_cols, as_index=False, dropna=False)
+        # Deduplicate incoming by identifiers + data columns
+        # Keep latest per UNIQUE combination of identifiers AND data values
+        dedup_cols = id_cols + data_cols
+        if 'created_at' in df_incoming.columns:
+            df_incoming_latest = (
+                df_incoming.sort_values('created_at', ascending=False)
+                    .groupby(dedup_cols, as_index=False, dropna=False)
                     .first()
             )
         else:
-            df_base_latest = df_base.drop_duplicates(subset=id_cols, keep='last')
+            df_incoming_latest = df_incoming.drop_duplicates(subset=dedup_cols, keep='last')
+        df_incoming = df_incoming_latest
 
         # Round numeric data columns for consistent comparison
         for col in data_cols:
             if col in df_incoming.columns and pandas.api.types.is_numeric_dtype(df_incoming[col]):
                 df_incoming[col] = df_incoming[col].map(lambda x: round_value(x, rounding) if pandas.notna(x) else x)
-            if col in df_base_latest.columns and pandas.api.types.is_numeric_dtype(df_base_latest[col]):
-                df_base_latest[col] = df_base_latest[col].map(lambda x: round_value(x, rounding) if pandas.notna(x) else x)
+            if col in df_base.columns and pandas.api.types.is_numeric_dtype(df_base[col]):
+                df_base[col] = df_base[col].map(lambda x: round_value(x, rounding) if pandas.notna(x) else x)
 
-        # Merge incoming with base data including all data columns
-        merge_cols = id_cols + [c for c in data_cols if c in df_base_latest.columns]
-        base_for_merge = df_base_latest[merge_cols]
+        # Only insert rows that do not already exist with the same identifiers and data values
+        compare_cols = [col for col in (id_cols + data_cols) if col in df_incoming.columns and col in df_base.columns]
+        if not compare_cols:
+            return df_incoming
 
-        merged = df_incoming.merge(
-            base_for_merge,
-            on=id_cols,
-            how='left',
-            suffixes=('', '_base'),
-            indicator=True
-        )
+        def build_row_hash(df: pandas.DataFrame, cols: list[str]) -> pandas.Series:
+            temp = df[cols].copy()
+            for col in cols:
+                temp[col] = temp[col].astype('object')
+                temp[col] = temp[col].where(~temp[col].isna(), '__TRUFLATION_NA__')
+            return pandas.util.hash_pandas_object(temp, index=False)
 
-        # Check if any data column has changed
-        any_column_different = pandas.Series(False, index=merged.index)
-        
-        for col in data_cols:
-            col_base = f'{col}_base'
-            if col in merged.columns and col_base in merged.columns:
-                # Explicitly handle NA comparisons for this column
-                incoming_na = merged[col].isna()
-                base_na = merged[col_base].isna()
-                
-                # One NA: treat as different
-                one_na = incoming_na ^ base_na
-                
-                # Both non-NA: compare values
-                both_non_na = ~incoming_na & ~base_na
-                col_different = pandas.Series(False, index=merged.index)
-                col_different[both_non_na] = (
-                    merged.loc[both_non_na, col] != merged.loc[both_non_na, col_base]
-                )
-                
-                # Mark as different if one NA or values differ
-                any_column_different |= one_na | col_different
-        
-        keep_mask = (merged['_merge'] == 'left_only')
+        base_hash = build_row_hash(df_base, compare_cols).drop_duplicates()
+        incoming_hash = build_row_hash(df_incoming, compare_cols)
+        keep_mask = ~incoming_hash.isin(set(base_hash))
 
-        df_new_data = merged.loc[keep_mask, df_incoming.columns].copy()
+        df_new_data = df_incoming.loc[keep_mask].copy()
 
         # Ensure ordering and types match base columns where possible
         try:
