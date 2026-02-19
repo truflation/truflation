@@ -193,14 +193,10 @@ class Exporter:
                 elif 'timestamp' in dtype_name:
                     df_incoming[col] = pandas.to_datetime(df_incoming[col])
 
-        # Standardize NA values across all columns FIRST
-        # Replace empty strings and string representations of NA with pandas.NA
+        # Standardize NA values - but handle identifier vs data columns differently
+        # For string identifier columns: keep as empty string '' for consistency
+        # For data columns: convert to pandas.NA
         all_cols = list(df_base.columns)
-        for col in all_cols:
-            if col in df_base.columns:
-                df_base[col] = df_base[col].replace(['', ' ', 'nan', 'None', 'null'], pandas.NA)
-            if col in df_incoming.columns:
-                df_incoming[col] = df_incoming[col].replace(['', ' ', 'nan', 'None', 'null'], pandas.NA)
 
         exclude_from_comparison = ['created_at']
         
@@ -267,6 +263,23 @@ class Exporter:
         # Safety check: must have at least one identifier column
         if not id_cols:
             raise ValueError(f"No identifier columns found! all_cols={all_cols}, data_cols={data_cols}, dtypes={df_base.dtypes.to_dict()}")
+        
+        # Standardize NA values based on column type
+        # For string identifier columns: NULL/None -> '' (empty string) for consistency
+        # For numeric data columns: empty string -> pandas.NA
+        for col in id_cols:
+            if col in df_base.columns:
+                # Convert NULL/None to empty string in identifier columns
+                df_base[col] = df_base[col].fillna('').replace(['nan', 'None', 'null'], '')
+            if col in df_incoming.columns:
+                df_incoming[col] = df_incoming[col].fillna('').replace(['nan', 'None', 'null'], '')
+        
+        for col in data_cols:
+            if col in df_base.columns:
+                # Convert empty strings to pandas.NA in data columns
+                df_base[col] = df_base[col].replace(['', ' ', 'nan', 'None', 'null'], pandas.NA)
+            if col in df_incoming.columns:
+                df_incoming[col] = df_incoming[col].replace(['', ' ', 'nan', 'None', 'null'], pandas.NA)
 
         # Deduplicate incoming by identifiers + data columns
         # Keep latest per UNIQUE combination of identifiers AND data values
