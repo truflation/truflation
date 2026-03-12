@@ -3,6 +3,7 @@ from logging import Logger
 import os
 import traceback
 import time
+import concurrent.futures
 from typing import List
 import pandas as pd
 from collections import deque
@@ -21,7 +22,8 @@ TN_ENDPOINT = os.environ.get('TN_ENDPOINT')
 
 MAX_RETRIES = 3
 RETRY_DELAY = 30  # seconds
-QUERY_DELAY = 10 # seconds
+QUERY_DELAY = 10  # seconds
+TX_TIMEOUT = 120  # seconds to wait for a transaction before giving up
 
 PROVIDERS_MAP = {
     'com_truflation': '0x4710a8d8f0d845da110086812a32de6d90d7ff5c',
@@ -57,6 +59,13 @@ def date_to_unix(date_str, format="%Y-%m-%d"):
 
     dt = datetime.strptime(date_str, format).replace(tzinfo=timezone.utc)
     return int(dt.timestamp())
+
+
+def _wait_for_tx(client, tx, timeout=TX_TIMEOUT):
+    """Wait for a transaction with a hard timeout to prevent indefinite blocking."""
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(client.wait_for_tx, tx)
+        future.result(timeout=timeout)
 
 
 def _handle_failure(logger: Logger, context: str, stream_id, columns: list[str]):
@@ -339,7 +348,22 @@ class TNConnector(Connector):
                 for batch in batches
             ]
 
-            exists_result = self.client.batch_stream_exists(stream_infos)
+            exists_result = None
+            for attempt in range(1, MAX_RETRIES + 1):
+                try:
+                    exists_result = self.client.batch_stream_exists(stream_infos)
+                    break
+                except Exception as e:
+                    self.logging_manager.log_exception(
+                        f"[Attempt {attempt}] Error checking stream existence: {e}"
+                    )
+                    if attempt < MAX_RETRIES:
+                        time.sleep(RETRY_DELAY * attempt)
+                    else:
+                        self.logging_manager.log_warning(
+                            f"Could not check stream existence after {MAX_RETRIES} attempts — skipping batch insert for: {buffer_key}"
+                        )
+                        return
 
             # filter the streams that needs to be created or removed
             streams_to_create: List[StreamDefinitionInput] = []
@@ -410,18 +434,23 @@ class TNConnector(Connector):
         for attempt in range(1, MAX_RETRIES + 1):
             try:
                 insert_tx = self.client.batch_insert_records(batches)
-                self.client.wait_for_tx(insert_tx)
+                _wait_for_tx(self.client, insert_tx)
                 self.logging_manager.log_info(f'Data saved to TN database successfully. Batch {current_batch} from {total_batches}')
-                return 
+                return
+            except concurrent.futures.TimeoutError:
+                self.logging_manager.log_warning(
+                    f"[Attempt {attempt}] Batch {current_batch}/{total_batches} timed out after {TX_TIMEOUT}s waiting for tx confirmation."
+                )
             except Exception as e:
-                if attempt < MAX_RETRIES:
-                    self.logging_manager.log_exception(
-                        f"[Attempt {attempt}] Error inserting records: {e}"
-                    )
-                    time.sleep(RETRY_DELAY * attempt)
-                else:
-                    self.logging_manager.log_exception(f'Error saving data to TN database: {e}')
-                    raise
+                self.logging_manager.log_exception(
+                    f"[Attempt {attempt}] Error inserting records: {e}"
+                )
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY * attempt)
+            else:
+                self.logging_manager.log_warning(
+                    f"Batch {current_batch}/{total_batches} failed after {MAX_RETRIES} attempts — skipping."
+                )
 
     def gen_batch(self, date_from, date_to, interval = 31_536_000):
         batches = []
@@ -441,32 +470,43 @@ class TNConnector(Connector):
 
     def drop_stream(self, stream_id: str):
         self.logging_manager.log_info(f"Dropping stream '{stream_id}'...")
-        
-        try:
-            drop_tx = self.client.destroy_stream(stream_id)
-            self.client.wait_for_tx(drop_tx)
-            self.logging_manager.log_info(f"Stream '{stream_id}' dropped successfully.")
-        except Exception as e:
-            self.logging_manager.log_error(f"Error dropping stream '{stream_id}': {e}")
-            raise
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                drop_tx = self.client.destroy_stream(stream_id)
+                _wait_for_tx(self.client, drop_tx)
+                self.logging_manager.log_info(f"Stream '{stream_id}' dropped successfully.")
+                return
+            except concurrent.futures.TimeoutError:
+                self.logging_manager.log_warning(
+                    f"[Attempt {attempt}] Drop stream '{stream_id}' timed out after {TX_TIMEOUT}s."
+                )
+            except Exception as e:
+                self.logging_manager.log_error(f"[Attempt {attempt}] Error dropping stream '{stream_id}': {e}")
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY * attempt)
+            else:
+                raise RuntimeError(f"Drop stream '{stream_id}' failed after {MAX_RETRIES} attempts.")
 
     def batch_create_streams(self, stream_ids: list[StreamDefinitionInput]):
         self.logging_manager.log_info("Creating streams")
         for attempt in range(1, MAX_RETRIES + 1):
             try:
                 stream_tx = self.client.batch_deploy_streams(stream_ids)
-                self.client.wait_for_tx(stream_tx)
+                _wait_for_tx(self.client, stream_tx)
                 log_msg = "Streams created successfully:\n" + "\n".join(f" - {s['stream_id']}" for s in stream_ids)
                 self.logging_manager.log_info(log_msg)
                 return
+            except concurrent.futures.TimeoutError:
+                self.logging_manager.log_warning(
+                    f"[Attempt {attempt}] Stream creation timed out after {TX_TIMEOUT}s."
+                )
             except Exception as e:
-                if attempt < MAX_RETRIES:
-                    self.logging_manager.log_exception(
-                        f"[Attempt {attempt}] Error creating streams: {e}"
-                    )
-                    time.sleep(RETRY_DELAY * attempt)
-                else:
-                    self.logging_manager.log_exception(f"Error creating streams: {e}")
-                    raise
+                self.logging_manager.log_exception(
+                    f"[Attempt {attempt}] Error creating streams: {e}"
+                )
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY * attempt)
+            else:
+                raise RuntimeError(f"Stream creation failed after {MAX_RETRIES} attempts.")
 
 
