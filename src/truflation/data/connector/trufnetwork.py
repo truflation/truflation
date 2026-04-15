@@ -83,7 +83,7 @@ class TNConnector(Connector):
         self.client = TNClient(endpoint, private_key)
         self.providers = providers_map
         self._batch_buffer: dict[str, List[ConnectorBatch]] = {}
-        self.batch_size = 10000
+        self.batch_size = 10
 
     def read_all(self, *args, **kwargs):
         if 'kwargs' in kwargs and isinstance(kwargs['kwargs'], dict):
