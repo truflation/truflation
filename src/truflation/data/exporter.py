@@ -234,31 +234,42 @@ class Exporter:
                 continue
             
             # String/object columns - check if they contain numeric data
+            has_numeric = False
             if pandas.api.types.is_string_dtype(df_base[col]) or pandas.api.types.is_object_dtype(df_base[col]):
-                # Check both dataframes for numeric values
-                has_numeric = False
                 try:
                     numeric_test = pandas.to_numeric(df_base[col], errors='coerce')
                     has_numeric = numeric_test.notna().any()
-                    
-                    # Also check incoming if present
-                    if not has_numeric and col in df_incoming.columns:
+                except (ValueError, TypeError):
+                    pass
+
+            # Also check the incoming column for numeric content.
+            # This covers cases where the base has an exotic dtype (e.g. decimal128[pyarrow])
+            # that doesn't pass is_string/object_dtype, but the incoming column is a
+            # string/object column whose values are actually numeric.
+            if not has_numeric and col in df_incoming.columns:
+                if original_dtype and (
+                    pandas.api.types.is_string_dtype(original_dtype) or
+                    pandas.api.types.is_object_dtype(original_dtype)
+                ):
+                    try:
                         numeric_test = pandas.to_numeric(df_incoming[col], errors='coerce')
                         has_numeric = numeric_test.notna().any()
-                    
-                    if has_numeric:
-                        # String column with numeric values -> data column
-                        data_cols.append(col)
-                    else:
-                        # String column with no numeric values -> identifier
-                        id_cols.append(col)
-                except (ValueError, TypeError):
-                    # Can't convert -> identifier
-                    id_cols.append(col)
-                continue
-            
-            # Default: treat as identifier
-            id_cols.append(col)
+                    except (ValueError, TypeError):
+                        pass
+
+            if has_numeric:
+                data_cols.append(col)
+            elif pandas.api.types.is_string_dtype(df_base[col]) or pandas.api.types.is_object_dtype(df_base[col]) or (
+                original_dtype and (
+                    pandas.api.types.is_string_dtype(original_dtype) or
+                    pandas.api.types.is_object_dtype(original_dtype)
+                )
+            ):
+                # String column with no numeric values -> identifier
+                id_cols.append(col)
+            else:
+                # Default: treat as identifier
+                id_cols.append(col)
         
         # Safety check: must have at least one identifier column
         if not id_cols:
