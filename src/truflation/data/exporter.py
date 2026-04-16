@@ -294,11 +294,17 @@ class Exporter:
             df_incoming_latest = df_incoming.drop_duplicates(subset=dedup_cols, keep='last')
         df_incoming = df_incoming_latest
 
-        # Round numeric data columns for consistent comparison
+        # Normalize data columns to float64 and round for consistent comparison.
+        # hash_pandas_object treats Python int and float as distinct types even for
+        # numerically equal values (int(4635) != float(4635.0) in the hash), so a
+        # DB float64 column would never match an incoming int64 column without this
+        # cast. to_numeric also handles object columns containing Decimal values.
         for col in data_cols:
-            if col in df_incoming.columns and pandas.api.types.is_numeric_dtype(df_incoming[col]):
+            if col in df_incoming.columns:
+                df_incoming[col] = pandas.to_numeric(df_incoming[col], errors='coerce').astype('float64')
                 df_incoming[col] = df_incoming[col].map(lambda x: round_value(x, rounding) if pandas.notna(x) else x)
-            if col in df_base.columns and pandas.api.types.is_numeric_dtype(df_base[col]):
+            if col in df_base.columns:
+                df_base[col] = pandas.to_numeric(df_base[col], errors='coerce').astype('float64')
                 df_base[col] = df_base[col].map(lambda x: round_value(x, rounding) if pandas.notna(x) else x)
 
         # Only insert rows that do not already exist with the same identifiers and data values
