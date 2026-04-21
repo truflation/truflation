@@ -193,8 +193,13 @@ class TNConnector(Connector):
                         base_date= base_date
                     )
 
-                    # df = pd.DataFrame(records['values'], columns=records['column_names'])
-                    df = pd.DataFrame(records, columns=['EventTime', 'Value'])
+                    if len(records):
+                        df = pd.DataFrame(
+                            [(r.EventTime, r.Value) for r in records],
+                            columns=['EventTime', 'Value']
+                        )
+                    else:
+                        df = pd.DataFrame(records, columns=['EventTime', 'Value'])
                     if not df.empty:
                         df['EventTime'] = df['EventTime'].apply(
                             lambda ts: datetime.fromtimestamp(int(ts), tz=timezone.utc)
