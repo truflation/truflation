@@ -6,12 +6,11 @@ import time
 import concurrent.futures
 from typing import List
 import pandas as pd
-from collections import deque
 from dotenv import load_dotenv
 
 from .base import Connector
 
-from trufnetwork_sdk_py.client import TNClient, STREAM_TYPE_PRIMITIVE, StreamDefinitionInput, RecordBatch, StreamLocatorInput
+from trufnetwork_sdk_py import TNClient, STREAM_TYPE_PRIMITIVE, StreamDefinitionInput, RecordBatch, StreamLocatorInput, BulkInserter, BulkInsertError
 from trufnetwork_sdk_py.utils import generate_stream_id
 
 
@@ -84,6 +83,7 @@ class TNConnector(Connector):
         self.providers = providers_map
         self._batch_buffer: dict[str, List[ConnectorBatch]] = {}
         self.batch_size = 10
+        self.batchInserter = BulkInserter(self.client, self.batch_size)
 
     def read_all(self, *args, **kwargs):
         if 'kwargs' in kwargs and isinstance(kwargs['kwargs'], dict):
@@ -379,78 +379,32 @@ class TNConnector(Connector):
             if streams_to_create:
                 self.batch_create_streams(streams_to_create)
 
-            # insert records
+            # insert records (BulkInserter handles chunking and retries internally)
             cleaned_batches: List[RecordBatch] = [
                 {k: v for k, v in batch.items() if k != 'data_provider'}
                 for batch in batches
             ]
 
-            final_batches: List[List[RecordBatch]] = self._split_batches(cleaned_batches)
-            for i, batch in enumerate(final_batches, start=1):
-                self.write_batch(batch, i, len(final_batches))
-                time.sleep(2)
-
-    def _split_batches(self, batches: List[RecordBatch]):
-        final_batches: List[List[RecordBatch]] = []
-
-        queue = deque()
-        for batch in batches:
-            stream_id = batch['stream_id']
-            inputs = batch['inputs']
-            # Split into manageable chunks for this stream
-            for i in range(0, len(inputs), self.batch_size):
-                chunk = inputs[i:i + self.batch_size]
-                queue.append({'stream_id': stream_id, 'inputs': chunk})
-
-        while queue:
-            current_batch: List[RecordBatch] = []
-            current_count = 0
-
-            while queue and current_count < self.batch_size:
-                peek = queue[0]
-                chunk_size = len(peek['inputs'])
-
-                if current_count + chunk_size <= self.batch_size:
-                    current_batch.append(queue.popleft())
-                    current_count += chunk_size
-                else:
-                    remaining_space = self.batch_size - current_count
-                    chunk = queue.popleft()
-                    current_batch.append({
-                        'stream_id': chunk['stream_id'],
-                        'inputs': chunk['inputs'][:remaining_space]
-                    })
-                    queue.appendleft({
-                        'stream_id': chunk['stream_id'],
-                        'inputs': chunk['inputs'][remaining_space:]
-                    })
-                    current_count += remaining_space
-                    break
-
-            final_batches.append(current_batch)
-        return final_batches
-            
-    def write_batch(self, batches: List[RecordBatch], current_batch: int, total_batches: int):
-        for attempt in range(1, MAX_RETRIES + 1):
             try:
-                insert_tx = self.client.batch_insert_records(batches)
-                _wait_for_tx(self.client, insert_tx)
-                self.logging_manager.log_info(f'Data saved to TN database successfully. Batch {current_batch} from {total_batches}')
-                return
-            except concurrent.futures.TimeoutError:
-                self.logging_manager.log_warning(
-                    f"[Attempt {attempt}] Batch {current_batch}/{total_batches} timed out after {TX_TIMEOUT}s waiting for tx confirmation."
+                tx_hashes = self.batchInserter.insert_all(cleaned_batches)
+                self.logging_manager.log_info(
+                    f'Data saved to TN database successfully. {len(tx_hashes)} tx(s) submitted for: {buffer_key}'
                 )
-            except Exception as e:
-                self.logging_manager.log_exception(
-                    f"[Attempt {attempt}] Error inserting records: {e}"
-                )
-            if attempt < MAX_RETRIES:
-                time.sleep(RETRY_DELAY * attempt)
-            else:
-                self.logging_manager.log_warning(
-                    f"Batch {current_batch}/{total_batches} failed after {MAX_RETRIES} attempts — skipping."
-                )
+                time.sleep(2)
+            except BulkInsertError as e:
+                if e.drain_failure:
+                    # All chunks were broadcast; only the final wait-for-tx confirmation failed.
+                    # The records are likely on-chain — log and move on rather than re-inserting.
+                    self.logging_manager.log_warning(
+                        f"BulkInserter for '{buffer_key}' broadcast all {len(e.tx_hashes)} tx(s) "
+                        f"but timed out waiting for confirmation: {e}"
+                    )
+                else:
+                    self.logging_manager.log_error(
+                        f"BulkInserter failed for '{buffer_key}' at chunk {e.failed_chunk_index} "
+                        f"({len(e.tx_hashes)} tx(s) succeeded before failure): {e}"
+                    )
+                time.sleep(2)
 
     def gen_batch(self, date_from, date_to, interval = 31_536_000):
         batches = []
