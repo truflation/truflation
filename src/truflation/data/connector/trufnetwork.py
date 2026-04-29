@@ -128,7 +128,13 @@ class TNConnector(Connector):
                         date_to=batch_to
                     )
 
-                    df = pd.DataFrame(records, columns=['EventTime', 'Value'])
+                    if len(records):
+                        df = pd.DataFrame(
+                            [(r.EventTime, r.Value) for r in records],
+                            columns=['EventTime', 'Value']
+                        )
+                    else:
+                        df = pd.DataFrame(records, columns=['EventTime', 'Value'])
                     if not df.empty:
                         df['EventTime'] = df['EventTime'].apply(
                             lambda ts: datetime.fromtimestamp(int(ts), tz=timezone.utc)
