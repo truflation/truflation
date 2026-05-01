@@ -336,19 +336,25 @@ class TNConnector(Connector):
 
         if table is None and len(args) > 0:
             table = args[0]
-        
+
         raw_stream_id, _, data_provider = parse_stream_id(table, self.providers)
         stream_id = generate_stream_id(raw_stream_id)
         buffer_key = batch_key or stream_id
 
-        data = data.reset_index()
-        data['date'] = pd.to_datetime(data['date']).astype('int64') // 10**9
-        records = data[['date', 'value']].to_dict(orient='records')
+        is_empty = data is None or (isinstance(data, pd.DataFrame) and data.empty)
+        if not is_empty:
+            data = data.reset_index()
+            data['date'] = pd.to_datetime(data['date']).astype('int64') // 10**9
+            records = data[['date', 'value']].to_dict(orient='records')
 
-        if buffer_key not in self._batch_buffer:
-            self._batch_buffer[buffer_key] = []
+            if buffer_key not in self._batch_buffer:
+                self._batch_buffer[buffer_key] = []
 
-        self._batch_buffer[buffer_key].append({'stream_id': stream_id, 'inputs': records, 'data_provider': data_provider })
+            self._batch_buffer[buffer_key].append({'stream_id': stream_id, 'inputs': records, 'data_provider': data_provider })
+
+        if finalize and buffer_key not in self._batch_buffer:
+            self.logging_manager.log_info(f'No buffered data for {buffer_key}, skipping finalization')
+            return
 
         if finalize:
             self.logging_manager.log_info(f'Finalizing batch insert for: {buffer_key}')

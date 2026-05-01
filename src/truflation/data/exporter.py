@@ -101,6 +101,9 @@ class Exporter:
                     export_details,
                     df_new_data
                 )
+        elif not dry_run and not export_details.replace and isinstance(df_local, pandas.DataFrame):
+            # No new data, but still notify the connector so batch writers can finalize
+            export_details.write(df_new_data)
 
         return df_new_data
 
