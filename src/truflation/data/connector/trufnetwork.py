@@ -60,6 +60,27 @@ def date_to_unix(date_str, format="%Y-%m-%d"):
     return int(dt.timestamp())
 
 
+def _split_revision_slots(records: list[dict]) -> list[list[dict]]:
+    """Group records into slots where each slot has at most one row per date.
+    Slot 0 = first occurrence of each date, slot 1 = second, etc.
+    Each slot after 0 must be inserted in a separate tx so revisions land at different block heights."""
+    pending = list(records)
+    slots: list[list[dict]] = []
+    while pending:
+        seen_dates: set = set()
+        slot: list[dict] = []
+        leftover: list[dict] = []
+        for r in pending:
+            if r['date'] in seen_dates:
+                leftover.append(r)
+            else:
+                seen_dates.add(r['date'])
+                slot.append(r)
+        slots.append(slot)
+        pending = leftover
+    return slots
+
+
 def _wait_for_tx(client, tx, timeout=TX_TIMEOUT):
     """Wait for a transaction with a hard timeout to prevent indefinite blocking."""
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
@@ -396,22 +417,36 @@ class TNConnector(Connector):
             if streams_to_create:
                 self.batch_create_streams(streams_to_create)
 
-            # insert records (BulkInserter handles chunking and retries internally)
-            cleaned_batches: List[RecordBatch] = [
-                {k: v for k, v in batch.items() if k != 'data_provider'}
-                for batch in batches
+            # Merge all buffered records per stream (preserving order for revision detection)
+            stream_merged: dict[str, list[dict]] = {}
+            for batch in batches:
+                sid = batch['stream_id']
+                if sid not in stream_merged:
+                    stream_merged[sid] = []
+                stream_merged[sid].extend(batch['inputs'])
+
+            # Split each stream into revision slots (slot 0 = unique dates, slot 1+ = revisions)
+            stream_slots: dict[str, list[list[dict]]] = {
+                sid: _split_revision_slots(records)
+                for sid, records in stream_merged.items()
+            }
+            max_slots = max((len(slots) for slots in stream_slots.values()), default=0)
+
+            # Slot 0 (first occurrence of each date) → BulkInserter for efficiency
+            slot0_batches: List[RecordBatch] = [
+                {'stream_id': sid, 'inputs': slots[0]}
+                for sid, slots in stream_slots.items()
+                if slots
             ]
 
             try:
-                tx_hashes = self.batchInserter.insert_all(cleaned_batches)
+                tx_hashes = self.batchInserter.insert_all(slot0_batches)
                 self.logging_manager.log_info(
                     f'Data saved to TN database successfully. {len(tx_hashes)} tx(s) submitted for: {buffer_key}'
                 )
                 time.sleep(2)
             except BulkInsertError as e:
                 if e.drain_failure:
-                    # All chunks were broadcast; only the final wait-for-tx confirmation failed.
-                    # The records are likely on-chain — log and move on rather than re-inserting.
                     self.logging_manager.log_warning(
                         f"BulkInserter for '{buffer_key}' broadcast all {len(e.tx_hashes)} tx(s) "
                         f"but timed out waiting for confirmation: {e}"
@@ -422,6 +457,30 @@ class TNConnector(Connector):
                         f"({len(e.tx_hashes)} tx(s) succeeded before failure): {e}"
                     )
                 time.sleep(2)
+
+            # Revision slots (1+) → insert_records per stream to preserve each revision
+            # at a distinct block height for frozen_at queries
+            if max_slots > 1:
+                self.logging_manager.log_info(
+                    f'Inserting {max_slots - 1} revision slot(s) for {len(stream_slots)} stream(s): {buffer_key}'
+                )
+                for slot_idx in range(1, max_slots):
+                    for sid, slots in stream_slots.items():
+                        if slot_idx < len(slots):
+                            slot_records = slots[slot_idx]
+                            for i in range(0, len(slot_records), self.batch_size):
+                                chunk = slot_records[i:i + self.batch_size]
+                                try:
+                                    tx = self.client.insert_records(sid, chunk)
+                                    _wait_for_tx(self.client, tx)
+                                except concurrent.futures.TimeoutError:
+                                    self.logging_manager.log_warning(
+                                        f"insert_records revision slot {slot_idx} chunk {i // self.batch_size} for stream '{sid}' timed out after {TX_TIMEOUT}s."
+                                    )
+                                except Exception as e:
+                                    self.logging_manager.log_error(
+                                        f"insert_records revision slot {slot_idx} chunk {i // self.batch_size} for stream '{sid}' failed: {e}"
+                                    )
 
     def gen_batch(self, date_from, date_to, interval = 31_536_000):
         batches = []
