@@ -11,7 +11,6 @@ import struct
 import subprocess
 import tempfile
 import pandas as pd
-from icecream import ic
 import asyncio
 import aiohttp
 import logging
@@ -24,7 +23,6 @@ from eth_utils import to_checksum_address
 
 from dotenv import load_dotenv
 load_dotenv()
-ic(os.environ)
 EXECUTABLE_NAME = 'kwil-cli'
 
 
@@ -89,7 +87,6 @@ class ConnectorKwil(Connector):
         self.executable_name = 'kwil-cli'
         self.executable_path = self._get_executable_path()
         self.round = 6
-        ic(self.version())
         if self.version()['Version'] != '0.6.3':
             raise ValueError('invalid version')
 
@@ -147,14 +144,11 @@ class ConnectorKwil(Connector):
             dbid,
             f'select * from {table}'
         )
-        ic(result)
         if result.get('result', '') == '':
             return None
         return self.fix_data_read(pd.DataFrame(result['result']))
 
     def write_all(self, data, *args, **kwargs) -> None:
-        ic(args)
-        ic(kwargs)
         filename = kwargs.get('key', None)
         if filename is None and len(args) > 0:
             filename = args[0]
@@ -163,7 +157,6 @@ class ConnectorKwil(Connector):
         if ':' not in filename:
             raise Exception('need db and table')
         (dbid, table) = filename.split(':')
-        ic(dbid, table, data)
         data = self.fix_data_write(data)
         with tempfile.NamedTemporaryFile(
                 delete=True, suffix='.csv'
@@ -173,11 +166,11 @@ class ConnectorKwil(Connector):
                 temp_file,
                 index=False
             )
-            if not ic(self.has_schema(dbid)):
-                r1 = ic(self.deploy(dbid))
-                ic(self.query_tx_wait(r1['result']['tx_hash']))
+            if not self.has_schema(dbid):
+                r1 = self.deploy(dbid)
+                self.query_tx_wait(r1['result']['tx_hash'])
                 self.add_admin(dbid, self.kwil_user)
-                if not ic(self.has_schema(dbid)):
+                if not self.has_schema(dbid):
                     raise ValueError('schema not created')
             result = self.execute_command_json(*([
                 'database',
@@ -189,14 +182,12 @@ class ConnectorKwil(Connector):
                 '--map-inputs',
                 'id:id,date_value:date_value,value:value,created_at:created_at',
             ] + self._get_db_arg(dbid)))
-            ic(result)
-            return ic(self.query_tx_wait(
+            return self.query_tx_wait(
                 result['result']['tx_hash']
-            ))
+            )
         raise ValueError
 
     def fix_data_read(self, df):
-        ic(df)
         if df.empty:
             return df
         df.rename(columns={'date_value': 'date'}, inplace=True)
@@ -209,15 +200,12 @@ class ConnectorKwil(Connector):
         return df
 
     def fix_data_write(self, df):
-        ic(df)
         if df.index.name == 'date':
             df = df.reset_index()
         df.rename(columns={'date': 'date_value'}, inplace=True)
         df['id'] = df.apply(lambda row: uuid.uuid4(), axis=1)
         df['value'] = round(df['value'] * 10**self.round, self.round).astype(int)
         df['created_at'] = df['created_at'].astype(int)
-        ic(df)
-        ic(df.dtypes)
         return df
 
     def deploy(self, db_name, data_filename=None):
@@ -226,7 +214,6 @@ class ConnectorKwil(Connector):
             data_filename = 'schemas/kwil/schema.development.kf'
         package_directory = os.path.dirname(package_name.__file__)
         data_filepath = os.path.join(package_directory, data_filename)
-        ic(data_filepath)
         return self.execute_command_json(
             'database', 'deploy', '--path', data_filepath,
             '--name', db_name
@@ -280,7 +267,6 @@ class ConnectorKwil(Connector):
 
     def has_schema(self, dbid:str):
         result = self.read_schema(dbid)
-        ic(result)
         return result['result'] != ''
 
     @staticmethod
