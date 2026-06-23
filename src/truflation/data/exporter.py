@@ -326,18 +326,26 @@ class Exporter:
         if not compare_cols:
             return df_incoming
 
-        def build_row_hash(df: pandas.DataFrame, cols: list[str]) -> pandas.Series:
+        # NOTE: do not use pandas.util.hash_pandas_object here. Its categorize=True
+        # codepath (factorize-based hashing of object-dtype columns) has been proven
+        # to return a different hash for the *same* value depending on what else is
+        # in the array at scale (confirmed on real data: the same 'date' value hashed
+        # two different ways depending on whether it was row 668055 or 668056 of an
+        # otherwise-identical array). That silently breaks dedup on multi-million-row
+        # tables. A merge-based exact-key join does not have this failure mode.
+        def build_compare_key(df: pandas.DataFrame, cols: list[str]) -> pandas.DataFrame:
             temp = df[cols].copy()
             for col in cols:
                 temp[col] = temp[col].astype('object')
                 temp[col] = temp[col].where(~temp[col].isna(), '__TRUFLATION_NA__')
-            return pandas.util.hash_pandas_object(temp, index=False)
+            return temp
 
-        base_hash = build_row_hash(df_base, compare_cols).drop_duplicates()
-        incoming_hash = build_row_hash(df_incoming, compare_cols)
-        keep_mask = ~incoming_hash.isin(set(base_hash))
+        base_keys = build_compare_key(df_base, compare_cols).drop_duplicates()
+        incoming_keys = build_compare_key(df_incoming, compare_cols)
+        merged = incoming_keys.merge(base_keys, on=compare_cols, how='left', indicator=True)
+        keep_mask = (merged['_merge'] == 'left_only').to_numpy()
 
-        df_new_data = df_incoming.loc[keep_mask].copy()
+        df_new_data = df_incoming.iloc[keep_mask].copy()
 
         # Ensure ordering and types match base columns where possible
         try:
