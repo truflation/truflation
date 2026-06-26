@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from functools import partial
 import pandas
 from truflation.data.export_details import ExportDetails
 from truflation.data.logging_manager import Logger
@@ -68,7 +69,10 @@ class Exporter:
         df_remote = self.reduce_future_created_at(df_remote)
 
         # If remote exists, reconcile and receive the data needing to be added
-        reconcile = self.reconcile_dataframes if export_details.reconcile is None else export_details.reconcile
+        reconcile = (
+            partial(self.reconcile_dataframes, latest_only=export_details.latest_only)
+            if export_details.reconcile is None else export_details.reconcile
+        )
         df_new_data = reconcile(df_remote, df_local) if df_remote is not None and not df_remote.empty else df_local
         if not df_new_data.empty:
             self.logging_manager.log_info(
@@ -141,11 +145,22 @@ class Exporter:
         return df
 
     @staticmethod
-    def reconcile_dataframes(df_base: pandas.DataFrame, df_incoming: pandas.DataFrame, rounding: int = 6) -> pandas.DataFrame:
+    def reconcile_dataframes(
+        df_base: pandas.DataFrame, df_incoming: pandas.DataFrame, rounding: int = 6, latest_only: bool = False
+    ) -> pandas.DataFrame:
         """
         Retrieve a dataframe that contains the rows needed to update df_base with the values from df_incoming.
         Will only skip a row if ALL data columns match (treating NA==NA as equal).
         Compares all columns except identifiers and created_at.
+
+        latest_only: if True, compare incoming rows only against the most recent
+        (by created_at) row per identifier in df_base, instead of all history.
+        Without this, a value that once matched an older row is considered
+        "already seen" forever, even if a bad row was inserted later with a
+        more recent created_at and is now the one being treated as current -
+        the bad row can never be displaced by a correct recompute. Off by
+        default because it trades that self-healing for extra rows when an
+        upstream source flaps between values across runs.
         """
 
         # If there's no base data, everything incoming is new
@@ -340,7 +355,14 @@ class Exporter:
                 temp[col] = temp[col].where(~temp[col].isna(), '__TRUFLATION_NA__')
             return temp
 
-        base_keys = build_compare_key(df_base, compare_cols).drop_duplicates()
+        base_for_compare = df_base
+        if latest_only and 'created_at' in df_base.columns:
+            base_for_compare = (
+                df_base.sort_values('created_at', ascending=False)
+                    .drop_duplicates(subset=id_cols, keep='first')
+            )
+
+        base_keys = build_compare_key(base_for_compare, compare_cols).drop_duplicates()
         incoming_keys = build_compare_key(df_incoming, compare_cols)
         merged = incoming_keys.merge(base_keys, on=compare_cols, how='left', indicator=True)
         keep_mask = (merged['_merge'] == 'left_only').to_numpy()
