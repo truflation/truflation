@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from logging import Logger
 import os
+import queue
+import threading
 import traceback
 import time
 import concurrent.futures
@@ -23,6 +25,13 @@ MAX_RETRIES = 3
 RETRY_DELAY = 30  # seconds
 QUERY_DELAY = 10  # seconds
 TX_TIMEOUT = 120  # seconds to wait for a transaction before giving up
+
+# BulkInserter.insert_all() has no total-duration bound by design — a large
+# ingest can legitimately run tens of minutes. What must never happen is
+# *silent* stalling (e.g. a nonce-retry loop that never resolves), so we
+# watch for inactivity instead of capping wall-clock time.
+BULK_INSERT_IDLE_TIMEOUT = 900  # seconds of silence (no progress/retry log line) before treating the call as stuck
+BULK_INSERT_POLL_INTERVAL = 30  # seconds between liveness checks while insert_all runs
 
 PROVIDERS_MAP = {
     'com_truflation': '0x4710a8d8f0d845da110086812a32de6d90d7ff5c',
@@ -86,6 +95,110 @@ def _wait_for_tx(client, tx, timeout=TX_TIMEOUT):
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         future = executor.submit(client.wait_for_tx, tx)
         future.result(timeout=timeout)
+
+
+def _run_in_daemon_thread(fn, *args):
+    """Run fn in a daemon thread and return a queue yielding ('ok', result) or
+    ('err', exception). Deliberately not concurrent.futures.ThreadPoolExecutor:
+    its context manager calls shutdown(wait=True) on exit, which blocks until
+    the submitted call finishes even after future.result(timeout=...) already
+    raised — silently defeating a timeout against a call that never returns.
+    A daemon thread has no such join-on-exit."""
+    result_q: "queue.Queue" = queue.Queue(maxsize=1)
+
+    def _runner():
+        try:
+            result_q.put(('ok', fn(*args)))
+        except BaseException as e:  # noqa: BLE001 - forward any failure to the waiter
+            result_q.put(('err', e))
+
+    threading.Thread(target=_runner, daemon=True).start()
+    return result_q
+
+
+class _StderrHeartbeat:
+    """Tees the process's stderr fd through a pipe to detect *inactivity*.
+
+    The TN SDK's Go layer writes bulk_inserter progress/retry lines straight
+    to the OS stderr fd (there is no Python-visible progress callback), so
+    this is the only way to distinguish "still working, just slow" from
+    "genuinely stuck" for a call whose total duration is expected to vary
+    from seconds to hours depending on batch size. Every line observed is
+    forwarded to the original fd so external log capture (e.g. Prefect) is
+    unaffected.
+    """
+
+    def __init__(self):
+        self.last_activity = time.monotonic()
+        self._lock = threading.Lock()
+
+    def idle_seconds(self) -> float:
+        with self._lock:
+            return time.monotonic() - self.last_activity
+
+    def __enter__(self):
+        self._saved_fd = os.dup(2)
+        self._read_fd, self._write_fd = os.pipe()
+        os.dup2(self._write_fd, 2)
+        self._thread = threading.Thread(target=self._pump, daemon=True)
+        self._thread.start()
+        return self
+
+    def _pump(self):
+        while True:
+            try:
+                chunk = os.read(self._read_fd, 4096)
+            except OSError:
+                break
+            if not chunk:
+                break
+            with self._lock:
+                self.last_activity = time.monotonic()
+            try:
+                os.write(self._saved_fd, chunk)
+            except OSError:
+                pass
+
+    def __exit__(self, *exc_info):
+        os.dup2(self._saved_fd, 2)
+        os.close(self._write_fd)
+        self._thread.join(timeout=5)
+        os.close(self._saved_fd)
+        try:
+            os.close(self._read_fd)
+        except OSError:
+            pass
+        return False
+
+
+def _insert_all_with_timeout(
+    inserter: BulkInserter,
+    batches: list,
+    idle_timeout=BULK_INSERT_IDLE_TIMEOUT,
+    poll_interval=BULK_INSERT_POLL_INTERVAL,
+):
+    """Run BulkInserter.insert_all guarding against a stalled call rather than
+    a long-but-progressing one. Raises TimeoutError if no bulk_inserter log
+    line (progress tick or retry warning) has been observed for idle_timeout
+    seconds, so a genuinely stuck call gets reported instead of blocking the
+    flow forever, while a legitimately long large-batch insert is left alone
+    as long as it keeps emitting activity."""
+    result_q = _run_in_daemon_thread(inserter.insert_all, batches)
+    with _StderrHeartbeat() as heartbeat:
+        while True:
+            try:
+                status, value = result_q.get(timeout=poll_interval)
+            except queue.Empty:
+                idle = heartbeat.idle_seconds()
+                if idle >= idle_timeout:
+                    raise TimeoutError(
+                        f"BulkInserter idle for {int(idle)}s with no progress/retry "
+                        f"output — treating as stuck"
+                    )
+                continue
+            if status == 'err':
+                raise value
+            return value
 
 
 def _handle_failure(logger: Logger, context: str, stream_id, columns: list[str]):
@@ -440,11 +553,18 @@ class TNConnector(Connector):
             ]
 
             try:
-                tx_hashes = self.batchInserter.insert_all(slot0_batches)
+                tx_hashes = _insert_all_with_timeout(self.batchInserter, slot0_batches)
                 self.logging_manager.log_info(
                     f'Data saved to TN database successfully. {len(tx_hashes)} tx(s) submitted for: {buffer_key}'
                 )
                 time.sleep(2)
+            except TimeoutError as e:
+                self.logging_manager.log_error(
+                    f"BulkInserter for '{buffer_key}' stalled ({e}) — {len(slot0_batches)} stream(s) — "
+                    f"skipping finalization for this batch instead of blocking the flow indefinitely. "
+                    f"Likely a stuck nonce-retry loop in the TN SDK; verify chain state for this account "
+                    f"before re-running."
+                )
             except BulkInsertError as e:
                 if e.drain_failure:
                     self.logging_manager.log_warning(
