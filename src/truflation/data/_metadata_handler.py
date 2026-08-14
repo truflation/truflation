@@ -83,8 +83,15 @@ class _MetadataHandler:
     def empty_metadata_table(self):
         with self.engine.connect() as conn:
             try:
-                # Get the table object
-                metadata_table = self.metadata.tables[self.table]
+                # Get the table object, autoloading it if a prior reset()
+                # replaced self.metadata before this table got re-registered
+                metadata_table = self.metadata.tables.get(self.table)
+                if metadata_table is None:
+                    metadata_table = Table(
+                        self.table,
+                        self.metadata,
+                        autoload_with=self.engine,
+                    )
                 conn.execute(metadata_table.delete())
                 conn.commit()
                 self.logging_manager.log_debug(f'Table {self.table} was emptied successfully.')

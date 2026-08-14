@@ -51,7 +51,7 @@ class ConnectorRest(Connector):
         self.csv = kwargs.get('csv', False)
         self.no_cache = kwargs.get('no_cache', False)
         self.page = None
-        self.stealth = Stealth()
+        self.stealth = Stealth(navigator_platform_override="Linux x86_64")
 
     def read_all(
             self,
