@@ -16,10 +16,10 @@ import logging
 import json
 import importlib
 
+from datetime import timezone
 from typing import List
 from apscheduler.schedulers.background import BackgroundScheduler
 from docopt import docopt
-from pytz import utc
 from truflation.data.logging_manager import Logger
 
 from truflation.data.pipeline import Pipeline
@@ -64,7 +64,7 @@ def main(module_list: list, cron_schedule=None):
     None
     """
     # Instantiate scheduler with UTC timezone
-    scheduler = BackgroundScheduler(timezone=utc)
+    scheduler = BackgroundScheduler(timezone=timezone.utc)
 
     if cron_schedule is None:
         if hasattr(module_list[0], 'get_details_list'):

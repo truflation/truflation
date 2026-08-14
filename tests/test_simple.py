@@ -97,7 +97,10 @@ class TestSimple(unittest.TestCase):
         r = ConnectorRest(
             playwright=True
         )
-        b = r.read_all('https://api.jolpi.ca/ergast/f1//2004/1/results.json')
+        b = r.read_all('https://api.jolpi.ca/ergast/f1/2004/1/results.json')
+        self.assertTrue(
+            b.get("MRData", {}).get("RaceTable", {}).get("Races")
+        )
 
 
 class TestMetadataWrite(unittest.TestCase):

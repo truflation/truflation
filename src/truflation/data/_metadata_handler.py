@@ -3,7 +3,7 @@ import json
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 from sqlalchemy.exc import OperationalError, NoSuchTableError
-from sqlalchemy import create_engine, select, desc, MetaData, Table, Column, VARCHAR, DATETIME
+from sqlalchemy import create_engine, select, desc, inspect, MetaData, Table, Column, VARCHAR, DATETIME
 from truflation.data.logging_manager import Logger
 
 class _MetadataHandler:
@@ -83,8 +83,15 @@ class _MetadataHandler:
     def empty_metadata_table(self):
         with self.engine.connect() as conn:
             try:
-                # Get the table object
-                metadata_table = self.metadata.tables[self.table]
+                # Get the table object, autoloading it if a prior reset()
+                # replaced self.metadata before this table got re-registered
+                metadata_table = self.metadata.tables.get(self.table)
+                if metadata_table is None:
+                    metadata_table = Table(
+                        self.table,
+                        self.metadata,
+                        autoload_with=self.engine,
+                    )
                 conn.execute(metadata_table.delete())
                 conn.commit()
                 self.logging_manager.log_debug(f'Table {self.table} was emptied successfully.')
@@ -105,12 +112,17 @@ class _MetadataHandler:
         # Empty the _metadata table
         self.empty_metadata_table()
 
-        # Reflect all tables
-        self.metadata.reflect(bind=self.engine)
+        # Drop cached table reflections so schema staleness/memory doesn't
+        # accumulate across repeated reset() calls on a long-lived handler.
+        self.metadata = MetaData()
 
         try:
-            # Fetch all tables from the database
-            tables = self.metadata.tables.keys()
+            # Fetch table names without a full-schema reflect: reflect()
+            # introspects every table's columns/indexes/triggers on one
+            # connection and holds a metadata lock on each already-scanned
+            # table until the whole pass finishes, blocking concurrent
+            # writes on a DB with hundreds of tables. We only need names.
+            tables = inspect(self.engine).get_table_names()
             self.logging_manager.log_info('Successfully fetched all tables from database.')
 
             # Iterate through each table in the database

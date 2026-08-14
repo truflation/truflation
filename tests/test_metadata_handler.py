@@ -29,7 +29,7 @@ def handler():
 
         handler = _MetadataHandler(engine=engine)
 
-    yield handler
+    return handler
 
 def test_create_mock_index_table(handler):
     _mockTable = Table(
