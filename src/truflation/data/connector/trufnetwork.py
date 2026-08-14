@@ -1,0 +1,662 @@
+from datetime import datetime, timezone
+from logging import Logger
+import os
+import queue
+import threading
+import traceback
+import time
+import concurrent.futures
+from typing import List
+import pandas as pd
+from dotenv import load_dotenv
+
+from .base import Connector
+
+from trufnetwork_sdk_py import TNClient, STREAM_TYPE_PRIMITIVE, StreamDefinitionInput, RecordBatch, StreamLocatorInput, BulkInserter, BulkInsertError
+from trufnetwork_sdk_py.utils import generate_stream_id
+
+
+load_dotenv()
+
+TN_PRIVATE_KEY = os.environ.get('TN_PRIVATE_KEY')
+TN_ENDPOINT = os.environ.get('TN_ENDPOINT')
+
+MAX_RETRIES = 3
+RETRY_DELAY = 30  # seconds
+QUERY_DELAY = 10  # seconds
+TX_TIMEOUT = 120  # seconds to wait for a transaction before giving up
+
+# BulkInserter.insert_all() has no total-duration bound by design — a large
+# ingest can legitimately run tens of minutes. What must never happen is
+# *silent* stalling (e.g. a nonce-retry loop that never resolves), so we
+# watch for inactivity instead of capping wall-clock time.
+BULK_INSERT_IDLE_TIMEOUT = 900  # seconds of silence (no progress/retry log line) before treating the call as stuck
+BULK_INSERT_POLL_INTERVAL = 30  # seconds between liveness checks while insert_all runs
+
+PROVIDERS_MAP = {
+    'com_truflation': '0x4710a8d8f0d845da110086812a32de6d90d7ff5c',
+    'com_coingecko': '0x7f573e177ee7ec50eb5dee59478285054e4e74e7',
+    'com_fmp': '0xf3c816dc0576ec011e5d28367d7fa8c17bb8c6b7',
+    'com_zeroxtech': '0x6d86aa58292112d6da5c78eca1cb4989a853a6fa'
+}
+
+def parse_stream_id(stream_id, providers_map):
+    if stream_id.endswith('_yoy'):
+        method = 'getIndexChange'
+        stream_id = stream_id[:-4]
+    elif stream_id.endswith('_divergence'):
+        method = 'get_divergence_index_change'
+        stream_id = stream_id[:-11]
+    else:
+        method = 'getRecords'
+
+
+    for prefix, provider in providers_map.items():
+        prefix_with_sep = prefix + '_'
+        if stream_id.startswith(prefix_with_sep):
+            formatted_stream_id = stream_id[len(prefix_with_sep):]
+            return formatted_stream_id, method, provider
+    
+    # If no known prefix is found
+    raise ValueError(f"Unknown streamId prefix for '{stream_id}'")
+
+# Convert date strings to Unix timestamps
+def date_to_unix(date_str, format="%Y-%m-%d"):
+    if not date_str:
+        return None
+
+    dt = datetime.strptime(date_str, format).replace(tzinfo=timezone.utc)
+    return int(dt.timestamp())
+
+
+def _split_revision_slots(records: list[dict]) -> list[list[dict]]:
+    """Group records into slots where each slot has at most one row per date.
+    Slot 0 = first occurrence of each date, slot 1 = second, etc.
+    Each slot after 0 must be inserted in a separate tx so revisions land at different block heights."""
+    pending = list(records)
+    slots: list[list[dict]] = []
+    while pending:
+        seen_dates: set = set()
+        slot: list[dict] = []
+        leftover: list[dict] = []
+        for r in pending:
+            if r['date'] in seen_dates:
+                leftover.append(r)
+            else:
+                seen_dates.add(r['date'])
+                slot.append(r)
+        slots.append(slot)
+        pending = leftover
+    return slots
+
+
+def _wait_for_tx(client, tx, timeout=TX_TIMEOUT):
+    """Wait for a transaction with a hard timeout to prevent indefinite blocking."""
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(client.wait_for_tx, tx)
+        future.result(timeout=timeout)
+
+
+def _run_in_daemon_thread(fn, *args):
+    """Run fn in a daemon thread and return a queue yielding ('ok', result) or
+    ('err', exception). Deliberately not concurrent.futures.ThreadPoolExecutor:
+    its context manager calls shutdown(wait=True) on exit, which blocks until
+    the submitted call finishes even after future.result(timeout=...) already
+    raised — silently defeating a timeout against a call that never returns.
+    A daemon thread has no such join-on-exit."""
+    result_q: "queue.Queue" = queue.Queue(maxsize=1)
+
+    def _runner():
+        try:
+            result_q.put(('ok', fn(*args)))
+        except BaseException as e:  # noqa: BLE001 - forward any failure to the waiter
+            result_q.put(('err', e))
+
+    threading.Thread(target=_runner, daemon=True).start()
+    return result_q
+
+
+class _StderrHeartbeat:
+    """Tees the process's stderr fd through a pipe to detect *inactivity*.
+
+    The TN SDK's Go layer writes bulk_inserter progress/retry lines straight
+    to the OS stderr fd (there is no Python-visible progress callback), so
+    this is the only way to distinguish "still working, just slow" from
+    "genuinely stuck" for a call whose total duration is expected to vary
+    from seconds to hours depending on batch size. Every line observed is
+    forwarded to the original fd so external log capture (e.g. Prefect) is
+    unaffected.
+    """
+
+    def __init__(self):
+        self.last_activity = time.monotonic()
+        self._lock = threading.Lock()
+
+    def idle_seconds(self) -> float:
+        with self._lock:
+            return time.monotonic() - self.last_activity
+
+    def __enter__(self):
+        self._saved_fd = os.dup(2)
+        self._read_fd, self._write_fd = os.pipe()
+        os.dup2(self._write_fd, 2)
+        self._thread = threading.Thread(target=self._pump, daemon=True)
+        self._thread.start()
+        return self
+
+    def _pump(self):
+        while True:
+            try:
+                chunk = os.read(self._read_fd, 4096)
+            except OSError:
+                break
+            if not chunk:
+                break
+            with self._lock:
+                self.last_activity = time.monotonic()
+            try:
+                os.write(self._saved_fd, chunk)
+            except OSError:
+                pass
+
+    def __exit__(self, *exc_info):
+        os.dup2(self._saved_fd, 2)
+        os.close(self._write_fd)
+        self._thread.join(timeout=5)
+        os.close(self._saved_fd)
+        try:
+            os.close(self._read_fd)
+        except OSError:
+            pass
+        return False
+
+
+def _insert_all_with_timeout(
+    inserter: BulkInserter,
+    batches: list,
+    idle_timeout=BULK_INSERT_IDLE_TIMEOUT,
+    poll_interval=BULK_INSERT_POLL_INTERVAL,
+):
+    """Run BulkInserter.insert_all guarding against a stalled call rather than
+    a long-but-progressing one. Raises TimeoutError if no bulk_inserter log
+    line (progress tick or retry warning) has been observed for idle_timeout
+    seconds, so a genuinely stuck call gets reported instead of blocking the
+    flow forever, while a legitimately long large-batch insert is left alone
+    as long as it keeps emitting activity."""
+    result_q = _run_in_daemon_thread(inserter.insert_all, batches)
+    with _StderrHeartbeat() as heartbeat:
+        while True:
+            try:
+                status, value = result_q.get(timeout=poll_interval)
+            except queue.Empty:
+                idle = heartbeat.idle_seconds()
+                if idle >= idle_timeout:
+                    raise TimeoutError(
+                        f"BulkInserter idle for {int(idle)}s with no progress/retry "
+                        f"output — treating as stuck"
+                    )
+                continue
+            if status == 'err':
+                raise value
+            return value
+
+
+def _handle_failure(logger: Logger, context: str, stream_id, columns: list[str]):
+    logger.log_error(f"Stream: {stream_id} with [{context}] Failed:\n{traceback.format_exc()}")
+    return pd.DataFrame(columns=columns)
+
+class ConnectorBatch(RecordBatch):
+    data_provider: str
+
+class TNConnector(Connector):
+    def __init__(self, private_key: str = TN_PRIVATE_KEY, endpoint: str = TN_ENDPOINT, **kwargs):
+        super().__init__()
+        providers_map = PROVIDERS_MAP | kwargs.get('providers_map', {})
+
+        self.client = TNClient(endpoint, private_key)
+        self.providers = providers_map
+        self._batch_buffer: dict[str, List[ConnectorBatch]] = {}
+        self.batch_size = 10
+        self.batchInserter = BulkInserter(self.client, self.batch_size)
+
+    def read_all(self, *args, **kwargs):
+        if 'kwargs' in kwargs and isinstance(kwargs['kwargs'], dict):
+            kwargs = kwargs['kwargs']
+
+        raw_stream_id, method, data_provider = parse_stream_id(args[0], self.providers)
+        stream_id = generate_stream_id(raw_stream_id)
+
+        date_from = date_to_unix(kwargs.get('date_from','2010-01-01'))
+        if 'date_to' not in kwargs:
+            # If date_to is not provided, use the current date
+            # This is to ensure that we always have a valid date range
+            # and avoid issues with missing data.
+           date_to = date_to_unix(datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),'%Y-%m-%d %H:%M:%S')
+        else:
+            date_to = date_to_unix(kwargs.get('date_to'))
+    
+        base_time = date_to_unix(kwargs.get('base_time'))
+        frozen_at = date_to_unix(kwargs.get('frozen_at'))
+
+        if method == 'getRecords':
+            return self.readRecords(stream_id, data_provider, date_from, date_to)
+        elif method == 'getIndexChange':
+            return self.readIndexChange(stream_id, data_provider, date_from, date_to, base_time, frozen_at)
+        elif method == 'get_divergence_index_change':
+            return self.readCustomIndexChange('get_divergence_index_change', date_from, date_to, base_time, frozen_at)
+        else:
+            raise ValueError(f"Unknown method: {method}. Supported methods are 'getRecords' and 'getIndexChange'.")
+
+
+    def readRecords(self, stream_id, data_provider, date_from=None, date_to=None):
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                batches = self.gen_batch(date_from, date_to)
+
+                all_dfs = []
+                for batch_from, batch_to in batches:
+                    records = self.client.get_records(
+                        stream_id=stream_id,
+                        data_provider=data_provider,
+                        date_from=batch_from,
+                        date_to=batch_to
+                    )
+
+                    if len(records):
+                        df = pd.DataFrame(
+                            [(r.EventTime, r.Value) for r in records],
+                            columns=['EventTime', 'Value']
+                        )
+                    else:
+                        df = pd.DataFrame(records, columns=['EventTime', 'Value'])
+                    if not df.empty:
+                        df['EventTime'] = df['EventTime'].apply(
+                            lambda ts: datetime.fromtimestamp(int(ts), tz=timezone.utc)
+                                            .replace(minute=0, second=0, tzinfo=None)
+                        )
+
+                    df = df.rename(columns={
+                        'EventTime': 'date',
+                        'Value': 'value'
+                    })
+                    df['created_at'] = datetime.now(timezone.utc).replace(tzinfo=None)
+                    df['value'] = df['value'].astype(float)
+
+                    all_dfs.append(df)
+
+                if all_dfs:
+                    return pd.concat(all_dfs, ignore_index=True)
+                else:
+                    # empty result
+                    return pd.DataFrame(columns=['date', 'value', 'created_at'])
+            except RuntimeError as e:
+                msg = str(e)
+                if "Stream not found" in msg:
+                    # instead of error, just log debug and return empty
+                    self.logging_manager.log_debug(
+                        f"Stream not found {stream_id} (skipping read): {msg}"
+                    )
+                    return pd.DataFrame(columns=['date', 'value', 'created_at'])
+                
+                if "RPC timeout" in msg or "code = -32001" in msg:
+                    if attempt < MAX_RETRIES:
+                        self.logging_manager.log_warning(
+                            f"[Attempt {attempt} on {stream_id}] RPC timeout, retrying in {QUERY_DELAY*attempt}s..."
+                        )
+                        time.sleep(QUERY_DELAY * attempt)
+                        continue
+                    else:
+                        return _handle_failure(self.logging_manager, "readIndexChange", stream_id, ['date', 'value', 'created_at'])
+                raise
+            except Exception as e:
+                if attempt < MAX_RETRIES:
+                    self.logging_manager.log_exception(
+                        f"[Attempt {attempt} on {stream_id}] Error reading records: {e}"
+                    )
+                    time.sleep(QUERY_DELAY * attempt)
+                else:
+                    return _handle_failure(self.logging_manager, "readRecords", stream_id, ['date', 'value', 'created_at'])      
+    
+    def readIndexChange(self, stream_id, data_provider, date_from=None, date_to=None, base_date = None, frozen_at=None):
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                batches = self.gen_batch(date_from, date_to)
+
+                all_dfs = []
+                for batch_from, batch_to in batches:
+                    records = self.client.get_index(
+                        stream_id=stream_id,
+                        data_provider=data_provider,
+                        date_from=batch_from,
+                        date_to=batch_to,
+                        frozen_at= frozen_at,
+                        base_date= base_date
+                    )
+
+                    if len(records):
+                        df = pd.DataFrame(
+                            [(r.EventTime, r.Value) for r in records],
+                            columns=['EventTime', 'Value']
+                        )
+                    else:
+                        df = pd.DataFrame(records, columns=['EventTime', 'Value'])
+                    if not df.empty:
+                        df['EventTime'] = df['EventTime'].apply(
+                            lambda ts: datetime.fromtimestamp(int(ts), tz=timezone.utc)
+                                            .replace(minute=0, second=0, tzinfo=None)
+                        )
+
+                    df = df.rename(columns={
+                        'EventTime': 'date',
+                        'Value': 'value'
+                    })
+                    df['created_at'] = datetime.now(timezone.utc).replace(tzinfo=None)
+                    df['value'] = df['value'].astype(float)
+
+                    all_dfs.append(df)
+
+                if all_dfs:
+                    return pd.concat(all_dfs, ignore_index=True)
+                else:
+                    # empty result
+                    return pd.DataFrame(columns=['date', 'value', 'created_at'])
+            except RuntimeError as e:
+                msg = str(e)
+                if "Stream not found" in msg:
+                    # instead of error, just log debug and return empty
+                    self.logging_manager.log_debug(
+                        f"Stream not found {stream_id} (skipping read): {msg}"
+                    )
+                    return pd.DataFrame(columns=['date', 'value', 'created_at'])
+                
+                if "RPC timeout" in msg or "code = -32001" in msg:
+                    if attempt < MAX_RETRIES:
+                        self.logging_manager.log_warning(
+                            f"[Attempt {attempt} on {stream_id}] RPC timeout, retrying in {QUERY_DELAY*attempt}s..."
+                        )
+                        time.sleep(QUERY_DELAY * attempt)
+                        continue
+                    else:
+                        return _handle_failure(self.logging_manager, "readIndexChange", stream_id, ['date', 'value', 'created_at'])
+                raise
+            except Exception as e:
+                if attempt < MAX_RETRIES:
+                    self.logging_manager.log_exception(
+                        f"[Attempt {attempt} on {stream_id}] Error reading index change: {e}"
+                    )
+                    time.sleep(QUERY_DELAY * attempt)
+                else:
+                    _handle_failure(self.logging_manager, "readIndexChange", stream_id, ['date', 'value', 'created_at'])
+    
+    def readCustomIndexChange(self, procedure: str, date_from=None, date_to=None, base_date = None, frozen_at=None):
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                year_in_seconds = 31_536_000
+                batches = self.gen_batch(date_from, date_to, year_in_seconds)
+
+                all_dfs = []
+                for batch_from, batch_to in batches:
+                    records = self.client.call_procedure(procedure, [
+                        batch_from,
+                        batch_to,
+                        base_date,
+                        frozen_at,
+                        year_in_seconds
+                    ])
+
+                    df = pd.DataFrame(records['values'], columns=records['column_names'])
+                    if not df.empty:
+                        df['event_time'] = df['event_time'].apply(
+                            lambda ts: datetime.fromtimestamp(int(ts), tz=timezone.utc)
+                                            .replace(minute=0, second=0, tzinfo=None)
+                        )
+
+                    df = df.rename(columns={
+                        'event_time': 'date',
+                        'value': 'value'
+                    })
+                    df['created_at'] = datetime.now(timezone.utc).replace(tzinfo=None)
+                    df['value'] = df['value'].astype(float)
+
+                    all_dfs.append(df)
+
+                if all_dfs:
+                    return pd.concat(all_dfs, ignore_index=True)
+                else:
+                    # empty result
+                    return pd.DataFrame(columns=['date', 'value', 'created_at'])
+            except RuntimeError as e:
+                msg = str(e)
+                if "Stream not found" in msg:
+                    # instead of error, just log debug and return empty
+                    self.logging_manager.log_debug(
+                        f"Stream not found {procedure} (skipping read): {msg}"
+                    )
+                    return pd.DataFrame(columns=['date', 'value', 'created_at'])
+                if "RPC timeout" in msg or "code = -32001" in msg:
+                    if attempt < MAX_RETRIES:
+                        self.logging_manager.log_warning(
+                            f"[Attempt {attempt} on {procedure}] RPC timeout, retrying in {QUERY_DELAY*attempt}s..."
+                        )
+                        time.sleep(QUERY_DELAY * attempt)
+                        continue
+                    else:
+                        return _handle_failure(self.logging_manager, "readIndexChange", procedure, ['date', 'value', 'created_at'])
+                raise
+            except Exception as e:
+                if attempt < MAX_RETRIES:
+                    self.logging_manager.log_exception(
+                        f"[Attempt {attempt} on {procedure}] Error reading custom index change: {e}"
+                    )
+                    time.sleep(QUERY_DELAY * attempt)
+                else:
+                    _handle_failure(self.logging_manager, "readCustomIndexChange",procedure, ['date', 'value', 'created_at'])
+        
+    def write_all(
+            self,
+            data,
+            *args,
+            **kwargs
+    ) -> None:
+        self.logging_manager.log_info('Saving data to TN database...')
+        if 'kwargs' in kwargs and isinstance(kwargs['kwargs'], dict):
+            nested_kwargs = kwargs.pop('kwargs')
+            kwargs = {**kwargs, **nested_kwargs}
+
+        finalize    = kwargs.pop('finalize', False)
+        table       = kwargs.pop('key', kwargs.pop('table', None))
+        insert_mode   = kwargs.pop('if_exists', 'append')
+        batch_key   = kwargs.pop('batch_key', None)
+
+        if table is None and len(args) > 0:
+            table = args[0]
+
+        raw_stream_id, _, data_provider = parse_stream_id(table, self.providers)
+        stream_id = generate_stream_id(raw_stream_id)
+        buffer_key = batch_key or stream_id
+
+        is_empty = data is None or (isinstance(data, pd.DataFrame) and data.empty)
+        if not is_empty:
+            data = data.reset_index()
+            data['date'] = pd.to_datetime(data['date']).astype('int64') // 10**9
+            records = data[['date', 'value']].to_dict(orient='records')
+
+            if buffer_key not in self._batch_buffer:
+                self._batch_buffer[buffer_key] = []
+
+            self._batch_buffer[buffer_key].append({'stream_id': stream_id, 'inputs': records, 'data_provider': data_provider })
+
+        if finalize and buffer_key not in self._batch_buffer:
+            self.logging_manager.log_info(f'No buffered data for {buffer_key}, skipping finalization')
+            return
+
+        if finalize:
+            self.logging_manager.log_info(f'Finalizing batch insert for: {buffer_key}')
+            batches = self._batch_buffer.pop(buffer_key)
+
+            stream_infos: List[StreamLocatorInput] = [
+                {'stream_id': batch['stream_id'], 'data_provider': batch['data_provider']}
+                for batch in batches
+            ]
+
+            exists_result = None
+            for attempt in range(1, MAX_RETRIES + 1):
+                try:
+                    exists_result = self.client.batch_stream_exists(stream_infos)
+                    break
+                except Exception as e:
+                    self.logging_manager.log_exception(
+                        f"[Attempt {attempt}] Error checking stream existence: {e}"
+                    )
+                    if attempt < MAX_RETRIES:
+                        time.sleep(RETRY_DELAY * attempt)
+                    else:
+                        self.logging_manager.log_warning(
+                            f"Could not check stream existence after {MAX_RETRIES} attempts — skipping batch insert for: {buffer_key}"
+                        )
+                        return
+
+            # filter the streams that needs to be created or removed
+            streams_to_create: List[StreamDefinitionInput] = []
+            for result in exists_result:
+                sid = result['stream_id']
+                if not result['exists']:
+                    streams_to_create.append(StreamDefinitionInput(stream_id=sid, stream_type=STREAM_TYPE_PRIMITIVE))
+                elif insert_mode == 'replace':
+                    self.drop_stream(sid)
+                    streams_to_create.append(StreamDefinitionInput(stream_id=sid, stream_type=STREAM_TYPE_PRIMITIVE))
+
+            # create streams that are not deployed
+            if streams_to_create:
+                self.batch_create_streams(streams_to_create)
+
+            # Merge all buffered records per stream (preserving order for revision detection)
+            stream_merged: dict[str, list[dict]] = {}
+            for batch in batches:
+                sid = batch['stream_id']
+                if sid not in stream_merged:
+                    stream_merged[sid] = []
+                stream_merged[sid].extend(batch['inputs'])
+
+            # Split each stream into revision slots (slot 0 = unique dates, slot 1+ = revisions)
+            stream_slots: dict[str, list[list[dict]]] = {
+                sid: _split_revision_slots(records)
+                for sid, records in stream_merged.items()
+            }
+            max_slots = max((len(slots) for slots in stream_slots.values()), default=0)
+
+            # Slot 0 (first occurrence of each date) → BulkInserter for efficiency
+            slot0_batches: List[RecordBatch] = [
+                {'stream_id': sid, 'inputs': slots[0]}
+                for sid, slots in stream_slots.items()
+                if slots
+            ]
+
+            try:
+                tx_hashes = _insert_all_with_timeout(self.batchInserter, slot0_batches)
+                self.logging_manager.log_info(
+                    f'Data saved to TN database successfully. {len(tx_hashes)} tx(s) submitted for: {buffer_key}'
+                )
+                time.sleep(2)
+            except TimeoutError as e:
+                self.logging_manager.log_error(
+                    f"BulkInserter for '{buffer_key}' stalled ({e}) — {len(slot0_batches)} stream(s) — "
+                    f"skipping finalization for this batch instead of blocking the flow indefinitely. "
+                    f"Likely a stuck nonce-retry loop in the TN SDK; verify chain state for this account "
+                    f"before re-running."
+                )
+            except BulkInsertError as e:
+                if e.drain_failure:
+                    self.logging_manager.log_warning(
+                        f"BulkInserter for '{buffer_key}' broadcast all {len(e.tx_hashes)} tx(s) "
+                        f"but timed out waiting for confirmation: {e}"
+                    )
+                else:
+                    self.logging_manager.log_error(
+                        f"BulkInserter failed for '{buffer_key}' at chunk {e.failed_chunk_index} "
+                        f"({len(e.tx_hashes)} tx(s) succeeded before failure): {e}"
+                    )
+                time.sleep(2)
+
+            # Revision slots (1+) → insert_records per stream to preserve each revision
+            # at a distinct block height for frozen_at queries
+            if max_slots > 1:
+                self.logging_manager.log_info(
+                    f'Inserting {max_slots - 1} revision slot(s) for {len(stream_slots)} stream(s): {buffer_key}'
+                )
+                for slot_idx in range(1, max_slots):
+                    for sid, slots in stream_slots.items():
+                        if slot_idx < len(slots):
+                            slot_records = slots[slot_idx]
+                            for i in range(0, len(slot_records), self.batch_size):
+                                chunk = slot_records[i:i + self.batch_size]
+                                try:
+                                    tx = self.client.insert_records(sid, chunk)
+                                    _wait_for_tx(self.client, tx)
+                                except concurrent.futures.TimeoutError:
+                                    self.logging_manager.log_warning(
+                                        f"insert_records revision slot {slot_idx} chunk {i // self.batch_size} for stream '{sid}' timed out after {TX_TIMEOUT}s."
+                                    )
+                                except Exception as e:
+                                    self.logging_manager.log_error(
+                                        f"insert_records revision slot {slot_idx} chunk {i // self.batch_size} for stream '{sid}' failed: {e}"
+                                    )
+
+    def gen_batch(self, date_from, date_to, interval = 31_536_000):
+        batches = []
+        
+        if date_from and date_to:
+            start = date_from  # start from the next second
+            end   = date_to
+            while start < end:
+                batch_end = min(start + interval, end)
+                batches.append((start, batch_end))
+                start = batch_end + 1
+        else:
+            # no batching needed, one single call
+            batches = [(date_from, date_to)]
+        
+        return batches
+
+    def drop_stream(self, stream_id: str):
+        self.logging_manager.log_info(f"Dropping stream '{stream_id}'...")
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                drop_tx = self.client.destroy_stream(stream_id)
+                _wait_for_tx(self.client, drop_tx)
+                self.logging_manager.log_info(f"Stream '{stream_id}' dropped successfully.")
+                return
+            except concurrent.futures.TimeoutError:
+                self.logging_manager.log_warning(
+                    f"[Attempt {attempt}] Drop stream '{stream_id}' timed out after {TX_TIMEOUT}s."
+                )
+            except Exception as e:
+                self.logging_manager.log_error(f"[Attempt {attempt}] Error dropping stream '{stream_id}': {e}")
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY * attempt)
+            else:
+                raise RuntimeError(f"Drop stream '{stream_id}' failed after {MAX_RETRIES} attempts.")
+
+    def batch_create_streams(self, stream_ids: list[StreamDefinitionInput]):
+        self.logging_manager.log_info("Creating streams")
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                stream_tx = self.client.batch_deploy_streams(stream_ids)
+                _wait_for_tx(self.client, stream_tx)
+                log_msg = "Streams created successfully:\n" + "\n".join(f" - {s['stream_id']}" for s in stream_ids)
+                self.logging_manager.log_info(log_msg)
+                return
+            except concurrent.futures.TimeoutError:
+                self.logging_manager.log_warning(
+                    f"[Attempt {attempt}] Stream creation timed out after {TX_TIMEOUT}s."
+                )
+            except Exception as e:
+                self.logging_manager.log_exception(
+                    f"[Attempt {attempt}] Error creating streams: {e}"
+                )
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY * attempt)
+            else:
+                raise RuntimeError(f"Stream creation failed after {MAX_RETRIES} attempts.")
+
+

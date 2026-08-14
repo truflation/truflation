@@ -1,9 +1,9 @@
-import datetime
-import logging
+from datetime import datetime, timezone
+from functools import partial
 import pandas
 from truflation.data.export_details import ExportDetails
 from truflation.data.logging_manager import Logger
-from sqlalchemy import types
+from sqlalchemy import create_engine, types
 
 '''
   Dev Notes
@@ -23,6 +23,13 @@ def round_value(value, base):
 
         return round(value, base_round)
     return value
+
+def localize_date(dt: pandas.Series):
+    """Convert datetime column to naive format (removes timezone) and ensures proper datetime type."""
+    dt = pandas.to_datetime(dt, errors="coerce")  # Convert to datetime first
+    if dt.dt.tz is not None:
+        dt = dt.dt.tz_localize(None)  # Ensure timezone is removed
+    return dt
 
 class Exporter:
     """
@@ -50,9 +57,9 @@ class Exporter:
 
         # create created at for df if none exists (new data)
         if 'created_at' not in df_local:
-            df_local['created_at'] = pandas.to_datetime(datetime.datetime.now(datetime.timezone.utc)).replace(tzinfo=None)
+            df_local['created_at'] = pandas.to_datetime(datetime.now(timezone.utc)).tz_localize(None)
         else:
-            df_local['created_at'] = pandas.to_datetime(df_local['created_at']).replace(tzinfo=None)
+            df_local['created_at'] = localize_date(df_local['created_at'])
 
         # Read in remote database as dataframe
         df_remote = export_details.read()
@@ -62,7 +69,10 @@ class Exporter:
         df_remote = self.reduce_future_created_at(df_remote)
 
         # If remote exists, reconcile and receive the data needing to be added
-        reconcile = self.reconcile_dataframes if export_details.reconcile is None else export_details.reconcile
+        reconcile = (
+            partial(self.reconcile_dataframes, latest_only=export_details.latest_only)
+            if export_details.reconcile is None else export_details.reconcile
+        )
         df_new_data = reconcile(df_remote, df_local) if df_remote is not None and not df_remote.empty else df_local
         if not df_new_data.empty:
             self.logging_manager.log_info(
@@ -75,7 +85,7 @@ class Exporter:
             )
 
         if 'date' in df_local:
-            df_local['date'] = pandas.to_datetime(df_local['date']).replace(tzinfo=None)  # make sure the 'date' column is in datetime format
+            df_local['date'] = localize_date(df_local['date']) # make sure the 'date' column is in datetime format
 
         if not dry_run and not df_new_data.empty:
             # Insert
@@ -95,6 +105,9 @@ class Exporter:
                     export_details,
                     df_new_data
                 )
+        elif not dry_run and not export_details.replace and isinstance(df_local, pandas.DataFrame):
+            # No new data, but still notify the connector so batch writers can finalize
+            export_details.write(df_new_data)
 
         return df_new_data
 
@@ -124,26 +137,35 @@ class Exporter:
         if df is None or 'created_at' not in df:
             return df
         # create mask for timestamps greater than now
-        date_time_now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
-        df['created_at'] = pandas.to_datetime(df['created_at']).replace(tzinfo=None)
+        date_time_now = datetime.now(timezone.utc).replace(tzinfo=None)
+        df['created_at'] = localize_date(df['created_at'])
         mask = df['created_at'] > date_time_now
         # Update those rows
         df.loc[mask, 'created_at'] = date_time_now
         return df
 
     @staticmethod
-    def reconcile_dataframes(df_base: pandas.DataFrame, df_incoming: pandas.DataFrame, rounding: int = 6) -> pandas.DataFrame:
+    def reconcile_dataframes(
+        df_base: pandas.DataFrame, df_incoming: pandas.DataFrame, rounding: int = 6, latest_only: bool = False
+    ) -> pandas.DataFrame:
         """
         Retrieve a dataframe that contains the rows needed to update df_base with the values from df_incoming.
+        Will only skip a row if ALL data columns match (treating NA==NA as equal).
+        Compares all columns except identifiers and created_at.
 
-        Parameters:
-            df_base (pandas.DataFrame): DataFrame to update
-            df_incoming (pandas.DataFrame): Incoming DataFrame with new data
-            rounding (int): Number of decimal places to round numeric columns for comparison (default=6)
-        
-        Returns:
-            pandas.DataFrame: A DataFrame containing rows that need to be added to df_base
+        latest_only: if True, compare incoming rows only against the most recent
+        (by created_at) row per identifier in df_base, instead of all history.
+        Without this, a value that once matched an older row is considered
+        "already seen" forever, even if a bad row was inserted later with a
+        more recent created_at and is now the one being treated as current -
+        the bad row can never be displaced by a correct recompute. Off by
+        default because it trades that self-healing for extra rows when an
+        upstream source flaps between values across runs.
         """
+
+        # If there's no base data, everything incoming is new
+        if df_base is None or df_base.empty:
+            return df_incoming
 
         # Reset index if 'date' is used as an index
         if df_incoming.index.name == 'date':
@@ -152,42 +174,216 @@ class Exporter:
             df_base = df_base.reset_index()
 
         # Convert 'date' columns to datetime
-        df_base['date'] = pandas.to_datetime(df_base['date']).replace(tzinfo=None)
-        df_incoming['date'] = pandas.to_datetime(df_incoming['date']).replace(tzinfo=None)
+        df_base['date'] = localize_date(df_base['date'])
+        df_incoming['date'] = localize_date(df_incoming['date'])
 
-        # Exclude 'created_at' from merge identifiers
-        identifiers = [x for x in df_base.columns if x not in ['created_at']]
+        # Make copies to avoid modifying originals
+        df_base = df_base.copy()
+        df_incoming = df_incoming.copy()
+        
+        # Store original dtypes from incoming (before any conversions)
+        # This is the "source of truth" for column types
+        incoming_original_dtypes = {col: df_incoming[col].dtype for col in df_incoming.columns}
 
-        try:
-            df_new_data = df_incoming.map(lambda x: round_value(x, rounding)).merge(
-                df_base[identifiers].apply(lambda x: round_value(x, rounding)),
-                on=identifiers,
-                how='left',
-                indicator=True
+        # Convert pyarrow dtypes to regular pandas dtypes for consistent comparison
+        # PyArrow types can cause merge and comparison issues
+        for col in df_base.columns:
+            dtype_name = str(df_base[col].dtype)
+            if 'pyarrow' in dtype_name or 'Arrow' in dtype_name:
+                if 'string' in dtype_name:
+                    df_base[col] = df_base[col].astype('object')
+                elif 'double' in dtype_name or 'float' in dtype_name:
+                    df_base[col] = df_base[col].astype('float64')
+                elif 'int' in dtype_name:
+                    df_base[col] = df_base[col].astype('Int64')  # Nullable integer
+                elif 'timestamp' in dtype_name:
+                    df_base[col] = pandas.to_datetime(df_base[col])
+                    
+        for col in df_incoming.columns:
+            dtype_name = str(df_incoming[col].dtype)
+            if 'pyarrow' in dtype_name or 'Arrow' in dtype_name:
+                if 'string' in dtype_name:
+                    df_incoming[col] = df_incoming[col].astype('object')
+                elif 'double' in dtype_name or 'float' in dtype_name:
+                    df_incoming[col] = df_incoming[col].astype('float64')
+                elif 'int' in dtype_name:
+                    df_incoming[col] = df_incoming[col].astype('Int64')  # Nullable integer
+                elif 'timestamp' in dtype_name:
+                    df_incoming[col] = pandas.to_datetime(df_incoming[col])
+
+        # Standardize NA values - but handle identifier vs data columns differently
+        # For string identifier columns: keep as empty string '' for consistency
+        # For data columns: convert to pandas.NA
+        all_cols = list(df_base.columns)
+
+        exclude_from_comparison = ['created_at']
+        
+        data_cols = []
+        id_cols = []
+        
+        for col in all_cols:
+            if col in exclude_from_comparison:
+                continue
+            
+            # Use original incoming dtype as source of truth
+            # This avoids issues where DB columns with all NA values have wrong dtype
+            original_dtype = incoming_original_dtypes.get(col)
+            
+            # Datetime/timestamp columns are always identifiers
+            is_datetime = pandas.api.types.is_datetime64_any_dtype(df_base[col])
+            if original_dtype and pandas.api.types.is_datetime64_any_dtype(original_dtype):
+                is_datetime = True
+            
+            if is_datetime:
+                id_cols.append(col)
+                continue
+            
+            # Check if column is numeric based on original incoming dtype
+            is_numeric = False
+            if original_dtype:
+                is_numeric = pandas.api.types.is_numeric_dtype(original_dtype)
+            else:
+                # Column not in incoming, check base
+                is_numeric = pandas.api.types.is_numeric_dtype(df_base[col])
+            
+            if is_numeric:
+                # Numeric column -> data column
+                data_cols.append(col)
+                continue
+            
+            # String/object columns - check if they contain numeric data
+            has_numeric = False
+            if pandas.api.types.is_string_dtype(df_base[col]) or pandas.api.types.is_object_dtype(df_base[col]):
+                try:
+                    numeric_test = pandas.to_numeric(df_base[col], errors='coerce')
+                    has_numeric = numeric_test.notna().any()
+                except (ValueError, TypeError):
+                    pass
+
+            # Also check the incoming column for numeric content.
+            # This covers cases where the base has an exotic dtype (e.g. decimal128[pyarrow])
+            # that doesn't pass is_string/object_dtype, but the incoming column is a
+            # string/object column whose values are actually numeric.
+            if not has_numeric and col in df_incoming.columns:
+                if original_dtype and (
+                    pandas.api.types.is_string_dtype(original_dtype) or
+                    pandas.api.types.is_object_dtype(original_dtype)
+                ):
+                    try:
+                        numeric_test = pandas.to_numeric(df_incoming[col], errors='coerce')
+                        has_numeric = numeric_test.notna().any()
+                    except (ValueError, TypeError):
+                        pass
+
+            if has_numeric:
+                data_cols.append(col)
+            elif pandas.api.types.is_string_dtype(df_base[col]) or pandas.api.types.is_object_dtype(df_base[col]) or (
+                original_dtype and (
+                    pandas.api.types.is_string_dtype(original_dtype) or
+                    pandas.api.types.is_object_dtype(original_dtype)
+                )
+            ):
+                # String column with no numeric values -> identifier
+                id_cols.append(col)
+            else:
+                # Default: treat as identifier
+                id_cols.append(col)
+        
+        # Safety check: must have at least one identifier column
+        if not id_cols:
+            raise ValueError(f"No identifier columns found! all_cols={all_cols}, data_cols={data_cols}, dtypes={df_base.dtypes.to_dict()}")
+        
+        # Standardize NA values based on column type
+        # For string identifier columns: NULL/None -> '' (empty string) for consistency
+        # For numeric data columns: empty string -> pandas.NA
+        for col in id_cols:
+            if col in df_base.columns:
+                # Convert NULL/None to empty string in identifier columns
+                df_base[col] = df_base[col].fillna('').replace(['nan', 'None', 'null'], '')
+            if col in df_incoming.columns:
+                df_incoming[col] = df_incoming[col].fillna('').replace(['nan', 'None', 'null'], '')
+        
+        for col in data_cols:
+            if col in df_base.columns:
+                # Convert empty strings to pandas.NA in data columns
+                df_base[col] = df_base[col].replace(['', ' ', 'nan', 'None', 'null'], pandas.NA)
+            if col in df_incoming.columns:
+                df_incoming[col] = df_incoming[col].replace(['', ' ', 'nan', 'None', 'null'], pandas.NA)
+
+        # Deduplicate incoming by identifiers + data columns
+        # Keep latest per UNIQUE combination of identifiers AND data values
+        dedup_cols = id_cols + data_cols
+        if 'created_at' in df_incoming.columns:
+            df_incoming_latest = (
+                df_incoming.sort_values('created_at', ascending=False)
+                    .groupby(dedup_cols, as_index=False, dropna=False)
+                    .first()
             )
-            # Filter rows that are only in df_incoming (left_only)
-            df_new_data = df_new_data[df_new_data['_merge'] == 'left_only'].drop('_merge', axis=1)
-        except ValueError as e:
-            self.logging_manager.log_exception(df_base.info())
-            self.logging_manager.log_exception(df_incoming.info())
-            raise e
+        else:
+            df_incoming_latest = df_incoming.drop_duplicates(subset=dedup_cols, keep='last')
+        df_incoming = df_incoming_latest
 
-        # Drop 'index' if it exists after the merge
-        if 'index' in df_new_data.columns:
-            df_new_data = df_new_data.drop(columns=['index'])
+        # Normalize data columns to float64 and round for consistent comparison.
+        # hash_pandas_object treats Python int and float as distinct types even for
+        # numerically equal values (int(4635) != float(4635.0) in the hash), so a
+        # DB float64 column would never match an incoming int64 column without this
+        # cast. to_numeric also handles object columns containing Decimal values.
+        for col in data_cols:
+            if col in df_incoming.columns:
+                df_incoming[col] = pandas.to_numeric(df_incoming[col], errors='coerce').astype('float64')
+                df_incoming[col] = df_incoming[col].map(lambda x: round_value(x, rounding) if pandas.notna(x) else x)
+            if col in df_base.columns:
+                df_base[col] = pandas.to_numeric(df_base[col], errors='coerce').astype('float64')
+                df_base[col] = df_base[col].map(lambda x: round_value(x, rounding) if pandas.notna(x) else x)
 
-        # Drop duplicates
-        columns_filtered = [col for col in df_new_data.columns if col != 'created_at']
-        df_new_data = df_new_data.sort_values(df_new_data.columns.tolist(), ascending=True).drop_duplicates(subset=columns_filtered)
+        # Only insert rows that do not already exist with the same identifiers and data values
+        compare_cols = [col for col in (id_cols + data_cols) if col in df_incoming.columns and col in df_base.columns]
+        if not compare_cols:
+            return df_incoming
 
-        # Set index to 'date' and ensure columns match df_base
-        df_new_data = df_new_data[df_base.columns].set_index(['date'])
+        # NOTE: do not use pandas.util.hash_pandas_object here. Its categorize=True
+        # codepath (factorize-based hashing of object-dtype columns) has been proven
+        # to return a different hash for the *same* value depending on what else is
+        # in the array at scale (confirmed on real data: the same 'date' value hashed
+        # two different ways depending on whether it was row 668055 or 668056 of an
+        # otherwise-identical array). That silently breaks dedup on multi-million-row
+        # tables. A merge-based exact-key join does not have this failure mode.
+        def build_compare_key(df: pandas.DataFrame, cols: list[str]) -> pandas.DataFrame:
+            temp = df[cols].copy()
+            for col in cols:
+                temp[col] = temp[col].astype('object')
+                temp[col] = temp[col].where(~temp[col].isna(), '__TRUFLATION_NA__')
+            return temp
+
+        base_for_compare = df_base
+        if latest_only and 'created_at' in df_base.columns:
+            base_for_compare = (
+                df_base.sort_values('created_at', ascending=False)
+                    .drop_duplicates(subset=id_cols, keep='first')
+            )
+
+        base_keys = build_compare_key(base_for_compare, compare_cols).drop_duplicates()
+        incoming_keys = build_compare_key(df_incoming, compare_cols)
+        merged = incoming_keys.merge(base_keys, on=compare_cols, how='left', indicator=True)
+        keep_mask = (merged['_merge'] == 'left_only').to_numpy()
+
+        df_new_data = df_incoming.iloc[keep_mask].copy()
+
+        # Ensure ordering and types match base columns where possible
+        try:
+            df_new_data = df_new_data[df_base.columns]
+        except Exception:
+            pass
+
+        # Set index to 'date' to match prior behaviour
+        if 'date' in df_new_data.columns:
+            df_new_data = df_new_data.set_index('date')
+
         return df_new_data
-
 
     # todo -- consider making this take in only a dataframe
     # todo -- review, as this was ChatGPT originated
-    def get_frozen_data(self, export_details: ExportDetails, frozen_datetime: datetime.datetime = None) -> pandas.DataFrame:
+    def get_frozen_data(self, export_details: ExportDetails, frozen_datetime: datetime = None) -> pandas.DataFrame:
         """
         Get a dataframe from a database with the most recent date-value pairs such that:
             1. all dates at or before frozen_datetime must contain created_at values before or equal to frozen_datetime
@@ -200,11 +396,11 @@ class Exporter:
         """
 
         # define frozen_date and frozen_datetime
-        frozen_datetime = datetime.datetime.utcnow() if frozen_datetime is None else frozen_datetime
+        frozen_datetime = datetime.now(timezone.utc) if frozen_datetime is None else frozen_datetime
         frozen_date = frozen_datetime.date()
 
         df = export_details.read()
-        df['date'] = pandas.to_datetime(df['date'])  # make sure the 'date' column is in datetime format
+        df['date'] = localize_date(df['date'])  # make sure the 'date' column is in datetime format
 
         # Create new column for the end of the day
         df['endOfDayDatetime'] = (df['date'] + pandas.DateOffset(days=1) - pandas.Timedelta(seconds=1))
@@ -228,35 +424,3 @@ class Exporter:
             df = df.drop(columns=['index'])
 
         return df
-
-
-# ChatGPT Snippet -- gets the most recent data
-# todo -- have a created at function that removes all
-'''# assuming df is your DataFrame and it has columns 'date', 'value', and 'created_at'
-df['date'] = pandas.to_datetime(df['date'])  # make sure the 'date' column is in datetime format
-df = df.sort_values('created_at', ascending=False).drop_duplicates('date').sort_index()
-'''
-
-
-# ChatGPT Snippet --- FrozenDate
-'''
-import pandas as pd
-
-# assuming df is your DataFrame and it has columns 'date', 'value', 'created_at', 'endOfDayTimestamp'
-
-df['date'] = pandas.to_datetime(df['date'])  # make sure the 'date' column is in datetime format
-
-# define your frozen_date and frozen_timestamp
-frozen_date = pandas.to_datetime('yyyy-mm-dd')  # replace with actual frozen date
-frozen_timestamp = 123456789.123456  # replace with actual frozen timestamp
-
-# create conditions for the filter
-cond_before_frozen_date = (df['date'] < frozen_date) & (df['created_at'] < frozen_timestamp)
-cond_after_frozen_date = (df['date'] > frozen_date) & (df['created_at'] < df['endOfDayTimestamp'])
-
-# apply the filter
-df = df[cond_before_frozen_date | cond_after_frozen_date]
-
-# reduce the DataFrame to only contain rows with the latest 'created_at'
-df = df.sort_values('created_at', ascending=False).drop_duplicates('date').sort_index()
-'''

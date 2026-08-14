@@ -10,6 +10,7 @@ Arguments:
 """
 
 import sys
+import os
 import time
 import logging
 import json
@@ -122,6 +123,14 @@ if __name__ == '__main__':
     if args.get('--cron') is None:
         load_path(file_path, None, config)
     else:
-        with open(args['--cron'], encoding='utf-8') as cronh:
-            cron_schedule = json.load(cronh)
-            load_path(file_path, cron_schedule, config)
+        cron_arg = args['--cron']
+        try:
+            if os.path.exists(cron_arg):
+                with open(cron_arg, encoding='utf-8') as cronh:
+                    cron_schedule = json.load(cronh)
+            else:
+                cron_schedule = json.loads(cron_arg)
+        except Exception as e:
+            raise ValueError(f"Failed to parse cron definition: {cron_arg}\nError: {e}")
+        
+        load_path(file_path, cron_schedule, config)

@@ -24,6 +24,11 @@ class ExportDetails(Task):
         The key used for reading and writing data
     replace: (default = False)
         replace the table
+    latest_only: (default = True)
+        when reconciling against existing data, compare incoming rows only
+        against the most recent row per identifier instead of all history,
+        so a corrected value can displace a stale "latest" row. Ignored if
+        a custom `reconcile` callable is supplied.
 
     Methods
     -------
@@ -36,6 +41,7 @@ class ExportDetails(Task):
                  *args,
                  replace: bool = False,
                  reconcile = None,
+                 latest_only: bool = True,
                  create_table = None,
                  **kwargs):
         super().__init__(connector, connector)
@@ -45,6 +51,7 @@ class ExportDetails(Task):
         self.kwargs = kwargs
         self.replace = replace
         self.reconcile = reconcile
+        self.latest_only = latest_only
         self.create_table = create_table
 
     def __repr__(self):
@@ -67,10 +74,11 @@ class ExportDetails(Task):
             return None
 
     def write(self, data: pd.DataFrame, **kwargs):
-        kwargs['key'] = self.key
-        kwargs['if_exists'] = 'replace' if self.replace else 'append'
+        combined_kwargs = {**getattr(self, 'kwargs', {}), **kwargs}
+        combined_kwargs['key'] = self.key
+        combined_kwargs['if_exists'] = 'replace' if self.replace else 'append'
         if data is not None:
-            return self.writer.write_all(data, **kwargs)
+            return self.writer.write_all(data, **combined_kwargs)
         return None
 
 

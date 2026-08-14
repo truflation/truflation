@@ -8,7 +8,6 @@ from .excel import ConnectorExcel
 from .gsheet import ConnectorGoogleSheets
 from .json import ConnectorJson
 from .kwil import ConnectorKwil
-from .pandas_datareader import ConnectorPandasDataReader
 from .rest_to_csv import RestToCsvConnector
 from .rest import ConnectorRest
 from .sql import ConnectorSql
@@ -17,14 +16,21 @@ from .db_handle import get_database_handle
 
 cache_ = Cache()
 
+_tn_instance = None
+def _tn_factory():
+    global _tn_instance
+    if _tn_instance is None:
+        from .trufnetwork import TNConnector
+        _tn_instance = TNConnector()
+    return _tn_instance
+
 def connector_factory(connector_type: str) -> Optional[Connector]:
     # Dictionary mapping for simple cases
     connector_mapping = {
         'excel': ConnectorExcel,
         'rest+http': ConnectorRest,
-        'pandas_datareader': ConnectorPandasDataReader,
         'cache': cache_.connector,
-        'object': ConnectorDirect,
+        'object': ConnectorDirect
     }
     
     # Return connectors directly from the mapping
@@ -52,6 +58,10 @@ def connector_factory(connector_type: str) -> Optional[Connector]:
     sql_prefixes = ['sqlite', 'postgresql', 'mysql', 'mariadb', 'oracle', 'mssql', 'sqlalchemy', 'pybigquery']
     if any(connector_type.startswith(prefix) for prefix in sql_prefixes):
         return ConnectorSql(connector_type)
+    
+    # init external connectors
+    if connector_type == "trufnetwork":
+        return _tn_factory()
 
     # Try external connector factories
     for factory in connector_factory_list:
