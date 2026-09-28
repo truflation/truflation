@@ -1,4 +1,4 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from logging import Logger
 import json
 import math
@@ -9,7 +9,7 @@ import threading
 import traceback
 import time
 import concurrent.futures
-from typing import List, Optional
+from typing import List
 import pandas as pd
 from dotenv import load_dotenv
 
@@ -550,32 +550,6 @@ class TNConnector(Connector):
                     time.sleep(QUERY_DELAY * attempt)
                 else:
                     return _handle_failure(self.logging_manager, "readCustomIndexChange",procedure, ['date', 'value', 'created_at'])
-
-    def _latest_tn_tip(self, stream_id: str, data_provider: str) -> Optional[tuple[float, int]]:
-        """Return (value, event_time) for the newest on-chain tip, or None."""
-        now = datetime.now(timezone.utc)
-        # Look back far enough for daily tips (observation-day or publish-time stamps).
-        date_from = int((now - timedelta(days=60)).timestamp())
-        date_to = int(now.timestamp()) + 3600
-        try:
-            records = self.client.get_records(
-                stream_id=stream_id,
-                data_provider=data_provider,
-                date_from=date_from,
-                date_to=date_to,
-            )
-        except Exception as e:
-            self.logging_manager.log_debug(
-                f'Could not read TN tip for {stream_id}: {e}'
-            )
-            return None
-        if not records:
-            return None
-        latest = max(records, key=lambda r: int(r.EventTime))
-        try:
-            return float(latest.Value), int(latest.EventTime)
-        except (TypeError, ValueError):
-            return None
 
     def write_all(
             self,
