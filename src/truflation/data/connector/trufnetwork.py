@@ -1,12 +1,15 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from logging import Logger
+import json
+import math
 import os
+from pathlib import Path
 import queue
 import threading
 import traceback
 import time
 import concurrent.futures
-from typing import List
+from typing import List, Optional
 import pandas as pd
 from dotenv import load_dotenv
 
@@ -88,6 +91,102 @@ def _split_revision_slots(records: list[dict]) -> list[list[dict]]:
         slots.append(slot)
         pending = leftover
     return slots
+
+
+def _oracle_tip_records(data: pd.DataFrame, event_time: int | None = None) -> list[dict]:
+    """Keep only the newest observation and stamp event_time as publish time.
+
+    TN is used as an oracle tip, not a backfilled observation-day series: when
+    the source DB gains a newly computed value, broadcast that tip with now().
+    Pass broadcast_history=True to write_all to restore full-history inserts.
+    """
+    if data.empty:
+        return []
+    if 'date' not in data.columns or 'value' not in data.columns:
+        raise ValueError("TN write requires 'date' and 'value' columns")
+    tip = data.sort_values('date').tail(1)
+    ts = event_time if event_time is not None else int(datetime.now(timezone.utc).timestamp())
+    return [{'date': ts, 'value': tip['value'].iloc[0]}]
+
+
+def _values_equal(a, b, rel_tol: float = 1e-9, abs_tol: float = 1e-9) -> bool:
+    try:
+        return math.isclose(float(a), float(b), rel_tol=rel_tol, abs_tol=abs_tol)
+    except (TypeError, ValueError):
+        return a == b
+
+
+def _watermark_dir() -> Path:
+    return Path(os.environ.get('TN_WATERMARK_DIR', 'trufnetwork/watermarks'))
+
+
+def _watermark_path(stream_id: str) -> Path:
+    return _watermark_dir() / f'{stream_id}.json'
+
+
+def load_tn_watermark(stream_id: str) -> dict | None:
+    """Last tip we published for this stream: observation_date, value, published_at.
+
+    TN itself only stores publish-time event_time, so the observation day has
+    to live beside the writer.
+    """
+    path = _watermark_path(stream_id)
+    try:
+        with path.open() as f:
+            data = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return None
+    if not isinstance(data, dict) or 'observation_date' not in data:
+        return None
+    return data
+
+
+def save_tn_watermark(stream_id: str, observation_date: str, value, published_at: str) -> None:
+    directory = _watermark_dir()
+    directory.mkdir(parents=True, exist_ok=True)
+    payload = {
+        'observation_date': observation_date,
+        'value': float(value) if _is_number(value) else value,
+        'published_at': published_at,
+    }
+    path = _watermark_path(stream_id)
+    tmp = path.with_suffix('.json.tmp')
+    with tmp.open('w') as f:
+        json.dump(payload, f)
+    tmp.replace(path)
+
+
+def _is_number(value) -> bool:
+    try:
+        float(value)
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
+def _oracle_tip(data: pd.DataFrame) -> tuple[str, object] | None:
+    """Newest observation as (YYYY-MM-DD, value). Empty frame → None."""
+    if data is None or data.empty:
+        return None
+    if 'date' not in data.columns or 'value' not in data.columns:
+        raise ValueError("TN write requires 'date' and 'value' columns")
+    tip = data.sort_values('date').tail(1)
+    obs = pd.to_datetime(tip['date'].iloc[0])
+    return obs.strftime('%Y-%m-%d'), tip['value'].iloc[0]
+
+
+def _should_skip_oracle_tip(obs_date: str, tip_value, watermark: dict | None) -> bool:
+    """Skip only when this is the same observation day and the same value we already published.
+
+    A newer observation day publishes even when the number is unchanged.
+    The same observation day with a different value publishes (the tip was rewritten).
+    No watermark means we have not published this tip state yet.
+    """
+    if not watermark:
+        return False
+    if watermark.get('observation_date') != obs_date:
+        return False
+    return _values_equal(watermark.get('value'), tip_value)
 
 
 def _wait_for_tx(client, tx, timeout=TX_TIMEOUT):
@@ -450,8 +549,34 @@ class TNConnector(Connector):
                     )
                     time.sleep(QUERY_DELAY * attempt)
                 else:
-                    _handle_failure(self.logging_manager, "readCustomIndexChange",procedure, ['date', 'value', 'created_at'])
-        
+                    return _handle_failure(self.logging_manager, "readCustomIndexChange",procedure, ['date', 'value', 'created_at'])
+
+    def _latest_tn_tip(self, stream_id: str, data_provider: str) -> Optional[tuple[float, int]]:
+        """Return (value, event_time) for the newest on-chain tip, or None."""
+        now = datetime.now(timezone.utc)
+        # Look back far enough for daily tips (observation-day or publish-time stamps).
+        date_from = int((now - timedelta(days=60)).timestamp())
+        date_to = int(now.timestamp()) + 3600
+        try:
+            records = self.client.get_records(
+                stream_id=stream_id,
+                data_provider=data_provider,
+                date_from=date_from,
+                date_to=date_to,
+            )
+        except Exception as e:
+            self.logging_manager.log_debug(
+                f'Could not read TN tip for {stream_id}: {e}'
+            )
+            return None
+        if not records:
+            return None
+        latest = max(records, key=lambda r: int(r.EventTime))
+        try:
+            return float(latest.Value), int(latest.EventTime)
+        except (TypeError, ValueError):
+            return None
+
     def write_all(
             self,
             data,
@@ -467,6 +592,9 @@ class TNConnector(Connector):
         table       = kwargs.pop('key', kwargs.pop('table', None))
         insert_mode   = kwargs.pop('if_exists', 'append')
         batch_key   = kwargs.pop('batch_key', None)
+        # Default: oracle tip only (latest value + event_time=now()). Set
+        # broadcast_history=True to push the full dated series (legacy).
+        broadcast_history = kwargs.pop('broadcast_history', False)
 
         if table is None and len(args) > 0:
             table = args[0]
@@ -478,13 +606,43 @@ class TNConnector(Connector):
         is_empty = data is None or (isinstance(data, pd.DataFrame) and data.empty)
         if not is_empty:
             data = data.reset_index()
-            data['date'] = pd.to_datetime(data['date']).astype('int64') // 10**9
-            records = data[['date', 'value']].to_dict(orient='records')
+            data['date'] = pd.to_datetime(data['date'])
+            obs_date = None
+            if broadcast_history:
+                data['date'] = data['date'].astype('int64') // 10**9
+                records = data[['date', 'value']].to_dict(orient='records')
+            else:
+                tip = _oracle_tip(data)
+                if tip is None:
+                    records = []
+                    obs_date = None
+                else:
+                    obs_date, tip_value = tip
+                    watermark = load_tn_watermark(stream_id)
+                    if _should_skip_oracle_tip(obs_date, tip_value, watermark):
+                        self.logging_manager.log_info(
+                            f'Oracle tip unchanged for {table} '
+                            f'(observation_date={obs_date}, value={tip_value}); skipping write'
+                        )
+                        records = []
+                    else:
+                        records = _oracle_tip_records(data)
+                        self.logging_manager.log_info(
+                            f'Oracle tip mode: 1 record event_time=now() for {table} '
+                            f'observation_date={obs_date}'
+                        )
 
-            if buffer_key not in self._batch_buffer:
-                self._batch_buffer[buffer_key] = []
-
-            self._batch_buffer[buffer_key].append({'stream_id': stream_id, 'inputs': records, 'data_provider': data_provider })
+            if records:
+                if buffer_key not in self._batch_buffer:
+                    self._batch_buffer[buffer_key] = []
+                entry = {
+                    'stream_id': stream_id,
+                    'inputs': records,
+                    'data_provider': data_provider,
+                }
+                if not broadcast_history and obs_date is not None:
+                    entry['observation_date'] = obs_date
+                self._batch_buffer[buffer_key].append(entry)
 
         if finalize and buffer_key not in self._batch_buffer:
             self.logging_manager.log_info(f'No buffered data for {buffer_key}, skipping finalization')
@@ -552,8 +710,10 @@ class TNConnector(Connector):
                 if slots
             ]
 
+            inserted = False
             try:
                 tx_hashes = _insert_all_with_timeout(self.batchInserter, slot0_batches)
+                inserted = True
                 self.logging_manager.log_info(
                     f'Data saved to TN database successfully. {len(tx_hashes)} tx(s) submitted for: {buffer_key}'
                 )
@@ -577,6 +737,18 @@ class TNConnector(Connector):
                         f"({len(e.tx_hashes)} tx(s) succeeded before failure): {e}"
                     )
                 time.sleep(2)
+
+            if inserted:
+                published_at = datetime.now(timezone.utc).isoformat()
+                seen: set[str] = set()
+                for batch in reversed(batches):
+                    sid = batch.get('stream_id')
+                    obs = batch.get('observation_date')
+                    if not sid or not obs or sid in seen:
+                        continue
+                    seen.add(sid)
+                    value = batch['inputs'][-1]['value'] if batch.get('inputs') else None
+                    save_tn_watermark(sid, obs, value, published_at)
 
             # Revision slots (1+) → insert_records per stream to preserve each revision
             # at a distinct block height for frozen_at queries
