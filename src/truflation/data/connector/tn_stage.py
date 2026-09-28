@@ -107,8 +107,12 @@ def recover_processing(root: Path | None = None) -> list[Path]:
     return moved
 
 
-def read_actionable(root: Path | None = None) -> list[tuple[Path, dict]]:
-    """Pending files plus failed files from an earlier drain, oldest name first."""
+def read_actionable(root: Path | None = None) -> tuple[list[tuple[Path, dict]], list[tuple[Path, str]]]:
+    """Pending files plus failed files from an earlier drain, oldest name first.
+
+    The second list is files that could not be parsed. Callers should log them
+    and move them to ``failed/`` so a bad file does not sit in ``pending/`` forever.
+    """
     root = root or tn_root()
     found: list[Path] = []
     for folder in ('pending', 'failed'):
@@ -116,15 +120,19 @@ def read_actionable(root: Path | None = None) -> list[tuple[Path, dict]]:
         if directory.is_dir():
             found.extend(directory.glob('*.json'))
     payloads = []
+    bad: list[tuple[Path, str]] = []
     for path in sorted(found, key=lambda item: item.name):
         try:
             with path.open() as handle:
                 payload = json.load(handle)
-        except (OSError, json.JSONDecodeError):
+        except (OSError, json.JSONDecodeError) as err:
+            bad.append((path, str(err)))
             continue
         if isinstance(payload, dict):
             payloads.append((path, payload))
-    return payloads
+        else:
+            bad.append((path, 'payload is not an object'))
+    return payloads, bad
 
 
 @dataclass
@@ -171,6 +179,49 @@ def plan_drain(payloads: list[tuple[Path, dict]], scope: str) -> DrainPlan:
     for _sid, (_created, _path, stream, insert_mode) in best.items():
         streams.append({**stream, 'if_exists': insert_mode})
     return DrainPlan(streams=streams, source_files=sorted(source), superseded_files=superseded)
+
+
+def unpublished_streams(streams: list[dict], load_watermark, should_skip) -> tuple[list[dict], list[dict]]:
+    """Drop tips whose observation day and value already match the watermark.
+
+    A recovered processing file must not be broadcast again after slot-0
+    already saved the watermark. History rows have no observation_date and
+    are always kept.
+    """
+    send: list[dict] = []
+    skip: list[dict] = []
+    for stream in streams:
+        records = stream.get('records') or []
+        value = records[-1].get('value') if records else None
+        obs = stream.get('observation_date')
+        if obs and should_skip(obs, value, load_watermark(stream.get('stream_id'))):
+            skip.append(stream)
+            continue
+        send.append(stream)
+    return send, skip
+
+
+def freeze_event_time(payload: dict, event_time: int) -> dict:
+    """Stamp event_time once and keep it on retry.
+
+    ``rewrite_event_time`` is cleared so a later drain does not mint a second
+    on-chain date for the same staged tip.
+    """
+    for stream in payload.get('streams') or []:
+        if not stream.get('rewrite_event_time', True):
+            continue
+        for rec in stream.get('records') or []:
+            if rec.get('date') is None:
+                rec['date'] = int(event_time)
+        stream['rewrite_event_time'] = False
+    return payload
+
+
+def write_payload(path: Path, payload: dict) -> None:
+    tmp = path.with_suffix('.json.tmp')
+    with tmp.open('w') as handle:
+        json.dump(payload, handle)
+    tmp.replace(path)
 
 
 def stamp_streams(streams: list[dict], event_time: int) -> list[dict]:

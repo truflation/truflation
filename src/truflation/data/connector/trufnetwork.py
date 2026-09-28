@@ -15,14 +15,16 @@ from dotenv import load_dotenv
 
 from .base import Connector
 from .tn_stage import (
+    freeze_event_time,
     plan_drain,
     read_actionable,
     recover_processing,
     relocate,
     stage_batches,
-    stamp_streams,
     tn_root,
     tn_write_mode,
+    unpublished_streams,
+    write_payload,
 )
 
 from trufnetwork_sdk_py import TNClient, STREAM_TYPE_PRIMITIVE, StreamDefinitionInput, RecordBatch, StreamLocatorInput, BulkInserter, BulkInsertError
@@ -124,6 +126,19 @@ def _values_equal(a, b, rel_tol: float = 1e-9, abs_tol: float = 1e-9) -> bool:
         return math.isclose(float(a), float(b), rel_tol=rel_tol, abs_tol=abs_tol)
     except (TypeError, ValueError):
         return a == b
+
+
+def _save_batch_watermarks(batches: list) -> None:
+    published_at = datetime.now(timezone.utc).isoformat()
+    seen: set[str] = set()
+    for batch in reversed(batches):
+        sid = batch.get('stream_id')
+        obs = batch.get('observation_date')
+        if not sid or not obs or sid in seen:
+            continue
+        seen.add(sid)
+        value = batch['inputs'][-1]['value'] if batch.get('inputs') else None
+        save_tn_watermark(sid, obs, value, published_at)
 
 
 def _watermark_dir() -> Path:
@@ -659,43 +674,112 @@ class TNConnector(Connector):
     def drain_pending(self, scope: str) -> bool:
         """Broadcast staged tips for ``scope`` (``default`` or ``us``).
 
-        Returns True when there was nothing to send or the insert succeeded.
-        Failed files stay in ``failed/`` and are retried on the next drain.
-        The newest file per stream wins; older files are moved to ``done/``
-        without a second insert. Watermarks update only after a successful insert.
+        Returns True when there was nothing to send or every insert group
+        finished (confirmed, or broadcast but unconfirmed). Tips already stored
+        in the watermark are not sent again. Older files stay in ``pending/``
+        until the newest insert finishes. ``if_exists=replace`` applies only to
+        the streams that asked for it.
         """
         root = tn_root()
         recover_processing(root)
-        plan = plan_drain(read_actionable(root), scope)
-        for path in plan.superseded_files:
-            relocate(path, root / 'done')
-        if not plan.streams:
+        payloads, bad = read_actionable(root)
+        for path, err in bad:
+            self.logging_manager.log_error(f'Invalid staged TN file {path}: {err}')
+            if path.parent.name != 'failed':
+                relocate(path, root / 'failed')
+
+        plan = plan_drain(payloads, scope)
+        by_path = {path: payload for path, payload in payloads}
+        send, skipped = unpublished_streams(
+            plan.streams, load_tn_watermark, _should_skip_oracle_tip,
+        )
+        if skipped:
+            self.logging_manager.log_info(
+                f'Skipping {len(skipped)} staged TN stream(s) already in the watermark'
+            )
+        send_ids = {stream.get('stream_id') for stream in send}
+
+        def _owns_unsent(path: Path) -> bool:
+            payload = by_path.get(path) or {}
+            return any(
+                stream.get('stream_id') in send_ids
+                for stream in payload.get('streams') or []
+            )
+
+        already_published = [path for path in plan.source_files if not _owns_unsent(path)]
+        files_to_send = [path for path in plan.source_files if _owns_unsent(path)]
+
+        if not files_to_send:
+            for path in already_published + plan.superseded_files:
+                relocate(path, root / 'done')
             self.logging_manager.log_info(f'No staged TN batches for scope={scope}')
             return True
 
-        claimed = [relocate(path, root / 'processing') for path in plan.source_files]
-        event_time = int(datetime.now(timezone.utc).timestamp())
-        batches = []
-        for stream in stamp_streams(plan.streams, event_time):
-            batches.append({
-                'stream_id': stream['stream_id'],
-                'data_provider': stream.get('data_provider'),
-                'inputs': stream.get('records') or [],
-                'observation_date': stream.get('observation_date'),
-            })
-        insert_mode = 'replace' if any(s.get('if_exists') == 'replace' for s in plan.streams) else 'append'
-        inserted = self.insert_batches(batches, f'drain-{scope}', insert_mode)
-        dest = 'done' if inserted else 'failed'
-        for path in claimed:
-            relocate(path, root / dest)
-        if inserted:
-            self.logging_manager.log_info(
-                f'Broadcast {len(batches)} staged TN stream(s) for scope={scope}'
-            )
-        return inserted
+        for path in already_published:
+            relocate(path, root / 'done')
 
-    def insert_batches(self, batches: list, buffer_key: str, insert_mode: str) -> bool:
-        """Insert prepared records and save watermarks only after slot-0 succeeds."""
+        event_time = int(datetime.now(timezone.utc).timestamp())
+        claimed: list[tuple[Path, dict]] = []
+        for path in files_to_send:
+            payload = by_path[path]
+            new_path = relocate(path, root / 'processing')
+            freeze_event_time(payload, event_time)
+            write_payload(new_path, payload)
+            claimed.append((new_path, payload))
+
+        grouped: dict[str, list] = {'append': [], 'replace': []}
+        for _path, payload in claimed:
+            mode = payload.get('if_exists') or 'append'
+            if mode not in grouped:
+                mode = 'append'
+            for stream in payload.get('streams') or []:
+                if stream.get('stream_id') not in send_ids:
+                    continue
+                grouped[mode].append({
+                    'stream_id': stream['stream_id'],
+                    'data_provider': stream.get('data_provider'),
+                    'inputs': stream.get('records') or [],
+                    'observation_date': stream.get('observation_date'),
+                })
+
+        unconfirmed: list = []
+        failed = False
+        for mode in ('append', 'replace'):
+            group = grouped[mode]
+            if not group:
+                continue
+            status = self.insert_batches(group, f'drain-{scope}-{mode}', mode)
+            if status == 'unconfirmed':
+                unconfirmed.extend(group)
+            elif status != 'ok':
+                failed = True
+                break
+
+        if failed:
+            _save_batch_watermarks(unconfirmed)
+            for path, _payload in claimed:
+                relocate(path, root / 'failed')
+            return False
+
+        _save_batch_watermarks(unconfirmed)
+        for path, _payload in claimed:
+            relocate(path, root / 'done')
+        for path in plan.superseded_files:
+            relocate(path, root / 'done')
+        sent = len(grouped['append']) + len(grouped['replace'])
+        self.logging_manager.log_info(
+            f'Broadcast {sent} staged TN stream(s) for scope={scope}'
+        )
+        return True
+
+    def insert_batches(self, batches: list, buffer_key: str, insert_mode: str) -> str:
+        """Insert prepared records.
+
+        Returns ``ok`` after a confirmed slot-0 insert (watermark saved),
+        ``unconfirmed`` when every tx was broadcast but confirmation timed out
+        (caller saves the watermark and must not retry with a new event_time),
+        or ``failed`` when the insert did not finish.
+        """
         stream_infos: List[StreamLocatorInput] = [
                 {'stream_id': batch['stream_id'], 'data_provider': batch['data_provider']}
                 for batch in batches
@@ -716,7 +800,7 @@ class TNConnector(Connector):
                     self.logging_manager.log_warning(
                         f"Could not check stream existence after {MAX_RETRIES} attempts — skipping batch insert for: {buffer_key}"
                     )
-                    return False
+                    return 'failed'
 
         # filter the streams that needs to be created or removed
         streams_to_create: List[StreamDefinitionInput] = []
@@ -769,30 +853,23 @@ class TNConnector(Connector):
                 f"Likely a stuck nonce-retry loop in the TN SDK; verify chain state for this account "
                 f"before re-running."
             )
+            return 'failed'
         except BulkInsertError as e:
             if e.drain_failure:
                 self.logging_manager.log_warning(
                     f"BulkInserter for '{buffer_key}' broadcast all {len(e.tx_hashes)} tx(s) "
                     f"but timed out waiting for confirmation: {e}"
                 )
-            else:
-                self.logging_manager.log_error(
-                    f"BulkInserter failed for '{buffer_key}' at chunk {e.failed_chunk_index} "
-                    f"({len(e.tx_hashes)} tx(s) succeeded before failure): {e}"
-                )
+                return 'unconfirmed'
+            self.logging_manager.log_error(
+                f"BulkInserter failed for '{buffer_key}' at chunk {e.failed_chunk_index} "
+                f"({len(e.tx_hashes)} tx(s) succeeded before failure): {e}"
+            )
             time.sleep(2)
+            return 'failed'
 
         if inserted:
-            published_at = datetime.now(timezone.utc).isoformat()
-            seen: set[str] = set()
-            for batch in reversed(batches):
-                sid = batch.get('stream_id')
-                obs = batch.get('observation_date')
-                if not sid or not obs or sid in seen:
-                    continue
-                seen.add(sid)
-                value = batch['inputs'][-1]['value'] if batch.get('inputs') else None
-                save_tn_watermark(sid, obs, value, published_at)
+            _save_batch_watermarks(batches)
 
         # Revision slots (1+) → insert_records per stream to preserve each revision
         # at a distinct block height for frozen_at queries
@@ -818,7 +895,7 @@ class TNConnector(Connector):
                                     f"insert_records revision slot {slot_idx} chunk {i // self.batch_size} for stream '{sid}' failed: {e}"
                                 )
 
-        return inserted
+        return 'ok' if inserted else 'failed'
 
     def gen_batch(self, date_from, date_to, interval = 31_536_000):
         batches = []
