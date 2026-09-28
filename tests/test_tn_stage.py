@@ -4,12 +4,15 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from truflation.data.connector.tn_stage import (
+    freeze_event_time,
+    group_send_batches,
     is_us_gated_batch,
     plan_drain,
     read_actionable,
     recover_processing,
     stage_batches,
     stamp_streams,
+    unpublished_streams,
 )
 
 
@@ -47,13 +50,13 @@ class TestTnStage(unittest.TestCase):
             self.assertNotIn('date', stored['streams'][0]['records'][0])
             self.assertEqual(json.loads(us.read_text())['gate'], 'us')
 
-            default_plan = plan_drain(read_actionable(root), 'default')
+            default_plan = plan_drain(read_actionable(root)[0], 'default')
             self.assertEqual(default_plan.source_files, [newer])
             self.assertEqual(default_plan.superseded_files, [older])
             self.assertEqual(default_plan.streams[0]['records'][0]['value'], 2.5)
             self.assertTrue(us.is_file())
 
-            us_plan = plan_drain(read_actionable(root), 'us')
+            us_plan = plan_drain(read_actionable(root)[0], 'us')
             self.assertEqual(us_plan.source_files, [us])
             self.assertEqual(us_plan.superseded_files, [])
 
@@ -84,6 +87,73 @@ class TestTnStage(unittest.TestCase):
             self.assertEqual(len(recovered), 1)
             self.assertEqual(recovered[0].parent, root / 'pending')
             self.assertFalse(moved.exists())
+
+    def test_watermark_match_is_not_sent_again(self):
+        streams = [
+            {'stream_id': 'stuk', 'observation_date': '2026-09-27', 'records': [{'value': 2.5}]},
+            {'stream_id': 'stus', 'observation_date': '2026-09-27', 'records': [{'value': 9.0}]},
+        ]
+        watermarks = {'stuk': {'observation_date': '2026-09-27', 'value': 2.5}}
+
+        def should_skip(obs, value, watermark):
+            return bool(watermark) and watermark.get('observation_date') == obs and watermark.get('value') == value
+
+        send, skip = unpublished_streams(streams, watermarks.get, should_skip)
+        self.assertEqual([s['stream_id'] for s in skip], ['stuk'])
+        self.assertEqual([s['stream_id'] for s in send], ['stus'])
+
+    def test_event_time_is_frozen_after_the_first_stamp(self):
+        payload = {
+            'streams': [{
+                'stream_id': 'stuk',
+                'rewrite_event_time': True,
+                'records': [{'value': 2.5}],
+            }],
+        }
+        freeze_event_time(payload, 100)
+        freeze_event_time(payload, 999)
+        self.assertEqual(payload['streams'][0]['records'][0]['date'], 100)
+        self.assertFalse(payload['streams'][0]['rewrite_event_time'])
+
+    def test_shared_file_does_not_queue_the_older_copy(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            stage_batches(
+                'cpi-uk_frozen',
+                [_batch('uk_index', 100), _batch('uk_yoy', 2.0)],
+                'append',
+                root,
+            )
+            stage_batches(
+                'cpi-uk_frozen',
+                [_batch('uk_yoy', 2.4)],
+                'append',
+                root,
+            )
+            payloads, _errors = read_actionable(root)
+            plan = plan_drain(payloads, 'default')
+            for path, payload in payloads:
+                if path in plan.source_files:
+                    freeze_event_time(payload, 1_700_000_000)
+            queued = group_send_batches(plan.streams)['append']
+            by_stream = {}
+            for row in queued:
+                by_stream.setdefault(row['stream_id'], []).append(row['inputs'][0]['value'])
+            self.assertEqual(by_stream['uk_index'], [100])
+            self.assertEqual(by_stream['uk_yoy'], [2.4])
+            self.assertEqual({row['inputs'][0]['date'] for row in queued}, {1_700_000_000})
+
+    def test_invalid_json_is_reported(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pending = root / 'pending'
+            pending.mkdir()
+            bad = pending / 'broken.json'
+            bad.write_text('{')
+            payloads, errors = read_actionable(root)
+            self.assertEqual(payloads, [])
+            self.assertEqual(errors[0][0], bad)
+            self.assertTrue(bad.is_file())
 
 
 if __name__ == '__main__':
