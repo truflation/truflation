@@ -181,6 +181,26 @@ def plan_drain(payloads: list[tuple[Path, dict]], scope: str) -> DrainPlan:
     return DrainPlan(streams=streams, source_files=sorted(source), superseded_files=superseded)
 
 
+def group_send_batches(streams: list[dict]) -> dict[str, list]:
+    """One insert row per winning stream.
+
+    A file that won for one stream can still hold an older copy of another.
+    Callers must pass the winning records only, not every stream in that file.
+    """
+    grouped: dict[str, list] = {'append': [], 'replace': []}
+    for stream in streams:
+        mode = stream.get('if_exists') or 'append'
+        if mode not in grouped:
+            mode = 'append'
+        grouped[mode].append({
+            'stream_id': stream.get('stream_id'),
+            'data_provider': stream.get('data_provider'),
+            'inputs': stream.get('records') or [],
+            'observation_date': stream.get('observation_date'),
+        })
+    return grouped
+
+
 def unpublished_streams(streams: list[dict], load_watermark, should_skip) -> tuple[list[dict], list[dict]]:
     """Drop tips whose observation day and value already match the watermark.
 

@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 from .base import Connector
 from .tn_stage import (
     freeze_event_time,
+    group_send_batches,
     plan_drain,
     read_actionable,
     recover_processing,
@@ -727,20 +728,7 @@ class TNConnector(Connector):
             write_payload(new_path, payload)
             claimed.append((new_path, payload))
 
-        grouped: dict[str, list] = {'append': [], 'replace': []}
-        for _path, payload in claimed:
-            mode = payload.get('if_exists') or 'append'
-            if mode not in grouped:
-                mode = 'append'
-            for stream in payload.get('streams') or []:
-                if stream.get('stream_id') not in send_ids:
-                    continue
-                grouped[mode].append({
-                    'stream_id': stream['stream_id'],
-                    'data_provider': stream.get('data_provider'),
-                    'inputs': stream.get('records') or [],
-                    'observation_date': stream.get('observation_date'),
-                })
+        grouped = group_send_batches(send)
 
         unconfirmed: list = []
         failed = False
