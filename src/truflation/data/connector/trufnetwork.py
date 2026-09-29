@@ -14,6 +14,19 @@ import pandas as pd
 from dotenv import load_dotenv
 
 from .base import Connector
+from .tn_stage import (
+    freeze_event_time,
+    group_send_batches,
+    plan_drain,
+    read_actionable,
+    recover_processing,
+    relocate,
+    stage_batches,
+    tn_root,
+    tn_write_mode,
+    unpublished_streams,
+    write_payload,
+)
 
 from trufnetwork_sdk_py import TNClient, STREAM_TYPE_PRIMITIVE, StreamDefinitionInput, RecordBatch, StreamLocatorInput, BulkInserter, BulkInsertError
 from trufnetwork_sdk_py.utils import generate_stream_id
@@ -116,8 +129,24 @@ def _values_equal(a, b, rel_tol: float = 1e-9, abs_tol: float = 1e-9) -> bool:
         return a == b
 
 
+def _save_batch_watermarks(batches: list) -> None:
+    published_at = datetime.now(timezone.utc).isoformat()
+    seen: set[str] = set()
+    for batch in reversed(batches):
+        sid = batch.get('stream_id')
+        obs = batch.get('observation_date')
+        if not sid or not obs or sid in seen:
+            continue
+        seen.add(sid)
+        value = batch['inputs'][-1]['value'] if batch.get('inputs') else None
+        save_tn_watermark(sid, obs, value, published_at)
+
+
 def _watermark_dir() -> Path:
-    return Path(os.environ.get('TN_WATERMARK_DIR', 'trufnetwork/watermarks'))
+    override = os.environ.get('TN_WATERMARK_DIR')
+    if override:
+        return Path(override)
+    return tn_root() / 'watermarks'
 
 
 def _watermark_path(stream_id: str) -> Path:
@@ -566,9 +595,11 @@ class TNConnector(Connector):
         table       = kwargs.pop('key', kwargs.pop('table', None))
         insert_mode   = kwargs.pop('if_exists', 'append')
         batch_key   = kwargs.pop('batch_key', None)
-        # Default: oracle tip only (latest value + event_time=now()). Set
-        # broadcast_history=True to push the full dated series (legacy).
+        # Default: oracle tip only. live mode stamps event_time=now() here.
+        # stage mode stores the tip value and stamps event_time at drain time.
+        # broadcast_history=True pushes the full dated series (legacy).
         broadcast_history = kwargs.pop('broadcast_history', False)
+        write_mode = tn_write_mode()
 
         if table is None and len(args) > 0:
             table = args[0]
@@ -600,11 +631,20 @@ class TNConnector(Connector):
                         )
                         records = []
                     else:
-                        records = _oracle_tip_records(data)
-                        self.logging_manager.log_info(
-                            f'Oracle tip mode: 1 record event_time=now() for {table} '
-                            f'observation_date={obs_date}'
-                        )
+                        if write_mode == 'stage':
+                            records = [{
+                                'value': float(tip_value) if _is_number(tip_value) else tip_value,
+                            }]
+                            self.logging_manager.log_info(
+                                f'Oracle tip staged for {table} '
+                                f'observation_date={obs_date} (event_time set at broadcast)'
+                            )
+                        else:
+                            records = _oracle_tip_records(data)
+                            self.logging_manager.log_info(
+                                f'Oracle tip mode: 1 record event_time=now() for {table} '
+                                f'observation_date={obs_date}'
+                            )
 
             if records:
                 if buffer_key not in self._batch_buffer:
@@ -613,6 +653,7 @@ class TNConnector(Connector):
                     'stream_id': stream_id,
                     'inputs': records,
                     'data_provider': data_provider,
+                    'rewrite_event_time': write_mode == 'stage' and not broadcast_history,
                 }
                 if not broadcast_history and obs_date is not None:
                     entry['observation_date'] = obs_date
@@ -625,128 +666,224 @@ class TNConnector(Connector):
         if finalize:
             self.logging_manager.log_info(f'Finalizing batch insert for: {buffer_key}')
             batches = self._batch_buffer.pop(buffer_key)
+            if write_mode == 'stage':
+                path = stage_batches(buffer_key, batches, insert_mode)
+                self.logging_manager.log_info(f'Staged TN batch for: {buffer_key} → {path}')
+                return
+            self.insert_batches(batches, buffer_key, insert_mode)
 
-            stream_infos: List[StreamLocatorInput] = [
+    def drain_pending(self, scope: str) -> bool:
+        """Broadcast staged tips for ``scope`` (``default`` or ``us``).
+
+        Returns True when there was nothing to send or every insert group
+        finished (confirmed, or broadcast but unconfirmed). Tips already stored
+        in the watermark are not sent again. Older files stay in ``pending/``
+        until the newest insert finishes. ``if_exists=replace`` applies only to
+        the streams that asked for it.
+        """
+        root = tn_root()
+        recover_processing(root)
+        payloads, bad = read_actionable(root)
+        for path, err in bad:
+            self.logging_manager.log_error(f'Invalid staged TN file {path}: {err}')
+            if path.parent.name != 'failed':
+                relocate(path, root / 'failed')
+
+        plan = plan_drain(payloads, scope)
+        by_path = {path: payload for path, payload in payloads}
+        send, skipped = unpublished_streams(
+            plan.streams, load_tn_watermark, _should_skip_oracle_tip,
+        )
+        if skipped:
+            self.logging_manager.log_info(
+                f'Skipping {len(skipped)} staged TN stream(s) already in the watermark'
+            )
+        send_ids = {stream.get('stream_id') for stream in send}
+
+        def _owns_unsent(path: Path) -> bool:
+            payload = by_path.get(path) or {}
+            return any(
+                stream.get('stream_id') in send_ids
+                for stream in payload.get('streams') or []
+            )
+
+        already_published = [path for path in plan.source_files if not _owns_unsent(path)]
+        files_to_send = [path for path in plan.source_files if _owns_unsent(path)]
+
+        if not files_to_send:
+            for path in already_published + plan.superseded_files:
+                relocate(path, root / 'done')
+            self.logging_manager.log_info(f'No staged TN batches for scope={scope}')
+            return True
+
+        for path in already_published:
+            relocate(path, root / 'done')
+
+        event_time = int(datetime.now(timezone.utc).timestamp())
+        claimed: list[tuple[Path, dict]] = []
+        for path in files_to_send:
+            payload = by_path[path]
+            new_path = relocate(path, root / 'processing')
+            freeze_event_time(payload, event_time)
+            write_payload(new_path, payload)
+            claimed.append((new_path, payload))
+
+        grouped = group_send_batches(send)
+
+        unconfirmed: list = []
+        failed = False
+        for mode in ('append', 'replace'):
+            group = grouped[mode]
+            if not group:
+                continue
+            status = self.insert_batches(group, f'drain-{scope}-{mode}', mode)
+            if status == 'unconfirmed':
+                unconfirmed.extend(group)
+            elif status != 'ok':
+                failed = True
+                break
+
+        if failed:
+            _save_batch_watermarks(unconfirmed)
+            for path, _payload in claimed:
+                relocate(path, root / 'failed')
+            return False
+
+        _save_batch_watermarks(unconfirmed)
+        for path, _payload in claimed:
+            relocate(path, root / 'done')
+        for path in plan.superseded_files:
+            relocate(path, root / 'done')
+        sent = len(grouped['append']) + len(grouped['replace'])
+        self.logging_manager.log_info(
+            f'Broadcast {sent} staged TN stream(s) for scope={scope}'
+        )
+        return True
+
+    def insert_batches(self, batches: list, buffer_key: str, insert_mode: str) -> str:
+        """Insert prepared records.
+
+        Returns ``ok`` after a confirmed slot-0 insert (watermark saved),
+        ``unconfirmed`` when every tx was broadcast but confirmation timed out
+        (caller saves the watermark and must not retry with a new event_time),
+        or ``failed`` when the insert did not finish.
+        """
+        stream_infos: List[StreamLocatorInput] = [
                 {'stream_id': batch['stream_id'], 'data_provider': batch['data_provider']}
                 for batch in batches
             ]
 
-            exists_result = None
-            for attempt in range(1, MAX_RETRIES + 1):
-                try:
-                    exists_result = self.client.batch_stream_exists(stream_infos)
-                    break
-                except Exception as e:
-                    self.logging_manager.log_exception(
-                        f"[Attempt {attempt}] Error checking stream existence: {e}"
-                    )
-                    if attempt < MAX_RETRIES:
-                        time.sleep(RETRY_DELAY * attempt)
-                    else:
-                        self.logging_manager.log_warning(
-                            f"Could not check stream existence after {MAX_RETRIES} attempts — skipping batch insert for: {buffer_key}"
-                        )
-                        return
-
-            # filter the streams that needs to be created or removed
-            streams_to_create: List[StreamDefinitionInput] = []
-            for result in exists_result:
-                sid = result['stream_id']
-                if not result['exists']:
-                    streams_to_create.append(StreamDefinitionInput(stream_id=sid, stream_type=STREAM_TYPE_PRIMITIVE))
-                elif insert_mode == 'replace':
-                    self.drop_stream(sid)
-                    streams_to_create.append(StreamDefinitionInput(stream_id=sid, stream_type=STREAM_TYPE_PRIMITIVE))
-
-            # create streams that are not deployed
-            if streams_to_create:
-                self.batch_create_streams(streams_to_create)
-
-            # Merge all buffered records per stream (preserving order for revision detection)
-            stream_merged: dict[str, list[dict]] = {}
-            for batch in batches:
-                sid = batch['stream_id']
-                if sid not in stream_merged:
-                    stream_merged[sid] = []
-                stream_merged[sid].extend(batch['inputs'])
-
-            # Split each stream into revision slots (slot 0 = unique dates, slot 1+ = revisions)
-            stream_slots: dict[str, list[list[dict]]] = {
-                sid: _split_revision_slots(records)
-                for sid, records in stream_merged.items()
-            }
-            max_slots = max((len(slots) for slots in stream_slots.values()), default=0)
-
-            # Slot 0 (first occurrence of each date) → BulkInserter for efficiency
-            slot0_batches: List[RecordBatch] = [
-                {'stream_id': sid, 'inputs': slots[0]}
-                for sid, slots in stream_slots.items()
-                if slots
-            ]
-
-            inserted = False
+        exists_result = None
+        for attempt in range(1, MAX_RETRIES + 1):
             try:
-                tx_hashes = _insert_all_with_timeout(self.batchInserter, slot0_batches)
-                inserted = True
-                self.logging_manager.log_info(
-                    f'Data saved to TN database successfully. {len(tx_hashes)} tx(s) submitted for: {buffer_key}'
+                exists_result = self.client.batch_stream_exists(stream_infos)
+                break
+            except Exception as e:
+                self.logging_manager.log_exception(
+                    f"[Attempt {attempt}] Error checking stream existence: {e}"
                 )
-                time.sleep(2)
-            except TimeoutError as e:
-                self.logging_manager.log_error(
-                    f"BulkInserter for '{buffer_key}' stalled ({e}) — {len(slot0_batches)} stream(s) — "
-                    f"skipping finalization for this batch instead of blocking the flow indefinitely. "
-                    f"Likely a stuck nonce-retry loop in the TN SDK; verify chain state for this account "
-                    f"before re-running."
-                )
-            except BulkInsertError as e:
-                if e.drain_failure:
-                    self.logging_manager.log_warning(
-                        f"BulkInserter for '{buffer_key}' broadcast all {len(e.tx_hashes)} tx(s) "
-                        f"but timed out waiting for confirmation: {e}"
-                    )
+                if attempt < MAX_RETRIES:
+                    time.sleep(RETRY_DELAY * attempt)
                 else:
-                    self.logging_manager.log_error(
-                        f"BulkInserter failed for '{buffer_key}' at chunk {e.failed_chunk_index} "
-                        f"({len(e.tx_hashes)} tx(s) succeeded before failure): {e}"
+                    self.logging_manager.log_warning(
+                        f"Could not check stream existence after {MAX_RETRIES} attempts — skipping batch insert for: {buffer_key}"
                     )
-                time.sleep(2)
+                    return 'failed'
 
-            if inserted:
-                published_at = datetime.now(timezone.utc).isoformat()
-                seen: set[str] = set()
-                for batch in reversed(batches):
-                    sid = batch.get('stream_id')
-                    obs = batch.get('observation_date')
-                    if not sid or not obs or sid in seen:
-                        continue
-                    seen.add(sid)
-                    value = batch['inputs'][-1]['value'] if batch.get('inputs') else None
-                    save_tn_watermark(sid, obs, value, published_at)
+        # filter the streams that needs to be created or removed
+        streams_to_create: List[StreamDefinitionInput] = []
+        for result in exists_result:
+            sid = result['stream_id']
+            if not result['exists']:
+                streams_to_create.append(StreamDefinitionInput(stream_id=sid, stream_type=STREAM_TYPE_PRIMITIVE))
+            elif insert_mode == 'replace':
+                self.drop_stream(sid)
+                streams_to_create.append(StreamDefinitionInput(stream_id=sid, stream_type=STREAM_TYPE_PRIMITIVE))
 
-            # Revision slots (1+) → insert_records per stream to preserve each revision
-            # at a distinct block height for frozen_at queries
-            if max_slots > 1:
-                self.logging_manager.log_info(
-                    f'Inserting {max_slots - 1} revision slot(s) for {len(stream_slots)} stream(s): {buffer_key}'
+        # create streams that are not deployed
+        if streams_to_create:
+            self.batch_create_streams(streams_to_create)
+
+        # Merge all buffered records per stream (preserving order for revision detection)
+        stream_merged: dict[str, list[dict]] = {}
+        for batch in batches:
+            sid = batch['stream_id']
+            if sid not in stream_merged:
+                stream_merged[sid] = []
+            stream_merged[sid].extend(batch['inputs'])
+
+        # Split each stream into revision slots (slot 0 = unique dates, slot 1+ = revisions)
+        stream_slots: dict[str, list[list[dict]]] = {
+            sid: _split_revision_slots(records)
+            for sid, records in stream_merged.items()
+        }
+        max_slots = max((len(slots) for slots in stream_slots.values()), default=0)
+
+        # Slot 0 (first occurrence of each date) → BulkInserter for efficiency
+        slot0_batches: List[RecordBatch] = [
+            {'stream_id': sid, 'inputs': slots[0]}
+            for sid, slots in stream_slots.items()
+            if slots
+        ]
+
+        inserted = False
+        try:
+            tx_hashes = _insert_all_with_timeout(self.batchInserter, slot0_batches)
+            inserted = True
+            self.logging_manager.log_info(
+                f'Data saved to TN database successfully. {len(tx_hashes)} tx(s) submitted for: {buffer_key}'
+            )
+            time.sleep(2)
+        except TimeoutError as e:
+            self.logging_manager.log_error(
+                f"BulkInserter for '{buffer_key}' stalled ({e}) — {len(slot0_batches)} stream(s) — "
+                f"skipping finalization for this batch instead of blocking the flow indefinitely. "
+                f"Likely a stuck nonce-retry loop in the TN SDK; verify chain state for this account "
+                f"before re-running."
+            )
+            return 'failed'
+        except BulkInsertError as e:
+            if e.drain_failure:
+                self.logging_manager.log_warning(
+                    f"BulkInserter for '{buffer_key}' broadcast all {len(e.tx_hashes)} tx(s) "
+                    f"but timed out waiting for confirmation: {e}"
                 )
-                for slot_idx in range(1, max_slots):
-                    for sid, slots in stream_slots.items():
-                        if slot_idx < len(slots):
-                            slot_records = slots[slot_idx]
-                            for i in range(0, len(slot_records), self.batch_size):
-                                chunk = slot_records[i:i + self.batch_size]
-                                try:
-                                    tx = self.client.insert_records(sid, chunk)
-                                    _wait_for_tx(self.client, tx)
-                                except concurrent.futures.TimeoutError:
-                                    self.logging_manager.log_warning(
-                                        f"insert_records revision slot {slot_idx} chunk {i // self.batch_size} for stream '{sid}' timed out after {TX_TIMEOUT}s."
-                                    )
-                                except Exception as e:
-                                    self.logging_manager.log_error(
-                                        f"insert_records revision slot {slot_idx} chunk {i // self.batch_size} for stream '{sid}' failed: {e}"
-                                    )
+                return 'unconfirmed'
+            self.logging_manager.log_error(
+                f"BulkInserter failed for '{buffer_key}' at chunk {e.failed_chunk_index} "
+                f"({len(e.tx_hashes)} tx(s) succeeded before failure): {e}"
+            )
+            time.sleep(2)
+            return 'failed'
+
+        if inserted:
+            _save_batch_watermarks(batches)
+
+        # Revision slots (1+) → insert_records per stream to preserve each revision
+        # at a distinct block height for frozen_at queries
+        if max_slots > 1:
+            self.logging_manager.log_info(
+                f'Inserting {max_slots - 1} revision slot(s) for {len(stream_slots)} stream(s): {buffer_key}'
+            )
+            for slot_idx in range(1, max_slots):
+                for sid, slots in stream_slots.items():
+                    if slot_idx < len(slots):
+                        slot_records = slots[slot_idx]
+                        for i in range(0, len(slot_records), self.batch_size):
+                            chunk = slot_records[i:i + self.batch_size]
+                            try:
+                                tx = self.client.insert_records(sid, chunk)
+                                _wait_for_tx(self.client, tx)
+                            except concurrent.futures.TimeoutError:
+                                self.logging_manager.log_warning(
+                                    f"insert_records revision slot {slot_idx} chunk {i // self.batch_size} for stream '{sid}' timed out after {TX_TIMEOUT}s."
+                                )
+                            except Exception as e:
+                                self.logging_manager.log_error(
+                                    f"insert_records revision slot {slot_idx} chunk {i // self.batch_size} for stream '{sid}' failed: {e}"
+                                )
+
+        return 'ok' if inserted else 'failed'
 
     def gen_batch(self, date_from, date_to, interval = 31_536_000):
         batches = []
