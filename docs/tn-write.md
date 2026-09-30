@@ -25,14 +25,7 @@ Default path: `{TN_STAGE_DIR}/watermarks/{stream_id}.json`. `TN_STAGE_DIR` defau
 
 `TN_WRITE_MODE` defaults to `live` (insert during the calc). `stage` writes `pending/*.json` and does not move the watermark. The pending record stores the value and observation day. `event_time` is stamped when a drain broadcasts it, then kept on that file so a retry uses the same timestamp.
 
-`TNConnector.drain_pending(scope)` sends one scope:
-
-| Scope     | What it sends                 |
-| --------- | ----------------------------- |
-| `default` | Everything except the US gate |
-| `us`      | US-gated batches only         |
-
-A batch is US-gated when its `batch_key` starts with `cpi-us_`, `cpi-divergence-us_`, or `categories_us_`, when it starts with `mapping-` and contains `-us_`, or when it is `gov_bea` / `gov_bea_yoy`. Names that merely contain `us` (gasoline, rent, eggs) stay on the default drain.
+Each staged stream records its `table`. `TNConnector.drain_pending(select)` sends the streams for which `select(batch_key, table)` returns true. The caller owns the publish schedule (transformers: `api_schedule.should_broadcast`). When a file mixes selected and rejected streams, the rejected ones are split into `pending/*_held.json` with the same `created_at`, and the rest of the file is sent.
 
 The drain keeps the newest staged tip per stream. An older copy that shares a file with some other stream is not inserted. Older files stay in `pending/` until that insert finishes, then move to `done/`. A tip already stored in the watermark is not sent again. A file that is not valid JSON is logged and moved to `failed/`.
 

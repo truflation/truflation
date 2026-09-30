@@ -18,6 +18,11 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Callable, Optional
+
+# select(batch_key, table) -> True when that staged stream should be sent now.
+# ``table`` is None for files staged before streams recorded their table.
+StreamSelector = Callable[[str, Optional[str]], bool]
 
 
 def tn_root() -> Path:
@@ -29,21 +34,6 @@ def tn_write_mode() -> str:
     if mode not in ('live', 'stage'):
         raise ValueError(f"TN_WRITE_MODE must be 'live' or 'stage', got {mode!r}")
     return mode
-
-
-def is_us_gated_batch(batch_key: str) -> bool:
-    """Batches whose API files wait until 08:29 America/New_York.
-
-    Custom indexes that merely contain "us" in the table name (gasoline,
-    rent, eggs) are not in this set. They drain with everything else.
-    """
-    if batch_key.startswith(('cpi-us_', 'cpi-divergence-us_', 'categories_us_')):
-        return True
-    if batch_key.startswith('mapping-') and '-us_' in batch_key:
-        return True
-    if batch_key in ('gov_bea', 'gov_bea_yoy'):
-        return True
-    return False
 
 
 def _safe_name(batch_key: str) -> str:
@@ -74,6 +64,7 @@ def stage_batches(batch_key: str, batches: list[dict], insert_mode: str, root: P
             records.append(item)
         streams.append({
             'stream_id': batch['stream_id'],
+            'table': batch.get('table'),
             'data_provider': batch.get('data_provider'),
             'observation_date': batch.get('observation_date'),
             'rewrite_event_time': bool(batch.get('rewrite_event_time', True)),
@@ -83,7 +74,6 @@ def stage_batches(batch_key: str, batches: list[dict], insert_mode: str, root: P
         'batch_key': batch_key,
         'created_at': created_at,
         'if_exists': insert_mode,
-        'gate': 'us' if is_us_gated_batch(batch_key) else 'default',
         'streams': streams,
     }
     stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
@@ -140,32 +130,36 @@ class DrainPlan:
     streams: list[dict] = field(default_factory=list)
     source_files: list[Path] = field(default_factory=list)
     superseded_files: list[Path] = field(default_factory=list)
+    # Files that also hold streams this drain must not send. Those streams
+    # have to be split back into pending before the file is moved.
+    held: dict[Path, list[dict]] = field(default_factory=dict)
 
 
-def plan_drain(payloads: list[tuple[Path, dict]], scope: str) -> DrainPlan:
-    """Newest tip per stream for this scope. Older files are superseded.
+def plan_drain(payloads: list[tuple[Path, dict]], select: StreamSelector) -> DrainPlan:
+    """Newest tip per selected stream. Older files are superseded.
 
-    ``scope='us'`` is the 08:29 America/New_York drain. ``scope='default'``
-    is everything else.
+    Streams ``select(batch_key, table)`` rejects are returned in ``held`` so
+    the caller keeps them pending.
     """
-    if scope not in ('us', 'default'):
-        raise ValueError(f"scope must be 'us' or 'default', got {scope!r}")
-    chosen: list[tuple[Path, dict]] = []
+    chosen: list[tuple[Path, dict, list[dict]]] = []
+    held: dict[Path, list[dict]] = {}
     for path, payload in payloads:
-        gate = payload.get('gate')
-        if gate not in ('us', 'default'):
-            gate = 'us' if is_us_gated_batch(str(payload.get('batch_key') or '')) else 'default'
-        if scope == 'us' and gate != 'us':
+        batch_key = str(payload.get('batch_key') or '')
+        selected: list[dict] = []
+        rejected: list[dict] = []
+        for stream in payload.get('streams') or []:
+            (selected if select(batch_key, stream.get('table')) else rejected).append(stream)
+        if not selected:
             continue
-        if scope == 'default' and gate == 'us':
-            continue
-        chosen.append((path, payload))
+        chosen.append((path, payload, selected))
+        if rejected:
+            held[path] = rejected
 
     best: dict[str, tuple[str, Path, dict, str]] = {}
-    for path, payload in chosen:
+    for path, payload, selected in chosen:
         created = str(payload.get('created_at') or '')
         insert_mode = payload.get('if_exists') or 'append'
-        for stream in payload.get('streams') or []:
+        for stream in selected:
             sid = stream.get('stream_id')
             if not sid:
                 continue
@@ -174,11 +168,41 @@ def plan_drain(payloads: list[tuple[Path, dict]], scope: str) -> DrainPlan:
                 best[sid] = (created, path, stream, insert_mode)
 
     source = {item[1] for item in best.values()}
-    superseded = [path for path, _payload in chosen if path not in source]
+    superseded = [path for path, _payload, _selected in chosen if path not in source]
     streams = []
     for _sid, (_created, _path, stream, insert_mode) in best.items():
         streams.append({**stream, 'if_exists': insert_mode})
-    return DrainPlan(streams=streams, source_files=sorted(source), superseded_files=superseded)
+    return DrainPlan(
+        streams=streams,
+        source_files=sorted(source),
+        superseded_files=superseded,
+        held=held,
+    )
+
+
+def split_held(plan: DrainPlan, by_path: dict[Path, dict], root: Path | None = None) -> list[Path]:
+    """Move streams this drain must not send into their own pending file.
+
+    The held file keeps the original ``created_at``, so newest-per-stream
+    ordering is unchanged. The original file is rewritten with only the
+    selected streams. A crash between the two writes leaves the held streams
+    in both files, which the next drain resolves as duplicates.
+    """
+    root = root or tn_root()
+    pending = root / 'pending'
+    pending.mkdir(parents=True, exist_ok=True)
+    written = []
+    for path, keep in plan.held.items():
+        payload = by_path[path]
+        held_ids = {id(stream) for stream in keep}
+        target = pending / f'{path.stem}_held{path.suffix}'
+        if target.exists():
+            target = pending / f'{path.stem}_held_{datetime.now(timezone.utc).strftime("%H%M%S%f")}{path.suffix}'
+        write_payload(target, {**payload, 'streams': keep})
+        payload['streams'] = [s for s in payload.get('streams') or [] if id(s) not in held_ids]
+        write_payload(path, payload)
+        written.append(target)
+    return written
 
 
 def group_send_batches(streams: list[dict]) -> dict[str, list]:
