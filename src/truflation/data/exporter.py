@@ -31,6 +31,32 @@ def localize_date(dt: pandas.Series):
         dt = dt.dt.tz_localize(None)  # Ensure timezone is removed
     return dt
 
+
+def tn_tip_frame(local: pandas.DataFrame) -> pandas.DataFrame:
+    """Newest local observation for a TrufNetwork oracle tip.
+
+    Tip mode publishes the latest row of the series being exported. Reconciling
+    against the chain first promotes an old unmatched row (a zero hole, or a
+    date the chain read did not return) into that tip.
+    """
+    if local is None or local.empty:
+        return local
+    frame = local.reset_index() if getattr(local.index, 'name', None) == 'date' else local
+    if 'date' not in frame.columns:
+        return frame
+    sort_cols = ['date', 'created_at'] if 'created_at' in frame.columns else ['date']
+    return frame.sort_values(sort_cols).tail(1)
+
+
+def _uses_tn_tip(export_details) -> bool:
+    """TN oracle-tip exports ignore the chain diff. History mode and a caller-supplied reconcile do not."""
+    if export_details.reconcile is not None:
+        return False
+    if export_details.kwargs.get('broadcast_history'):
+        return False
+    writer = getattr(export_details, 'writer', None)
+    return writer is not None and type(writer).__name__ == 'TNConnector'
+
 class Exporter:
     """
     Exporter is a class that is able to export data to databases.
@@ -61,19 +87,26 @@ class Exporter:
         else:
             df_local['created_at'] = localize_date(df_local['created_at'])
 
-        # Read in remote database as dataframe
-        df_remote = export_details.read()
+        # Tip mode keeps the newest local row and does not read the chain.
+        # The chain date is publish time after the first tip, and the default
+        # read window starts at 2010-01-01, so a diff against it is not the tip.
+        use_tn_tip = _uses_tn_tip(export_details)
+        df_remote = None if use_tn_tip else export_details.read()
 
         # Reduce future created at to current time
         df_local = self.reduce_future_created_at(df_local)
         df_remote = self.reduce_future_created_at(df_remote)
 
-        # If remote exists, reconcile and receive the data needing to be added
-        reconcile = (
-            partial(self.reconcile_dataframes, latest_only=export_details.latest_only)
-            if export_details.reconcile is None else export_details.reconcile
-        )
-        df_new_data = reconcile(df_remote, df_local) if df_remote is not None and not df_remote.empty else df_local
+        if use_tn_tip:
+            df_new_data = tn_tip_frame(df_local)
+        else:
+            # If remote exists, reconcile and receive the data needing to be added
+            reconcile = (
+                partial(self.reconcile_dataframes, latest_only=export_details.latest_only)
+                if export_details.reconcile is None else export_details.reconcile
+            )
+            df_new_data = reconcile(df_remote, df_local) if df_remote is not None and not df_remote.empty else df_local
+
         if not df_new_data.empty:
             self.logging_manager.log_info(
                 f'exporting {export_details.name} to {export_details.key}'
