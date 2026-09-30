@@ -6,19 +6,20 @@ from tempfile import TemporaryDirectory
 from truflation.data.connector.tn_stage import (
     freeze_event_time,
     group_send_batches,
-    is_us_gated_batch,
     plan_drain,
     read_actionable,
     recover_processing,
+    split_held,
     stage_batches,
     stamp_streams,
     unpublished_streams,
 )
 
 
-def _batch(stream_id, value, obs='2026-09-27', rewrite=True):
+def _batch(stream_id, value, obs='2026-09-27', rewrite=True, table=None):
     return {
         'stream_id': stream_id,
+        'table': table,
         'data_provider': '0xabc',
         'observation_date': obs,
         'rewrite_event_time': rewrite,
@@ -26,18 +27,11 @@ def _batch(stream_id, value, obs='2026-09-27', rewrite=True):
     }
 
 
-class TestTnStage(unittest.TestCase):
-    def test_us_gate_is_cpi_family_not_us_named_indexes(self):
-        self.assertTrue(is_us_gated_batch('cpi-us_frozen'))
-        self.assertTrue(is_us_gated_batch('cpi-divergence-us_live'))
-        self.assertTrue(is_us_gated_batch('categories_us_None_frozen'))
-        self.assertTrue(is_us_gated_batch('mapping-pce-us_frozen'))
-        self.assertTrue(is_us_gated_batch('gov_bea'))
-        self.assertFalse(is_us_gated_batch('cpi-uk_frozen'))
-        self.assertFalse(is_us_gated_batch('mapping-pce-uk_frozen'))
-        self.assertFalse(is_us_gated_batch('gasoline_index'))
-        self.assertFalse(is_us_gated_batch('custom_index'))
+def _not_us(batch_key, _table):
+    return not batch_key.startswith('cpi-us_')
 
+
+class TestTnStage(unittest.TestCase):
     def test_stage_omits_event_time_and_drain_keeps_newest(self):
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -46,17 +40,15 @@ class TestTnStage(unittest.TestCase):
             us = stage_batches('cpi-us_frozen', [_batch('stus', 9.0)], 'append', root)
 
             stored = json.loads(newer.read_text())
-            self.assertEqual(stored['gate'], 'default')
             self.assertNotIn('date', stored['streams'][0]['records'][0])
-            self.assertEqual(json.loads(us.read_text())['gate'], 'us')
 
-            default_plan = plan_drain(read_actionable(root)[0], 'default')
+            default_plan = plan_drain(read_actionable(root)[0], _not_us)
             self.assertEqual(default_plan.source_files, [newer])
             self.assertEqual(default_plan.superseded_files, [older])
             self.assertEqual(default_plan.streams[0]['records'][0]['value'], 2.5)
             self.assertTrue(us.is_file())
 
-            us_plan = plan_drain(read_actionable(root)[0], 'us')
+            us_plan = plan_drain(read_actionable(root)[0], lambda b, t: not _not_us(b, t))
             self.assertEqual(us_plan.source_files, [us])
             self.assertEqual(us_plan.superseded_files, [])
 
@@ -131,7 +123,7 @@ class TestTnStage(unittest.TestCase):
                 root,
             )
             payloads, _errors = read_actionable(root)
-            plan = plan_drain(payloads, 'default')
+            plan = plan_drain(payloads, _not_us)
             for path, payload in payloads:
                 if path in plan.source_files:
                     freeze_event_time(payload, 1_700_000_000)
@@ -142,6 +134,60 @@ class TestTnStage(unittest.TestCase):
             self.assertEqual(by_stream['uk_index'], [100])
             self.assertEqual(by_stream['uk_yoy'], [2.4])
             self.assertEqual({row['inputs'][0]['date'] for row in queued}, {1_700_000_000})
+
+    def test_stage_records_table(self):
+        with TemporaryDirectory() as tmp:
+            path = stage_batches(
+                'custom_index', [_batch('st1', 1, table='com_truflation_eggs_us_index')], 'append', Path(tmp),
+            )
+            stored = json.loads(path.read_text())
+            self.assertEqual(stored['streams'][0]['table'], 'com_truflation_eggs_us_index')
+
+    def test_selector_holds_rejected_streams_in_shared_batch(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = stage_batches(
+                'custom_index',
+                [
+                    _batch('eggs', 1.0, table='com_truflation_eggs_us_index'),
+                    _batch('gamefi', 2.0, table='com_truflation_gamefi_index'),
+                ],
+                'append',
+                root,
+            )
+
+            def select(_batch_key, table):
+                return table != 'com_truflation_eggs_us_index'
+
+            payloads, _errors = read_actionable(root)
+            plan = plan_drain(payloads, select)
+            self.assertEqual([s['stream_id'] for s in plan.streams], ['gamefi'])
+            self.assertEqual([s['stream_id'] for s in plan.held[path]], ['eggs'])
+
+            by_path = dict(payloads)
+            held_files = split_held(plan, by_path, root)
+            self.assertEqual(len(held_files), 1)
+            held = json.loads(held_files[0].read_text())
+            self.assertEqual([s['stream_id'] for s in held['streams']], ['eggs'])
+            self.assertEqual(held['created_at'], by_path[path]['created_at'])
+            original = json.loads(path.read_text())
+            self.assertEqual([s['stream_id'] for s in original['streams']], ['gamefi'])
+
+            path.unlink()
+            later = plan_drain(read_actionable(root)[0], lambda _b, _t: True)
+            self.assertEqual([s['stream_id'] for s in later.streams], ['eggs'])
+            self.assertEqual(later.held, {})
+
+    def test_selector_skips_files_with_nothing_selected(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = stage_batches('gasoline_index', [_batch('gas', 3.0)], 'append', root)
+            plan = plan_drain(read_actionable(root)[0], lambda batch_key, _t: batch_key != 'gasoline_index')
+            self.assertEqual(plan.streams, [])
+            self.assertEqual(plan.source_files, [])
+            self.assertEqual(plan.superseded_files, [])
+            self.assertEqual(plan.held, {})
+            self.assertTrue(path.is_file())
 
     def test_invalid_json_is_reported(self):
         with TemporaryDirectory() as tmp:

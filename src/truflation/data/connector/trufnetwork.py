@@ -21,7 +21,9 @@ from .tn_stage import (
     read_actionable,
     recover_processing,
     relocate,
+    split_held,
     stage_batches,
+    StreamSelector,
     tn_root,
     tn_write_mode,
     unpublished_streams,
@@ -651,6 +653,7 @@ class TNConnector(Connector):
                     self._batch_buffer[buffer_key] = []
                 entry = {
                     'stream_id': stream_id,
+                    'table': table,
                     'inputs': records,
                     'data_provider': data_provider,
                     'rewrite_event_time': write_mode == 'stage' and not broadcast_history,
@@ -672,8 +675,10 @@ class TNConnector(Connector):
                 return
             self.insert_batches(batches, buffer_key, insert_mode)
 
-    def drain_pending(self, scope: str) -> bool:
-        """Broadcast staged tips for ``scope`` (``default`` or ``us``).
+    def drain_pending(self, select: StreamSelector, label: str = 'scheduled') -> bool:
+        """Broadcast staged tips that ``select(batch_key, table)`` accepts.
+
+        Rejected streams stay in ``pending/`` for a later drain.
 
         Returns True when there was nothing to send or every insert group
         finished (confirmed, or broadcast but unconfirmed). Tips already stored
@@ -689,8 +694,10 @@ class TNConnector(Connector):
             if path.parent.name != 'failed':
                 relocate(path, root / 'failed')
 
-        plan = plan_drain(payloads, scope)
+        plan = plan_drain(payloads, select)
         by_path = {path: payload for path, payload in payloads}
+        for held_path in split_held(plan, by_path, root):
+            self.logging_manager.log_info(f'Kept unscheduled TN streams pending in {held_path}')
         send, skipped = unpublished_streams(
             plan.streams, load_tn_watermark, _should_skip_oracle_tip,
         )
@@ -713,7 +720,7 @@ class TNConnector(Connector):
         if not files_to_send:
             for path in already_published + plan.superseded_files:
                 relocate(path, root / 'done')
-            self.logging_manager.log_info(f'No staged TN batches for scope={scope}')
+            self.logging_manager.log_info(f'No staged TN batches for {label}')
             return True
 
         for path in already_published:
@@ -736,7 +743,7 @@ class TNConnector(Connector):
             group = grouped[mode]
             if not group:
                 continue
-            status = self.insert_batches(group, f'drain-{scope}-{mode}', mode)
+            status = self.insert_batches(group, f'drain-{label}-{mode}', mode)
             if status == 'unconfirmed':
                 unconfirmed.extend(group)
             elif status != 'ok':
@@ -756,7 +763,7 @@ class TNConnector(Connector):
             relocate(path, root / 'done')
         sent = len(grouped['append']) + len(grouped['replace'])
         self.logging_manager.log_info(
-            f'Broadcast {sent} staged TN stream(s) for scope={scope}'
+            f'Broadcast {sent} staged TN stream(s) for {label}'
         )
         return True
 
