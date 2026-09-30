@@ -110,6 +110,8 @@ This class outlines the details for exporting data processed by the pipeline.
 - `read()`: Reads data using the assigned key.
 - `write(data)`: Writes the provided pandas DataFrame to the assigned key.
 
+Truflation Network exports are oracle tips, optionally staged and drained later. See [TN writes](docs/tn-write.md).
+
 
 
 
