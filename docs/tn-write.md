@@ -42,3 +42,5 @@ Writes are signed with `TN_PRIVATE_KEY`, whose wallet owns every `com_truflation
 - A missing, malformed or mismatched `TN_PRIVATE_KEY_PREDICT` fails only those streams. They are never signed with `TN_PRIVATE_KEY`, and the rest of the batch is still sent.
 
 To move more streams, add their IDs to `MOVED_STREAMS`.
+
+A transaction that is included but fails on chain (for example, the wallet has no TRUF) is still reported as sent, and its watermark is saved. `BulkInserter` only waits for inclusion, not the result code. Keep each signing wallet funded; otherwise its streams go stale with no error, and the missed tips are not resent.
