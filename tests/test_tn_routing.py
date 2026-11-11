@@ -50,11 +50,14 @@ def _batch(stream_id, provider=OLD):
 class TestStreamProvider(unittest.TestCase):
     def test_moved_stream_resolves_to_new_wallet(self):
         self.assertEqual(parse_stream_id('com_truflation_eggs_us_index', PROVIDERS_MAP)[2], PREDICT_PROVIDER)
+        self.assertEqual(parse_stream_id('com_truflation_us_latest_frozen_yoy_rate', PROVIDERS_MAP)[2], PREDICT_PROVIDER)
         self.assertEqual(parse_stream_id('com_truflation_us_cpi_index', PROVIDERS_MAP)[2], OLD)
 
     def test_only_streams_of_the_old_wallet_move(self):
         self.assertEqual(parse_stream_id('com_coingecko_eggs_us_index', PROVIDERS_MAP)[2], PROVIDERS_MAP['com_coingecko'])
-        self.assertEqual(stream_provider(EGGS, OLD.upper().replace('0X', '0x')), PREDICT_PROVIDER)
+
+    def test_provider_match_ignores_case(self):
+        self.assertEqual(stream_provider(EGGS, '0x' + OLD[2:].upper()), PREDICT_PROVIDER)
 
 
 class TestInsertRouting(unittest.TestCase):
@@ -71,8 +74,14 @@ class TestInsertRouting(unittest.TestCase):
         self.old = FakeClient(OLD)
         self.new = FakeClient(PREDICT_PROVIDER)
         clients = {'old-key': self.old, 'predict-key': self.new}
+
+        def make_client(endpoint, key):
+            if key not in clients:
+                raise RuntimeError(f'error creating signer: invalid byte in {key}')
+            return clients[key]
+
         for p in (
-            mock.patch.object(tn, 'TNClient', lambda endpoint, key: clients[key]),
+            mock.patch.object(tn, 'TNClient', make_client),
             mock.patch.object(tn, 'BulkInserter', lambda client, size: FakeInserter(client)),
         ):
             p.start()
@@ -94,6 +103,17 @@ class TestInsertRouting(unittest.TestCase):
         self.assertEqual(status, 'failed')
         self.assertEqual(self.old.inserted, [OTHER])
         self.assertEqual(self.new.inserted, [])
+
+    def test_malformed_key_fails_only_its_streams(self):
+        with mock.patch.dict(os.environ, {'TN_PRIVATE_KEY_PREDICT': 'not-hex'}), \
+                mock.patch.object(self.conn.logging_manager, 'log_error') as log_error:
+            status = self.conn.insert_batches([_batch(EGGS), _batch(OTHER)], 'key', 'append')
+        self.assertEqual(status, 'failed')
+        self.assertEqual(self.old.inserted, [OTHER])
+        self.assertEqual(self.new.inserted, [])
+        logged = ' '.join(str(c) for c in log_error.call_args_list)
+        self.assertIn('TN_PRIVATE_KEY_PREDICT is not a usable key', logged)
+        self.assertNotIn('not-hex', logged)
 
     def test_key_for_another_wallet_is_refused(self):
         self.new.account = '0x' + '1' * 40

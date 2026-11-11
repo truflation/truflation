@@ -387,7 +387,8 @@ class TNConnector(Connector):
         """Client and inserter that sign for ``provider``.
 
         Streams of a provider listed in PROVIDER_KEY_ENVS are never signed with
-        the default key: a missing or mismatched key raises MissingSignerKey.
+        the default key: a missing, malformed or mismatched key raises
+        MissingSignerKey.
         """
         provider = provider.lower()
         env = PROVIDER_KEY_ENVS.get(provider)
@@ -397,8 +398,12 @@ class TNConnector(Connector):
             key = os.environ.get(env)
             if not key:
                 raise MissingSignerKey(f'{env} is not set; cannot sign for {provider}')
-            client = TNClient(self.endpoint, key)
-            account = client.get_current_account().lower()
+            try:
+                client = TNClient(self.endpoint, key)
+                account = client.get_current_account().lower()
+            except Exception as e:
+                # The SDK error can quote part of the key; log only its type.
+                raise MissingSignerKey(f'{env} is not a usable key ({type(e).__name__})') from None
             if account != provider:
                 raise MissingSignerKey(f'{env} derives to {account}, not {provider}')
             self._signers[provider] = (client, BulkInserter(client, self.batch_size))
