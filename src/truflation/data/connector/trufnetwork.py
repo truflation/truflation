@@ -58,6 +58,37 @@ PROVIDERS_MAP = {
     'com_zeroxtech': '0x6d86aa58292112d6da5c78eca1cb4989a853a6fa'
 }
 
+# The featured Predict streams moved off the stolen com_truflation key to
+# their own wallet, with the same stream IDs (truflation/website#5187).
+PREDICT_PROVIDER = '0xdf86031577553d0ccf07151181aba8ea2453dd6b'
+MOVED_STREAMS = {
+    PROVIDERS_MAP['com_truflation']: {
+        stream_id: PREDICT_PROVIDER
+        for stream_id in (
+            'st1e321de22ece39a258bc2588dd2871',  # us_latest_frozen_yoy_rate
+            'st2f4cdf995b7916a3134080c099af53',  # uk_latest_frozen_yoy_rate
+            'st69e3ea7f417ffa460fb7f83d9ed44d',  # ar_latest_frozen_yoy_rate
+            'st1d6d41423cd9746a81ea6063b1345e',  # PCE inflation index
+            'st8f1e62d3a130572ec468dda082f889',  # gov_bls_cpi
+            'ste03c2844c591a10d8a524d14d23066',  # us_pce_index
+            'stf6584cf470744723c90130130cb7db',  # eggs_us_index
+            'st908370bca6840a648f48e7346f7c61',  # us_gasoline_index
+        )
+    },
+}
+# Env var with the signing key of each provider that is not TN_PRIVATE_KEY's.
+PROVIDER_KEY_ENVS = {PREDICT_PROVIDER: 'TN_PRIVATE_KEY_PREDICT'}
+
+
+def stream_provider(stream_id: str, provider: str) -> str:
+    """Return the wallet that owns ``stream_id`` now that some streams moved."""
+    return MOVED_STREAMS.get(provider.lower(), {}).get(stream_id, provider)
+
+
+class MissingSignerKey(RuntimeError):
+    pass
+
+
 def parse_stream_id(stream_id, providers_map):
     if stream_id.endswith('_yoy'):
         method = 'getIndexChange'
@@ -73,6 +104,7 @@ def parse_stream_id(stream_id, providers_map):
         prefix_with_sep = prefix + '_'
         if stream_id.startswith(prefix_with_sep):
             formatted_stream_id = stream_id[len(prefix_with_sep):]
+            provider = stream_provider(generate_stream_id(formatted_stream_id), provider)
             return formatted_stream_id, method, provider
     
     # If no known prefix is found
@@ -344,10 +376,33 @@ class TNConnector(Connector):
         providers_map = PROVIDERS_MAP | kwargs.get('providers_map', {})
 
         self.client = TNClient(endpoint, private_key)
+        self.endpoint = endpoint
         self.providers = providers_map
         self._batch_buffer: dict[str, List[ConnectorBatch]] = {}
         self.batch_size = 10
         self.batchInserter = BulkInserter(self.client, self.batch_size)
+        self._signers: dict[str, tuple] = {}
+
+    def _signer(self, provider: str) -> tuple:
+        """Client and inserter that sign for ``provider``.
+
+        Streams of a provider listed in PROVIDER_KEY_ENVS are never signed with
+        the default key: a missing or mismatched key raises MissingSignerKey.
+        """
+        provider = provider.lower()
+        env = PROVIDER_KEY_ENVS.get(provider)
+        if env is None:
+            return self.client, self.batchInserter
+        if provider not in self._signers:
+            key = os.environ.get(env)
+            if not key:
+                raise MissingSignerKey(f'{env} is not set; cannot sign for {provider}')
+            client = TNClient(self.endpoint, key)
+            account = client.get_current_account().lower()
+            if account != provider:
+                raise MissingSignerKey(f'{env} derives to {account}, not {provider}')
+            self._signers[provider] = (client, BulkInserter(client, self.batch_size))
+        return self._signers[provider]
 
     def read_all(self, *args, **kwargs):
         if 'kwargs' in kwargs and isinstance(kwargs['kwargs'], dict):
@@ -768,13 +823,38 @@ class TNConnector(Connector):
         return True
 
     def insert_batches(self, batches: list, buffer_key: str, insert_mode: str) -> str:
-        """Insert prepared records.
+        """Insert prepared records, each stream signed by the wallet that owns it.
 
         Returns ``ok`` after a confirmed slot-0 insert (watermark saved),
         ``unconfirmed`` when every tx was broadcast but confirmation timed out
         (caller saves the watermark and must not retry with a new event_time),
-        or ``failed`` when the insert did not finish.
+        or ``failed`` when the insert did not finish. With several owners, the
+        worst status wins.
         """
+        by_provider: dict[str, list] = {}
+        for batch in batches:
+            # Staged files keep the provider from when they were written.
+            provider = stream_provider(batch['stream_id'], batch['data_provider']).lower()
+            by_provider.setdefault(provider, []).append({**batch, 'data_provider': provider})
+
+        statuses = []
+        for provider, group in by_provider.items():
+            try:
+                client, inserter = self._signer(provider)
+            except MissingSignerKey as e:
+                self.logging_manager.log_error(
+                    f'Not writing {len(group)} stream(s) of {buffer_key}: {e}'
+                )
+                statuses.append('failed')
+                continue
+            statuses.append(self._insert_signed(group, buffer_key, insert_mode, client, inserter))
+
+        for status in ('failed', 'unconfirmed'):
+            if status in statuses:
+                return status
+        return 'ok'
+
+    def _insert_signed(self, batches: list, buffer_key: str, insert_mode: str, client, inserter) -> str:
         stream_infos: List[StreamLocatorInput] = [
                 {'stream_id': batch['stream_id'], 'data_provider': batch['data_provider']}
                 for batch in batches
@@ -783,7 +863,7 @@ class TNConnector(Connector):
         exists_result = None
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                exists_result = self.client.batch_stream_exists(stream_infos)
+                exists_result = client.batch_stream_exists(stream_infos)
                 break
             except Exception as e:
                 self.logging_manager.log_exception(
@@ -804,12 +884,12 @@ class TNConnector(Connector):
             if not result['exists']:
                 streams_to_create.append(StreamDefinitionInput(stream_id=sid, stream_type=STREAM_TYPE_PRIMITIVE))
             elif insert_mode == 'replace':
-                self.drop_stream(sid)
+                self.drop_stream(sid, client)
                 streams_to_create.append(StreamDefinitionInput(stream_id=sid, stream_type=STREAM_TYPE_PRIMITIVE))
 
         # create streams that are not deployed
         if streams_to_create:
-            self.batch_create_streams(streams_to_create)
+            self.batch_create_streams(streams_to_create, client)
 
         # Merge all buffered records per stream (preserving order for revision detection)
         stream_merged: dict[str, list[dict]] = {}
@@ -835,7 +915,7 @@ class TNConnector(Connector):
 
         inserted = False
         try:
-            tx_hashes = _insert_all_with_timeout(self.batchInserter, slot0_batches)
+            tx_hashes = _insert_all_with_timeout(inserter, slot0_batches)
             inserted = True
             self.logging_manager.log_info(
                 f'Data saved to TN database successfully. {len(tx_hashes)} tx(s) submitted for: {buffer_key}'
@@ -879,8 +959,8 @@ class TNConnector(Connector):
                         for i in range(0, len(slot_records), self.batch_size):
                             chunk = slot_records[i:i + self.batch_size]
                             try:
-                                tx = self.client.insert_records(sid, chunk)
-                                _wait_for_tx(self.client, tx)
+                                tx = client.insert_records(sid, chunk)
+                                _wait_for_tx(client, tx)
                             except concurrent.futures.TimeoutError:
                                 self.logging_manager.log_warning(
                                     f"insert_records revision slot {slot_idx} chunk {i // self.batch_size} for stream '{sid}' timed out after {TX_TIMEOUT}s."
@@ -908,12 +988,13 @@ class TNConnector(Connector):
         
         return batches
 
-    def drop_stream(self, stream_id: str):
+    def drop_stream(self, stream_id: str, client=None):
+        client = client or self.client
         self.logging_manager.log_info(f"Dropping stream '{stream_id}'...")
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                drop_tx = self.client.destroy_stream(stream_id)
-                _wait_for_tx(self.client, drop_tx)
+                drop_tx = client.destroy_stream(stream_id)
+                _wait_for_tx(client, drop_tx)
                 self.logging_manager.log_info(f"Stream '{stream_id}' dropped successfully.")
                 return
             except concurrent.futures.TimeoutError:
@@ -927,12 +1008,13 @@ class TNConnector(Connector):
             else:
                 raise RuntimeError(f"Drop stream '{stream_id}' failed after {MAX_RETRIES} attempts.")
 
-    def batch_create_streams(self, stream_ids: list[StreamDefinitionInput]):
+    def batch_create_streams(self, stream_ids: list[StreamDefinitionInput], client=None):
+        client = client or self.client
         self.logging_manager.log_info("Creating streams")
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                stream_tx = self.client.batch_deploy_streams(stream_ids)
-                _wait_for_tx(self.client, stream_tx)
+                stream_tx = client.batch_deploy_streams(stream_ids)
+                _wait_for_tx(client, stream_tx)
                 log_msg = "Streams created successfully:\n" + "\n".join(f" - {s['stream_id']}" for s in stream_ids)
                 self.logging_manager.log_info(log_msg)
                 return
