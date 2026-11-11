@@ -32,3 +32,15 @@ The drain keeps the newest staged tip per stream. An older copy that shares a fi
 `if_exists=replace` applies only to the streams that were staged with `replace`.
 
 Directories under `TN_STAGE_DIR`: `pending/`, `processing/`, `done/`, `failed/`, `watermarks/`. A crashed drain leaves files in `processing/`; the next drain moves them back to `pending/`.
+
+## Streams on another wallet
+
+Writes are signed with `TN_PRIVATE_KEY`, whose wallet owns every `com_truflation` stream, except the streams in `MOVED_STREAMS`. The 8 featured Predict streams moved off the stolen key to `0xdf86031577553d0ccf07151181aba8ea2453dd6b` with the same stream IDs (truflation/website#5187).
+
+- `parse_stream_id` returns the new wallet for those streams, so reads, links and checks follow it.
+- `insert_batches` groups streams by wallet and signs the moved ones with `TN_PRIVATE_KEY_PREDICT` (`PROVIDER_KEY_ENVS`). Files staged before the move are sent to the new wallet too.
+- A missing, malformed or mismatched `TN_PRIVATE_KEY_PREDICT` fails only those streams. They are never signed with `TN_PRIVATE_KEY`, and the rest of the batch is still sent.
+
+To move more streams, add their IDs to `MOVED_STREAMS`.
+
+A transaction that is included but fails on chain (for example, the wallet has no TRUF) is still reported as sent, and its watermark is saved. `BulkInserter` only waits for inclusion, not the result code. Keep each signing wallet funded; otherwise its streams go stale with no error, and the missed tips are not resent.
