@@ -58,31 +58,72 @@ PROVIDERS_MAP = {
     'com_zeroxtech': '0x6d86aa58292112d6da5c78eca1cb4989a853a6fa'
 }
 
-# The featured Predict streams moved off the stolen com_truflation key to
-# their own wallet, with the same stream IDs (truflation/website#5187).
+# Streams moved off the stolen com_truflation key to a new wallet, with the
+# same stream IDs: the featured Predict streams (truflation/website#5187) and
+# the EPS consensus streams (#5193).
 PREDICT_PROVIDER = '0xdf86031577553d0ccf07151181aba8ea2453dd6b'
+FEATURED_STREAMS = (
+    'st1e321de22ece39a258bc2588dd2871',  # us_latest_frozen_yoy_rate
+    'st2f4cdf995b7916a3134080c099af53',  # uk_latest_frozen_yoy_rate
+    'st69e3ea7f417ffa460fb7f83d9ed44d',  # ar_latest_frozen_yoy_rate
+    'st1d6d41423cd9746a81ea6063b1345e',  # PCE inflation index
+    'st8f1e62d3a130572ec468dda082f889',  # gov_bls_cpi
+    'ste03c2844c591a10d8a524d14d23066',  # us_pce_index
+    'stf6584cf470744723c90130130cb7db',  # eggs_us_index
+    'st908370bca6840a648f48e7346f7c61',  # us_gasoline_index
+)
+# Every truf_eps_ stream goes to the new wallet, including companies added
+# later (MOVED_PREFIXES). The IDs below also cover files staged before the
+# move, which carry only the hashed ID.
+EPS_STREAMS = (
+    'st06238eb10b693a7bfa16d73511ddbe',  # truf_eps_7974.t_gaap
+    'stc7b317cc0a5c4442b53297bf1ae316',  # truf_eps_abnb_gaap
+    'st246fb632eb0222315ff8d1f6413904',  # truf_eps_afrm_gaap
+    'stced16425331d41c3bbe830e32d8208',  # truf_eps_amd_nongaap
+    'stf5ca22483fde14fca3e66fe11a7b5a',  # truf_eps_arm_nongaap
+    'stf389ca288ea32310d279f6b8f66f56',  # truf_eps_cost_gaap
+    'st3b20cbb4cacb461ac53a873ca2f245',  # truf_eps_dash_gaap
+    'st980dcc2aa747e20505d7975706ce9d',  # truf_eps_dis_nongaap
+    'stbaf822bf0824b8cf303d4b8299d267',  # truf_eps_duol_gaap
+    'st906b33483913563eb550ff7278e986',  # truf_eps_elf_nongaap
+    'stc8f7e96fdb6ab7001e4917bd1a8bf5',  # truf_eps_hims_gaap
+    'ste38be285ffb9d2167199febed02b8d',  # truf_eps_mrna_gaap
+    'stcfc1ee47859e1ce657ba2a3e4a4225',  # truf_eps_nvda_nongaap
+    'stf6bc6176620a72a4933b2f4b0f88b0',  # truf_eps_orcl_nongaap
+    'stb94cbe1defa7f44dfbdafed4567c76',  # truf_eps_pfe_nongaap
+    'sta76f27aa64645107db2972845a93f6',  # truf_eps_pltr_nongaap
+    'stfee4a059212ce5a1d0e57d3972682f',  # truf_eps_tem_nongaap
+    'st63e16a3ec6169aa8c01469d2b8d4c5',  # truf_eps_vrtx_nongaap
+    'st1701447bdbd48ee8027b5b5acc8c8e',  # truf_eps_wmt_nongaap
+    'stdad62e6bdad57cd4b8962276fed700',  # truf_eps_xyz_nongaap
+)
 MOVED_STREAMS = {
     PROVIDERS_MAP['com_truflation']: {
-        stream_id: PREDICT_PROVIDER
-        for stream_id in (
-            'st1e321de22ece39a258bc2588dd2871',  # us_latest_frozen_yoy_rate
-            'st2f4cdf995b7916a3134080c099af53',  # uk_latest_frozen_yoy_rate
-            'st69e3ea7f417ffa460fb7f83d9ed44d',  # ar_latest_frozen_yoy_rate
-            'st1d6d41423cd9746a81ea6063b1345e',  # PCE inflation index
-            'st8f1e62d3a130572ec468dda082f889',  # gov_bls_cpi
-            'ste03c2844c591a10d8a524d14d23066',  # us_pce_index
-            'stf6584cf470744723c90130130cb7db',  # eggs_us_index
-            'st908370bca6840a648f48e7346f7c61',  # us_gasoline_index
-        )
+        stream_id: PREDICT_PROVIDER for stream_id in FEATURED_STREAMS + EPS_STREAMS
     },
+}
+# Raw stream names (prefix stripped, before hashing) that moved by prefix.
+MOVED_PREFIXES = {
+    PROVIDERS_MAP['com_truflation']: {'truf_eps_': PREDICT_PROVIDER},
 }
 # Env var with the signing key of each provider that is not TN_PRIVATE_KEY's.
 PROVIDER_KEY_ENVS = {PREDICT_PROVIDER: 'TN_PRIVATE_KEY_PREDICT'}
 
 
-def stream_provider(stream_id: str, provider: str) -> str:
-    """Return the wallet that owns ``stream_id`` now that some streams moved."""
-    return MOVED_STREAMS.get(provider.lower(), {}).get(stream_id, provider)
+def stream_provider(stream_id: str, provider: str, raw_stream_id: str | None = None) -> str:
+    """Return the wallet that owns ``stream_id`` now that some streams moved.
+
+    ``raw_stream_id`` is the name before hashing, when known, so streams moved
+    by prefix resolve too.
+    """
+    moved = MOVED_STREAMS.get(provider.lower(), {}).get(stream_id)
+    if moved:
+        return moved
+    if raw_stream_id:
+        for prefix, new_provider in MOVED_PREFIXES.get(provider.lower(), {}).items():
+            if raw_stream_id.startswith(prefix):
+                return new_provider
+    return provider
 
 
 class MissingSignerKey(RuntimeError):
@@ -104,7 +145,7 @@ def parse_stream_id(stream_id, providers_map):
         prefix_with_sep = prefix + '_'
         if stream_id.startswith(prefix_with_sep):
             formatted_stream_id = stream_id[len(prefix_with_sep):]
-            provider = stream_provider(generate_stream_id(formatted_stream_id), provider)
+            provider = stream_provider(generate_stream_id(formatted_stream_id), provider, formatted_stream_id)
             return formatted_stream_id, method, provider
     
     # If no known prefix is found
