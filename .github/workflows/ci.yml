@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # ubuntu-26.04 fails to build the TN SDK (C23 `bool`)
 
     steps:
       - uses: actions/checkout@v3
