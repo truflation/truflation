@@ -1,10 +1,12 @@
 # TN writes
 
-`TNConnector.write_all` publishes an oracle tip. The on-chain `date` is the broadcast time, not the observation day. The observation day is stored beside the writer in a watermark file.
+`TNConnector.write_all` publishes an oracle tip. By default the on-chain `date` is the broadcast time, not the observation day. The observation day is stored beside the writer in a watermark file.
 
 ## What gets sent
 
 The frame's newest `date` / `value` row is the tip. Pass `broadcast_history=True` to insert the full dated series instead. Those dates are left as they are.
+
+Pass `stamp_observation_date=True` to stamp the tip at its observation day (00:00 UTC) instead of the broadcast time, in live and stage mode. Use it for a stream whose history sits on observation dates, such as CPI and PCE at the start of each data month: year-over-year markets compare a print with the one a year earlier, so new prints must use the same dates (truflation/website#5255). A new value for the same observation day overwrites that record.
 
 An empty frame is not buffered. A tip that matches the watermark is not buffered. A batch file or insert therefore contains only the streams that had something new on that call. A later call that omits a stream does not erase that stream from an earlier pending file.
 
@@ -23,7 +25,7 @@ Default path: `{TN_STAGE_DIR}/watermarks/{stream_id}.json`. `TN_STAGE_DIR` defau
 
 ## Stage, then drain
 
-`TN_WRITE_MODE` defaults to `live` (insert during the calc). `stage` writes `pending/*.json` and does not move the watermark. The pending record stores the value and observation day. `event_time` is stamped when a drain broadcasts it, then kept on that file so a retry uses the same timestamp.
+`TN_WRITE_MODE` defaults to `live` (insert during the calc). `stage` writes `pending/*.json` and does not move the watermark. The pending record stores the value and observation day. `event_time` is stamped when a drain broadcasts it, then kept on that file so a retry uses the same timestamp. A tip written with `stamp_observation_date=True` already has its date, and the drain leaves it as it is.
 
 Each staged stream records its `table`. `TNConnector.drain_pending(select)` sends the streams for which `select(batch_key, table)` returns true. The caller owns the publish schedule (transformers: `api_schedule.should_broadcast`). When a file mixes selected and rejected streams, the rejected ones are split into `pending/*_held.json` with the same `created_at`, and the rest of the file is sent.
 

@@ -186,7 +186,9 @@ def _oracle_tip_records(data: pd.DataFrame, event_time: int | None = None) -> li
 
     TN is used as an oracle tip, not a backfilled observation-day series: when
     the source DB gains a newly computed value, broadcast that tip with now().
-    Pass broadcast_history=True to write_all to restore full-history inserts.
+    Pass broadcast_history=True to write_all to restore full-history inserts,
+    or stamp_observation_date=True to stamp the tip at its observation date
+    (_observation_tip_records).
     """
     if data.empty:
         return []
@@ -243,8 +245,8 @@ def _watermark_path(stream_id: str) -> Path:
 def load_tn_watermark(stream_id: str) -> dict | None:
     """Last tip we published for this stream: observation_date, value, published_at.
 
-    TN itself only stores publish-time event_time, so the observation day has
-    to live beside the writer.
+    By default TN stores the publish time as event_time, so the observation
+    day has to live beside the writer.
     """
     path = _watermark_path(stream_id)
     try:
