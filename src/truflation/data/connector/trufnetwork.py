@@ -197,6 +197,18 @@ def _oracle_tip_records(data: pd.DataFrame, event_time: int | None = None) -> li
     return [{'date': ts, 'value': tip['value'].iloc[0]}]
 
 
+def _observation_tip_records(obs_date: str, tip_value) -> list[dict]:
+    """The tip stamped at its observation date (00:00 UTC), not at publish time.
+
+    For streams whose history sits on observation dates, such as monthly
+    indexes stamped at the start of their data month: a year-over-year read
+    compares a print with the record a year earlier, so new prints must use the
+    same convention.
+    """
+    ts = int(pd.Timestamp(obs_date, tz='UTC').timestamp())
+    return [{'date': ts, 'value': float(tip_value) if _is_number(tip_value) else tip_value}]
+
+
 def _values_equal(a, b, rel_tol: float = 1e-9, abs_tol: float = 1e-9) -> bool:
     try:
         return math.isclose(float(a), float(b), rel_tol=rel_tol, abs_tol=abs_tol)
@@ -702,6 +714,9 @@ class TNConnector(Connector):
         # stage mode stores the tip value and stamps event_time at drain time.
         # broadcast_history=True pushes the full dated series (legacy).
         broadcast_history = kwargs.pop('broadcast_history', False)
+        # stamp_observation_date=True stamps the tip at its observation date
+        # instead of publish time, in both live and stage mode.
+        stamp_observation_date = kwargs.pop('stamp_observation_date', False)
         write_mode = tn_write_mode()
 
         if table is None and len(args) > 0:
@@ -734,7 +749,12 @@ class TNConnector(Connector):
                         )
                         records = []
                     else:
-                        if write_mode == 'stage':
+                        if stamp_observation_date:
+                            records = _observation_tip_records(obs_date, tip_value)
+                            self.logging_manager.log_info(
+                                f'Oracle tip mode: 1 record event_time={obs_date} for {table}'
+                            )
+                        elif write_mode == 'stage':
                             records = [{
                                 'value': float(tip_value) if _is_number(tip_value) else tip_value,
                             }]
@@ -757,7 +777,7 @@ class TNConnector(Connector):
                     'table': table,
                     'inputs': records,
                     'data_provider': data_provider,
-                    'rewrite_event_time': write_mode == 'stage' and not broadcast_history,
+                    'rewrite_event_time': write_mode == 'stage' and not broadcast_history and not stamp_observation_date,
                 }
                 if not broadcast_history and obs_date is not None:
                     entry['observation_date'] = obs_date
