@@ -186,7 +186,9 @@ def _oracle_tip_records(data: pd.DataFrame, event_time: int | None = None) -> li
 
     TN is used as an oracle tip, not a backfilled observation-day series: when
     the source DB gains a newly computed value, broadcast that tip with now().
-    Pass broadcast_history=True to write_all to restore full-history inserts.
+    Pass broadcast_history=True to write_all to restore full-history inserts,
+    or stamp_observation_date=True to stamp the tip at its observation date
+    (_observation_tip_records).
     """
     if data.empty:
         return []
@@ -195,6 +197,18 @@ def _oracle_tip_records(data: pd.DataFrame, event_time: int | None = None) -> li
     tip = data.sort_values('date').tail(1)
     ts = event_time if event_time is not None else int(datetime.now(timezone.utc).timestamp())
     return [{'date': ts, 'value': tip['value'].iloc[0]}]
+
+
+def _observation_tip_records(obs_date: str, tip_value) -> list[dict]:
+    """The tip stamped at its observation date (00:00 UTC), not at publish time.
+
+    For streams whose history sits on observation dates, such as monthly
+    indexes stamped at the start of their data month: a year-over-year read
+    compares a print with the record a year earlier, so new prints must use the
+    same convention.
+    """
+    ts = int(pd.Timestamp(obs_date, tz='UTC').timestamp())
+    return [{'date': ts, 'value': float(tip_value) if _is_number(tip_value) else tip_value}]
 
 
 def _values_equal(a, b, rel_tol: float = 1e-9, abs_tol: float = 1e-9) -> bool:
@@ -231,8 +245,8 @@ def _watermark_path(stream_id: str) -> Path:
 def load_tn_watermark(stream_id: str) -> dict | None:
     """Last tip we published for this stream: observation_date, value, published_at.
 
-    TN itself only stores publish-time event_time, so the observation day has
-    to live beside the writer.
+    By default TN stores the publish time as event_time, so the observation
+    day has to live beside the writer.
     """
     path = _watermark_path(stream_id)
     try:
@@ -702,6 +716,9 @@ class TNConnector(Connector):
         # stage mode stores the tip value and stamps event_time at drain time.
         # broadcast_history=True pushes the full dated series (legacy).
         broadcast_history = kwargs.pop('broadcast_history', False)
+        # stamp_observation_date=True stamps the tip at its observation date
+        # instead of publish time, in both live and stage mode.
+        stamp_observation_date = kwargs.pop('stamp_observation_date', False)
         write_mode = tn_write_mode()
 
         if table is None and len(args) > 0:
@@ -734,7 +751,12 @@ class TNConnector(Connector):
                         )
                         records = []
                     else:
-                        if write_mode == 'stage':
+                        if stamp_observation_date:
+                            records = _observation_tip_records(obs_date, tip_value)
+                            self.logging_manager.log_info(
+                                f'Oracle tip mode: 1 record event_time={obs_date} for {table}'
+                            )
+                        elif write_mode == 'stage':
                             records = [{
                                 'value': float(tip_value) if _is_number(tip_value) else tip_value,
                             }]
@@ -757,7 +779,7 @@ class TNConnector(Connector):
                     'table': table,
                     'inputs': records,
                     'data_provider': data_provider,
-                    'rewrite_event_time': write_mode == 'stage' and not broadcast_history,
+                    'rewrite_event_time': write_mode == 'stage' and not broadcast_history and not stamp_observation_date,
                 }
                 if not broadcast_history and obs_date is not None:
                     entry['observation_date'] = obs_date
